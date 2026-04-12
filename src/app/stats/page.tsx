@@ -8,6 +8,7 @@
  */
 
 import { useEffect, useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useUIStore } from '@/store/uiStore';
 import { getAllSessions } from '@/db/sessions';
 import { getKeyStatsByLanguage } from '@/db/keyStats';
@@ -524,6 +525,11 @@ function HeatmapKeyboard({ language, colors }: { language: string, colors: Map<s
  */
 function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
   const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; text: string; date: string } | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const weeks = useMemo(() => {
     const wks = [];
@@ -632,14 +638,15 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
         </div>
       </div>
 
-      {hoverInfo && (
+      {mounted && hoverInfo && createPortal(
         <div 
           className="custom-tooltip"
           style={{ top: hoverInfo.y, left: hoverInfo.x }}
         >
           <strong>{hoverInfo.text}</strong>
           <span className="tooltip-date">on {hoverInfo.date}</span>
-        </div>
+        </div>,
+        document.body
       )}
 
       <style jsx>{`

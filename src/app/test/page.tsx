@@ -338,14 +338,12 @@ export default function TestPage() {
 
 // ── Thin wrapper that listens to first keypress and timeUp ──
 function TimedTypingWrapper({
-  key: _key,
   language,
   durationSeconds,
   onFirstKey,
   onComplete,
   timeUp,
 }: {
-  key?: number;
   language: 'en' | 'ta' | 'tanglish';
   durationSeconds: number;
   onFirstKey: () => void;
