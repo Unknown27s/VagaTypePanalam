@@ -32,6 +32,11 @@ export async function updateProfile(
   const current = await getProfile();
   const updated = { ...current, ...updates };
   await db.put('user-profile', updated);
+  
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('profile-updated', { detail: updated }));
+  }
+  
   return updated;
 }
 
@@ -43,11 +48,38 @@ export async function recordSessionInProfile(
   wpm: number
 ): Promise<void> {
   const profile = await getProfile();
+
+  // Calculate streak
+  const todayDate = new Date();
+  const today = todayDate.toISOString().split('T')[0];
+  
+  const yesterdayDate = new Date();
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const yesterday = yesterdayDate.toISOString().split('T')[0];
+
+  let newCurrentStreak = profile.currentStreak;
+  
+  if (profile.lastActiveDay === yesterday) {
+    newCurrentStreak += 1;
+  } else if (profile.lastActiveDay !== today) {
+    newCurrentStreak = 1;
+  }
+  
+  const newLongestStreak = Math.max(profile.longestStreak, newCurrentStreak);
+
+  // Update Daily Activity mapping
+  const dailyActivity = { ...profile.dailyActivity };
+  dailyActivity[today] = (dailyActivity[today] || 0) + durationMs;
+
   await updateProfile({
     totalSessions: profile.totalSessions + 1,
     totalTimeMs: profile.totalTimeMs + durationMs,
     lastSessionAt: Date.now(),
     bestWpm: Math.max(profile.bestWpm, wpm),
+    currentStreak: newCurrentStreak,
+    longestStreak: newLongestStreak,
+    lastActiveDay: today,
+    dailyActivity,
   });
 }
 
@@ -113,5 +145,9 @@ function createDefaultProfile(): UserProfile {
     bestWpm: 0,
     currentLevel: 1,
     unlockedKeys: ['f', 'j'], // Start with home row basics
+    currentStreak: 0,
+    longestStreak: 0,
+    lastActiveDay: '',
+    dailyActivity: {},
   };
 }

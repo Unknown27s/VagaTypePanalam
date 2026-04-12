@@ -12,6 +12,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUIStore } from '@/store/uiStore';
 import type { Language } from '@/db/schema';
+import { getProfile } from '@/db/profile';
 import { 
   Keyboard, 
   GraduationCap, 
@@ -25,7 +26,8 @@ import {
   WifiOff,
   Volume2,
   VolumeX,
-  Timer
+  Timer,
+  Flame
 } from 'lucide-react';
 
 const LANGUAGE_LABELS: Record<Language, string> = {
@@ -38,45 +40,63 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { theme, toggleTheme, language, setLanguage, isOnline, showKeyboard, toggleKeyboard, soundEnabled, toggleSound } = useUIStore();
   const [mounted, setMounted] = useState(false);
+  const [streak, setStreak] = useState(0);
   
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => { 
+    setMounted(true); 
+    const fetchStreak = async () => {
+      try {
+        const profile = await getProfile();
+        setStreak(profile.currentStreak);
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchStreak();
+
+    // Listen for profile updates (e.g., after a test completes)
+    const handleProfileUpdate = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      if (customEvent.detail?.currentStreak !== undefined) {
+        setStreak(customEvent.detail.currentStreak);
+      }
+    };
+    window.addEventListener('profile-updated', handleProfileUpdate);
+    return () => window.removeEventListener('profile-updated', handleProfileUpdate);
+  }, []);
 
   const NAV_ITEMS = [
     { href: '/practice', label: 'Practice', icon: <Keyboard size={20} /> },
     { href: '/test', label: 'Test', icon: <Timer size={20} /> },
+    { href: '/race', label: 'Race', icon: <Swords size={20} /> },
     { href: '/lessons', label: 'Lessons', icon: <GraduationCap size={20} /> },
     { href: '/stats', label: 'Profile', icon: <BarChart2 size={20} /> },
   ];
 
   const DISABLED_ITEMS = [
     { label: 'High Scores', icon: <Trophy size={20} />, title: 'Coming Soon' },
-    { label: 'Multiplayer', icon: <Swords size={20} />, title: 'Coming in Phase 2' },
   ];
 
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        {/* User Profile */}
-        <div className="user-profile">
-          <div className="avatar">
-            <User size={20} />
+        {/* User Profile & Streak */}
+        <div className="user-profile-wrapper">
+          <div className="user-profile">
+            <div className="avatar">
+              <User size={24} />
+            </div>
           </div>
-          <span className="nav-label text-fade">Sign-In</span>
+          {mounted && streak > 0 && (
+            <div className="streak-badge" title={`${streak} Day Streak!`}>
+              <Flame size={14} className="flame-icon" />
+              <span className="streak-count">{streak}</span>
+            </div>
+          )}
         </div>
         
         {/* Quick Toolbar */}
         <div className="toolbar">
-          <button 
-            className={`tool-btn ${showKeyboard ? 'active' : ''}`}
-            onClick={toggleKeyboard}
-            title="Toggle Virtual Keyboard"
-            aria-label="Toggle virtual keyboard"
-          >
-            <span className="icon-wrapper">
-              <Keyboard size={20} />
-            </span>
-            <span className="nav-label text-fade">Keyboard</span>
-          </button>
           
           <button 
             className={`tool-btn ${soundEnabled ? 'active' : ''}`}
@@ -207,9 +227,19 @@ export default function Sidebar() {
         .sidebar-top {
           display: flex;
           flex-direction: column;
-          align-items: flex-start;
+          align-items: center;
           margin-bottom: 2rem;
           gap: 1rem;
+        }
+
+        .user-profile-wrapper {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 6px;
+          margin-bottom: var(--space-xl);
+          padding-bottom: var(--space-md);
+          border-bottom: 1px solid var(--border-subtle);
         }
 
         .user-profile {
@@ -233,12 +263,33 @@ export default function Sidebar() {
           color: var(--text-primary);
         }
 
-        .user-profile:hover {
-          color: var(--color-primary);
+        .streak-badge {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          background: #fdf5e6;
+          border-radius: var(--radius-full);
+          padding: 2px 6px;
+          color: #d97706;
         }
-        .user-profile:hover .avatar {
-          color: var(--color-primary);
-          background: var(--color-primary-glow);
+        
+        :global([data-theme='dark']) .streak-badge {
+          background: rgba(245, 158, 11, 0.15);
+          color: #fbbf24;
+        }
+
+        .flame-icon {
+          animation: flicker 2s infinite ease-in-out;
+        }
+
+        @keyframes flicker {
+          0%, 100% { transform: scale(1); opacity: 1; }
+          50% { transform: scale(1.1); opacity: 0.8; }
+        }
+
+        .streak-count {
+          font-size: var(--text-xs);
+          font-weight: 800;
         }
 
         .toolbar {

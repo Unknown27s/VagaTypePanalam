@@ -11,9 +11,10 @@ import { useEffect, useState, useMemo } from 'react';
 import { useUIStore } from '@/store/uiStore';
 import { getAllSessions } from '@/db/sessions';
 import { getKeyStatsByLanguage } from '@/db/keyStats';
+import { getProfile } from '@/db/profile';
 import { formatDuration } from '@/engine/statsCalculator';
 import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
-import type { Session, KeyStat } from '@/db/schema';
+import type { Session, KeyStat, UserProfile } from '@/db/schema';
 import '@/styles/keyboard.css';
 
 interface StatBuckets {
@@ -35,6 +36,7 @@ export default function ProfilePage() {
   const { language } = useUIStore();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [keyStats, setKeyStats] = useState<KeyStat[]>([]);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'speed' | 'heatmap'>('speed');
 
@@ -45,12 +47,14 @@ export default function ProfilePage() {
   async function loadData() {
     setLoading(true);
     try {
-      const [_sessions, _keyStats] = await Promise.all([
+      const [_sessions, _keyStats, _profile] = await Promise.all([
         getAllSessions(), // Filtered client-side since dataset is small for MVP
         getKeyStatsByLanguage(language),
+        getProfile(),
       ]);
       setSessions(_sessions.filter(s => s.language === language));
       setKeyStats(_keyStats);
+      setProfile(_profile);
     } catch {
       // Ignore IDB SSR errors
     } finally {
@@ -174,6 +178,12 @@ export default function ProfilePage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* ── Daily Activity Heatmap ── */}
+      <div className="activity-section">
+        <h2 className="card-title">Daily Practice Activity</h2>
+        <ActivityHeatmap activity={profile?.dailyActivity || {}} />
       </div>
 
       {/* ── Detailed Analytics ── */}
@@ -502,6 +512,264 @@ function HeatmapKeyboard({ language, colors }: { language: string, colors: Map<s
         .active {
           position: relative;
           text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+/**
+ * Activity Heatmap (Premium GitHub Style)
+ * Renders 52 weeks with Month and Day-of-week labels.
+ */
+function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
+  const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; text: string; date: string } | null>(null);
+
+  const weeks = useMemo(() => {
+    const wks = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Build 52 weeks spanning exactly back from today or end of week
+    // GitHub aligns to days of week. We will align exactly 52 weeks.
+    for (let w = 51; w >= 0; w--) {
+      const weekDays = [];
+      for (let d = 6; d >= 0; d--) {
+        const date = new Date(today);
+        date.setDate(date.getDate() - (w * 7 + d));
+        const dayStr = date.toISOString().split('T')[0];
+        weekDays.push({
+          date: dayStr,
+          dateObj: date,
+          durationMs: activity[dayStr] || 0,
+        });
+      }
+      wks.push(weekDays);
+    }
+    return wks;
+  }, [activity]);
+
+  const getColor = (ms: number) => {
+    const mins = ms / 60000;
+    if (mins === 0) return 'var(--bg-overlay)';
+    if (mins < 15) return '#c6e48b'; // Light green
+    if (mins < 30) return '#7bc96f'; // Medium green
+    if (mins < 40) return '#239a3b'; // Full green
+    return '#ffd700'; // Gold (40+ mins)
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent, date: string, ms: number) => {
+    const rect = (e.target as HTMLElement).getBoundingClientRect();
+    const formatted = ms > 0 ? `${formatDuration(ms)} practiced` : 'No practice';
+    
+    // We adjust the X/Y to center above the block
+    setHoverInfo({
+      x: rect.left + rect.width / 2,
+      y: rect.top - 8, // 8px above the cell
+      text: formatted,
+      date,
+    });
+  };
+
+  const handleMouseLeave = () => setHoverInfo(null);
+
+  return (
+    <div className="heatmap-card animate-fade-in">
+      <div className="heatmap-scroll-container">
+        
+        {/* Day Labels (Left Y-Axis) */}
+        <div className="day-labels">
+          <span>Mon</span>
+          <span>Wed</span>
+          <span>Fri</span>
+        </div>
+
+        <div className="heatmap-matrix">
+          {/* Months Labels (Top X-Axis) */}
+          <div className="month-labels">
+            {weeks.map((week, idx) => {
+              // Try to place a label if it's the start of a month in this week
+              const firstDay = week[0].dateObj;
+              if (firstDay.getDate() <= 7 && idx > 0) {
+                return (
+                  <span key={idx} className="month-label" style={{ left: `${idx * 16}px` }}>
+                    {firstDay.toLocaleString('default', { month: 'short' })}
+                  </span>
+                );
+              }
+              return null;
+            })}
+          </div>
+
+          <div className="weeks-container">
+            {weeks.map((week, wIdx) => (
+              <div key={wIdx} className="week-col">
+                {week.map((day, dIdx) => (
+                  <div
+                    key={dIdx}
+                    className="heatmap-cell"
+                    style={{ backgroundColor: getColor(day.durationMs) }}
+                    onMouseEnter={(e) => handleMouseEnter(e, day.date, day.durationMs)}
+                    onMouseLeave={handleMouseLeave}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="heatmap-footer">
+        <a href="#" className="heatmap-link">Learn how our goals work</a>
+        <div className="heatmap-legend">
+          <span className="legend-text">Less</span>
+          <div className="legend-cell" style={{ backgroundColor: 'var(--bg-overlay)' }} />
+          <div className="legend-cell" style={{ backgroundColor: '#c6e48b' }} />
+          <div className="legend-cell" style={{ backgroundColor: '#7bc96f' }} />
+          <div className="legend-cell" style={{ backgroundColor: '#239a3b' }} />
+          <div className="legend-cell" style={{ backgroundColor: '#ffd700' }} />
+          <span className="legend-text" style={{ color: '#d97706', fontWeight: 'bold' }}>Mastery</span>
+        </div>
+      </div>
+
+      {hoverInfo && (
+        <div 
+          className="custom-tooltip"
+          style={{ top: hoverInfo.y, left: hoverInfo.x }}
+        >
+          <strong>{hoverInfo.text}</strong>
+          <span className="tooltip-date">on {hoverInfo.date}</span>
+        </div>
+      )}
+
+      <style jsx>{`
+        .heatmap-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-lg);
+          padding: var(--space-xl);
+          padding-bottom: var(--space-md);
+          margin-bottom: var(--space-xl);
+        }
+        .heatmap-scroll-container {
+          display: flex;
+          overflow-x: auto;
+          padding-bottom: var(--space-md);
+        }
+        .heatmap-scroll-container::-webkit-scrollbar {
+          height: 6px;
+        }
+        .heatmap-scroll-container::-webkit-scrollbar-thumb {
+          background: var(--border-default);
+          border-radius: 10px;
+        }
+
+        .day-labels {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          padding-top: 24px; /* offset for month labels */
+          padding-right: 8px;
+          color: var(--text-muted);
+          font-size: 10px;
+          height: 105px; /* approx 7 * 15px */
+        }
+        .day-labels span:nth-child(1) { margin-top: 14px; }
+        .day-labels span:nth-child(2) { margin-top: 20px; }
+        .day-labels span:nth-child(3) { margin-top: 20px; }
+
+        .heatmap-matrix {
+          position: relative;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .month-labels {
+          position: relative;
+          height: 20px;
+          font-size: 10px;
+          color: var(--text-muted);
+        }
+        .month-label {
+          position: absolute;
+          top: 0;
+        }
+
+        .weeks-container {
+          display: flex;
+          gap: 4px;
+        }
+        .week-col {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .heatmap-cell {
+          width: 12px;
+          height: 12px;
+          border-radius: 3px;
+          cursor: crosshair;
+          transition: transform 0.1s;
+        }
+        .heatmap-cell:hover {
+          transform: scale(1.3);
+          z-index: 2;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .heatmap-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: var(--space-md);
+        }
+        .heatmap-link {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          text-decoration: none;
+        }
+        .heatmap-link:hover {
+          color: var(--color-primary);
+        }
+        .heatmap-legend {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .legend-text {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+        }
+        .legend-cell {
+          width: 12px;
+          height: 12px;
+          border-radius: 3px;
+        }
+
+        /* Float Custom Tooltip outside normal flow */
+      `}</style>
+      <style jsx global>{`
+        .custom-tooltip {
+          position: fixed;
+          background: var(--bg-surface-hover);
+          color: var(--text-primary);
+          padding: 8px 12px;
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-default);
+          box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+          pointer-events: none;
+          transform: translate(-50%, -100%);
+          z-index: 1000;
+          font-size: 12px;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
+          white-space: nowrap;
+        }
+        .tooltip-date {
+          color: var(--text-muted);
+          font-size: 10px;
         }
       `}</style>
     </div>

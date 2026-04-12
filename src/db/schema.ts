@@ -29,6 +29,10 @@ export interface UserProfile {
   bestWpm: number;
   currentLevel: number; // Beginner progression level (1-30)
   unlockedKeys: string[]; // Keys unlocked so far
+  currentStreak: number;
+  longestStreak: number;
+  lastActiveDay: string; // Stored as YYYY-MM-DD
+  dailyActivity: Record<string, number>; // Maps YYYY-MM-DD -> totalTimeMs
 }
 
 export interface KeyStat {

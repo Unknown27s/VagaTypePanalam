@@ -411,29 +411,6 @@ export default function TypingArea({
         <div className="text-content">{renderText()}</div>
       </div>
 
-      {/* ── Endless Practice: Live session bar ── */}
-      {mode === 'practice' && snapshot.state === 'typing' && (
-        <div className={`session-bar ${segmentFlash ? 'segment-flash' : ''}`}>
-          <span className="session-stat">
-            <strong>{displayWpm.toFixed(0)}</strong> WPM
-          </span>
-          <span className="session-divider">·</span>
-          <span className="session-stat">
-            <strong>{(displayAccuracy * 100).toFixed(1)}%</strong> accuracy
-          </span>
-          <span className="session-divider">·</span>
-          <span className="session-stat">
-            <strong>{snapshot.totalWordsTyped}</strong> words
-          </span>
-          <span className="session-divider">·</span>
-          <span className="session-stat">
-            {formatDuration(displayElapsedMs)}
-          </span>
-          {segmentFlash && (
-            <span className="segment-milestone">✓ Round {snapshot.segmentsCompleted}</span>
-          )}
-        </div>
-      )}
 
       {/* ── Results (lesson / test only) ── */}
       {snapshot.isComplete && mode !== 'practice' && (
