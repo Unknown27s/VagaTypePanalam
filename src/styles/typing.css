@@ -1,0 +1,325 @@
+/* ============================================
+   Typing Interface Styles — Keybr Full Layout
+   ============================================ */
+
+/* ── Container ── */
+.typing-container {
+  width: 100%;
+  max-width: var(--typing-max-width);
+  margin: 0 auto;
+  position: relative;
+}
+
+/* ════════════════════════════════════════════
+   METRICS PANEL (Keybr-style structured block)
+   ════════════════════════════════════════════ */
+.metrics-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: var(--space-lg);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--text-secondary);
+}
+
+.metrics-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+  line-height: 1.6;
+}
+
+.metrics-label {
+  color: var(--color-primary);
+  font-weight: 700;
+  min-width: 100px;
+  text-align: right;
+  flex-shrink: 0;
+  font-size: var(--text-sm);
+}
+
+.metrics-value {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+  flex-wrap: wrap;
+}
+
+.metric-speed {
+  color: var(--text-primary);
+}
+
+.metric-accuracy {
+  color: var(--text-primary);
+}
+
+.metric-score {
+  color: var(--text-primary);
+}
+
+.metric-detail {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* ── Key Badges (All keys row) ── */
+.metrics-keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  align-items: center;
+}
+
+.key-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.95);
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.key-badge-active {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+/* ── Daily Goal Progress Bar ── */
+.metrics-goal {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+}
+
+.goal-bar {
+  width: 200px;
+  height: 6px;
+  background: var(--bg-hover);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.goal-bar-fill {
+  height: 100%;
+  background: var(--color-primary);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  min-width: 2px;
+}
+
+/* ════════════════════════════════════════════
+   TEXT DISPLAY AREA
+   ════════════════════════════════════════════ */
+.text-display {
+  position: relative;
+  font-family: var(--font-mono);
+  font-size: 1.5rem;
+  line-height: 2;
+  user-select: none;
+  outline: none;
+  padding: var(--space-md) 0;
+  cursor: text;
+  min-height: 100px;
+  transition: opacity 0.2s ease;
+}
+
+.text-display:not(.focused) .text-content {
+  opacity: 0.3;
+  filter: blur(1.5px);
+}
+
+.text-content {
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* ── Focus Overlay ── */
+.interaction-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  cursor: text;
+}
+
+.focus-prompt {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  background: var(--bg-surface);
+  padding: var(--space-sm) var(--space-lg);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+}
+
+.focus-icon {
+  font-size: 1.1rem;
+}
+
+/* ── Hidden Input (for mobile) ── */
+.hidden-input {
+  opacity: 0;
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  width: 0;
+  height: 0;
+}
+
+/* ════════════════════════════════════════════
+   CHARACTER STATES
+   ════════════════════════════════════════════ */
+.char {
+  display: inline;
+  position: relative;
+  transition: color 0.05s;
+}
+
+.char.upcoming {
+  color: var(--typing-upcoming);
+}
+
+.char.correct {
+  color: var(--typing-correct);
+}
+
+.char.error {
+  color: var(--typing-error);
+  background-color: var(--typing-error-bg);
+  border-radius: 2px;
+}
+
+.char.current {
+  color: var(--bg-surface);
+  background-color: var(--typing-cursor);
+  border-radius: 2px;
+}
+
+/* Keybr uses centered-dot for spaces in the text */
+/* Space characters are represented by · (middle dot) */
+
+/* ── Restart Hint ── */
+.restart-hint {
+  text-align: center;
+  margin-top: var(--space-lg);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.restart-hint kbd {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-default);
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-size: 0.8em;
+  font-family: var(--font-mono);
+  color: var(--text-secondary);
+}
+
+/* ════════════════════════════════════════════
+   RESULTS OVERLAY
+   ════════════════════════════════════════════ */
+.results-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(243, 243, 243, 0.92);
+  z-index: 50;
+}
+
+[data-theme="dark"] .results-overlay {
+  background: rgba(26, 26, 26, 0.92);
+}
+
+.results-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-lg);
+  padding: var(--space-2xl) var(--space-3xl);
+  text-align: center;
+  max-width: 520px;
+  width: 90%;
+}
+
+.results-title {
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  margin-bottom: var(--space-xl);
+  color: var(--text-primary);
+}
+
+.results-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-lg);
+  margin-bottom: var(--space-xl);
+}
+
+.result-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.result-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1;
+  margin-bottom: var(--space-xs);
+}
+
+.result-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.results-actions {
+  display: flex;
+  gap: var(--space-md);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  .metrics-row {
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .metrics-label {
+    text-align: left;
+    min-width: auto;
+  }
+
+  .text-display {
+    font-size: 1.1rem;
+    line-height: 1.8;
+  }
+
+  .results-card {
+    padding: var(--space-xl);
+  }
+
+  .result-value {
+    font-size: var(--text-xl);
+  }
+}

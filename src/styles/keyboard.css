@@ -1,0 +1,164 @@
+/* ============================================
+   Virtual Keyboard Styles — Keybr Full Layout
+   ============================================ */
+
+.virtual-keyboard {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-md) var(--space-lg);
+  background: var(--bg-surface);
+  border-radius: var(--radius-md);
+  user-select: none;
+  max-width: 840px;
+  margin: 0 auto;
+  font-family: var(--font-sans);
+}
+
+.keyboard-row {
+  display: flex;
+  justify-content: center;
+  gap: 2px;
+}
+
+/* ── Standard Key ── */
+.key {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding: 3px 5px;
+  min-width: 44px;
+  height: 44px;
+  background: var(--key-bg);
+  color: var(--key-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: filter 0.08s ease, transform 0.08s ease;
+  border-radius: 3px;
+  cursor: default;
+  overflow: hidden;
+  line-height: 1;
+}
+
+/* ── Dual-label keys (shift + main) ── */
+.key-shift-label {
+  position: absolute;
+  top: 3px;
+  left: 5px;
+  font-size: 0.55rem;
+  font-weight: 500;
+  opacity: 0.7;
+}
+
+.key-main-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.key-label-only {
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ── Wide keys ── */
+.key-wide {
+  /* width is set inline via style prop */
+}
+
+/* ── Modifier keys (Tab, Shift, Ctrl, etc.) ── */
+.key-modifier {
+  background: var(--bg-overlay);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 500;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ── Space bar ── */
+.space-key {
+  justify-content: center;
+  align-items: center;
+  font-size: 0;  /* Hide label text */
+}
+
+/* ── States ── */
+.key.locked {
+  opacity: 0.25;
+}
+
+.key.pressed {
+  filter: brightness(0.75);
+  transform: translateY(1px);
+}
+
+/* Highlighted = the next key to press */
+.key.highlighted {
+  outline: 3px solid #4a7fbd;
+  outline-offset: -2px;
+  z-index: 5;
+  filter: brightness(1.1);
+}
+
+.key.correct-flash {
+  animation: kbFlashCorrect 0.2s ease;
+}
+
+.key.error-flash {
+  animation: kbFlashError 0.2s ease;
+}
+
+@keyframes kbFlashCorrect {
+  0%   { filter: brightness(1.4); }
+  100% { filter: brightness(1); }
+}
+
+@keyframes kbFlashError {
+  0%   { background: var(--color-error); color: white; }
+  100% {}
+}
+
+/* ── Home key bumps (F and J) ── */
+.key.home-key::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 2px;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 1px;
+}
+
+/* ─────────────────────────────────
+   Finger-color backgrounds
+   Matches Keybr's color scheme:
+   - Pinky:  Red/Salmon
+   - Ring:   Orange/Gold
+   - Middle: Yellow-Green
+   - Index:  Green
+   - Thumb:  Muted gray (for space)
+   ───────────────────────────────── */
+.key.finger-pinky  { background: var(--key-finger-pinky);  color: rgba(255,255,255,0.95); }
+.key.finger-ring   { background: var(--key-finger-ring);   color: rgba(255,255,255,0.95); }
+.key.finger-middle { background: var(--key-finger-middle); color: rgba(255,255,255,0.95); }
+.key.finger-index  { background: var(--key-finger-index);  color: rgba(255,255,255,0.95); }
+.key.finger-thumb  { background: var(--key-finger-thumb);  color: rgba(255,255,255,0.95); }
+
+/* Shift labels on colored keys need slight opacity boost */
+.key.finger-pinky .key-shift-label,
+.key.finger-ring .key-shift-label,
+.key.finger-middle .key-shift-label,
+.key.finger-index .key-shift-label {
+  opacity: 0.6;
+}
+
+/* ── Mobile: hide keyboard ── */
+@media (max-width: 768px) {
+  .virtual-keyboard {
+    display: none;
+  }
+}
