@@ -13,16 +13,16 @@ import { usePathname } from 'next/navigation';
 import { useUIStore } from '@/store/uiStore';
 import type { Language } from '@/db/schema';
 import { getProfile } from '@/db/profile';
-import { 
-  Keyboard, 
-  GraduationCap, 
-  BarChart2, 
-  Trophy, 
-  Swords, 
-  User, 
-  Sun, 
-  Moon, 
-  Globe, 
+import {
+  Keyboard,
+  GraduationCap,
+  BarChart2,
+  Trophy,
+  Swords,
+  User,
+  Sun,
+  Moon,
+  Globe,
   WifiOff,
   Volume2,
   VolumeX,
@@ -41,9 +41,9 @@ export default function Sidebar() {
   const { theme, toggleTheme, language, setLanguage, isOnline, showKeyboard, toggleKeyboard, soundEnabled, toggleSound } = useUIStore();
   const [mounted, setMounted] = useState(false);
   const [streak, setStreak] = useState(0);
-  
-  useEffect(() => { 
-    setMounted(true); 
+
+  useEffect(() => {
+    setMounted(true);
     const fetchStreak = async () => {
       try {
         const profile = await getProfile();
@@ -94,11 +94,11 @@ export default function Sidebar() {
             </div>
           )}
         </div>
-        
+
         {/* Quick Toolbar */}
         <div className="toolbar">
-          
-          <button 
+
+          <button
             className={`tool-btn ${soundEnabled ? 'active' : ''}`}
             onClick={toggleSound}
             title={soundEnabled ? 'Sound On' : 'Sound Off'}
@@ -109,8 +109,8 @@ export default function Sidebar() {
             </span>
             <span className="nav-label text-fade">Sound</span>
           </button>
-          
-          <button 
+
+          <button
             className="tool-btn"
             onClick={toggleTheme}
             title={theme === 'dark' ? 'Switch to Light' : 'Switch to Dark'}
@@ -126,22 +126,22 @@ export default function Sidebar() {
 
       <nav className="nav-links">
         {NAV_ITEMS.map((item) => (
-          <Link 
+          <Link
             key={item.href}
-            href={item.href} 
+            href={item.href}
             className="styled-link-wrapper"
             title={item.label}
           >
             <div className={`nav-link ${pathname === item.href ? 'active' : ''}`}>
-               <span className="icon-wrapper">{item.icon}</span>
-               <span className="nav-label text-fade">{item.label}</span>
+              <span className="icon-wrapper">{item.icon}</span>
+              <span className="nav-label text-fade">{item.label}</span>
             </div>
           </Link>
         ))}
         {DISABLED_ITEMS.map((item) => (
-          <div 
+          <div
             key={item.label}
-            className="nav-link disabled" 
+            className="nav-link disabled"
             title={item.title}
           >
             <span className="icon-wrapper">{item.icon}</span>
@@ -157,7 +157,7 @@ export default function Sidebar() {
             <span className="nav-label text-fade">Offline</span>
           </div>
         )}
-        
+
         <div className="language-selector" title="Change Language">
           <select
             className="language-select nav-label text-fade"
@@ -173,7 +173,7 @@ export default function Sidebar() {
             <Globe size={20} />
           </div>
         </div>
-        
+
         <div className="footer-links nav-label text-fade">
           <span className="brand-name">VaagaTypePanalam</span>
           <div className="links-row">

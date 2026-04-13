@@ -19,6 +19,7 @@ import { useTypingStore } from '@/store/typingStore';
 import { useUIStore } from '@/store/uiStore';
 import { formatAccuracy, formatDuration } from '@/engine/statsCalculator';
 import { KEY_TO_FINGER, getFingerColor } from '@/data/keyboards/qwerty';
+import { soundEngine } from '@/engine/soundEngine';
 import '@/styles/typing.css';
 
 interface TypingAreaProps {
@@ -65,6 +66,7 @@ export default function TypingArea({
   const inputRef = useRef<HTMLInputElement>(null);
   const rafRef = useRef<number>(0);
   const lastWpmUpdate = useRef<number>(0);
+  const isProcessingRef = useRef<boolean>(false);
   const updateStore = useTypingStore((s) => s.updateSnapshot);
   const soundEnabled = useUIStore((s) => s.soundEnabled);
 
@@ -129,7 +131,7 @@ export default function TypingArea({
       setIdleStats({ wpm: avgWpm, accuracy: avgAccuracy, todayTimeMs });
     }
     loadIdleStats();
-  }, [snapshot.isComplete]);
+  }, [snapshot.isComplete, snapshot.segmentsCompleted]);
 
   useEffect(() => {
     initSession();
@@ -169,9 +171,9 @@ export default function TypingArea({
 
   // Handle keydown events
   const handleKeyDown = useCallback(
-    async (e: React.KeyboardEvent) => {
+    (e: React.KeyboardEvent) => {
       const tracker = trackerRef.current;
-      if (!tracker) return;
+      if (!tracker || isProcessingRef.current) return;
 
       if (e.key === 'Tab' || e.key === 'Escape') {
         e.preventDefault();
@@ -195,19 +197,23 @@ export default function TypingArea({
       if (e.key.length !== 1) return;
 
       e.preventDefault();
-      const correct = tracker.processKeystroke(e.key);
+      
+      isProcessingRef.current = true;
+      try {
+        const correct = tracker.processKeystroke(e.key);
 
-      if (!correct) {
-        setErrorChars((prev) => new Set(prev).add(snapshot.cursorPosition));
-        if (soundEnabled) {
-          const { soundEngine } = await import('@/engine/soundEngine');
-          soundEngine.playError();
+        if (!correct) {
+          setErrorChars((prev) => new Set(prev).add(snapshot.cursorPosition));
+          if (soundEnabled) {
+            soundEngine.playError();
+          }
+        } else {
+          if (soundEnabled) {
+            soundEngine.playKeystroke();
+          }
         }
-      } else {
-        if (soundEnabled) {
-          const { soundEngine } = await import('@/engine/soundEngine');
-          soundEngine.playKeystroke();
-        }
+      } finally {
+        isProcessingRef.current = false;
       }
     },
     [snapshot.isComplete, snapshot.cursorPosition, initSession, soundEnabled]
@@ -223,28 +229,31 @@ export default function TypingArea({
   }, []);
 
   const handleInput = useCallback(
-    async (e: React.FormEvent<HTMLInputElement>) => {
+    (e: React.FormEvent<HTMLInputElement>) => {
       const tracker = trackerRef.current;
-      if (!tracker) return;
+      if (!tracker || isProcessingRef.current) return;
 
       const input = e.currentTarget;
       const typed = input.value;
       input.value = '';
 
-      for (const char of typed) {
-        const correct = tracker.processKeystroke(char);
-        if (!correct) {
-          setErrorChars((prev) => new Set(prev).add(snapshot.cursorPosition));
-          if (soundEnabled) {
-            const { soundEngine } = await import('@/engine/soundEngine');
-            soundEngine.playError();
-          }
-        } else {
-          if (soundEnabled) {
-            const { soundEngine } = await import('@/engine/soundEngine');
-            soundEngine.playKeystroke();
+      isProcessingRef.current = true;
+      try {
+        for (const char of typed) {
+          const correct = tracker.processKeystroke(char);
+          if (!correct) {
+            setErrorChars((prev) => new Set(prev).add(snapshot.cursorPosition));
+            if (soundEnabled) {
+              soundEngine.playError();
+            }
+          } else {
+            if (soundEnabled) {
+              soundEngine.playKeystroke();
+            }
           }
         }
+      } finally {
+        isProcessingRef.current = false;
       }
     },
     [snapshot.cursorPosition, soundEnabled]
@@ -260,14 +269,14 @@ export default function TypingArea({
       if (index < snapshot.cursorPosition) {
         className += errorChars.has(index) ? ' error' : ' correct';
       } else if (index === snapshot.cursorPosition) {
-        className += ' current';
+        className += errorChars.has(index) ? ' current-error' : ' current';
       } else {
         className += ' upcoming';
       }
 
       return (
         <span key={index} className={className}>
-          {char === ' ' ? '\u00A0' : char}
+          {char === ' ' ? (index === snapshot.cursorPosition ? '␣' : '\u00A0') : char}
         </span>
       );
     });
@@ -276,7 +285,11 @@ export default function TypingArea({
   const displayWpm = snapshot.state === 'idle' ? idleStats.wpm : (snapshot.state === 'typing' ? liveWpm : snapshot.wpm);
   const displayAccuracy = snapshot.state === 'idle' ? idleStats.accuracy : snapshot.accuracy;
   const displayElapsedMs = snapshot.state === 'idle' ? idleStats.todayTimeMs : snapshot.elapsedMs + idleStats.todayTimeMs;
+
+  const globalAvgWpm = idleStats.wpm;
+  const globalAvgAcc = idleStats.accuracy;
   const score = Math.round(displayWpm * displayAccuracy);
+  const globalScore = Math.round(globalAvgWpm * globalAvgAcc);
 
   // Current expected key
   const currentKey = snapshot.text && snapshot.cursorPosition < snapshot.text.length
@@ -297,9 +310,10 @@ export default function TypingArea({
         <div className="metrics-row">
           <span className="metrics-label">Metrics:</span>
           <span className="metrics-value">
-            Speed: <strong className="metric-speed">{displayWpm.toFixed(1)}wpm ({snapshot.rawWpm.toFixed(1)}wpm)</strong>
-            {' '}Accuracy: <strong className="metric-accuracy">{(displayAccuracy * 100).toFixed(0)}% ({(displayAccuracy * 100).toFixed(0)}%)</strong>
-            {' '}Score: <strong className="metric-score">{score} ({score})</strong>
+            Speed: <strong className="metric-speed">{displayWpm.toFixed(1)} ({globalAvgWpm.toFixed(0)})</strong> wpm
+            {' '}Accuracy: <strong className="metric-accuracy">{(displayAccuracy * 100).toFixed(1)}% ({(globalAvgAcc * 100).toFixed(0)}%)</strong>
+            {' '}Errors: <strong className="metric-error" style={{ color: snapshot.errorChars > 0 ? 'var(--color-error)' : 'inherit' }}>{snapshot.errorChars}</strong>
+            {' '}Score: <strong className="metric-score">{score} ({globalScore})</strong>
           </span>
         </div>
 
@@ -339,7 +353,11 @@ export default function TypingArea({
                   {currentKey === ' ' ? '␣' : currentKey.toUpperCase()}
                 </span>
                 {' '}
-                <span className="metric-detail">Not calibrated, need more samples.</span>
+                <span className="metric-detail">
+                  {snapshot.isCalibrated 
+                    ? `Calibrated (Confidence: ${Math.round(trackerRef.current?.getKeyProfiler().getConfidence(currentKey) || 0 * 100)}%)`
+                    : `Calibrating... (${snapshot.samplesCollected}/10 samples)`}
+                </span>
               </>
             ) : (
               <span className="metric-detail">—</span>

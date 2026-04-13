@@ -63,6 +63,17 @@ export function formatDuration(ms: number): string {
 }
 
 /**
+ * Get the local date string in YYYY-MM-DD format.
+ * Avoids UTC timezone shift issues associated with toISOString().
+ */
+export function getLocalDateString(date: Date = new Date()): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/**
  * Calculate consistency score (lower std deviation = more consistent).
  * Returns 0-1 where 1 is perfectly consistent.
  */

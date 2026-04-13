@@ -123,7 +123,17 @@ export async function getStatsSummary(language?: Language) {
 
 /**
  * Generate a UUID for session IDs.
+ * Includes a fallback for insecure contexts (non-localhost/non-HTTPS) 
+ * where crypto.randomUUID is unavailable.
  */
 export function generateSessionId(): string {
-  return crypto.randomUUID();
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for insecure network access
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }

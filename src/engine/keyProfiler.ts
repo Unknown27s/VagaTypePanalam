@@ -188,6 +188,20 @@ export class KeyProfiler {
   }
 
   /**
+   * Get the number of samples recorded for a key.
+   */
+  getSamples(char: string): number {
+    return this.profiles.get(char)?.recentLatencies.getLength() ?? 0;
+  }
+
+  /**
+   * Check if a key has enough samples to be considered calibrated.
+   */
+  isCalibrated(char: string): boolean {
+    return this.getSamples(char) >= 10; // Basic threshold
+  }
+
+  /**
    * Flush dirty profiles to IndexedDB.
    */
   async flush(): Promise<void> {

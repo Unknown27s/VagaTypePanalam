@@ -13,7 +13,7 @@ import { useUIStore } from '@/store/uiStore';
 import { getAllSessions } from '@/db/sessions';
 import { getKeyStatsByLanguage } from '@/db/keyStats';
 import { getProfile } from '@/db/profile';
-import { formatDuration } from '@/engine/statsCalculator';
+import { formatDuration, getLocalDateString } from '@/engine/statsCalculator';
 import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
 import type { Session, KeyStat, UserProfile } from '@/db/schema';
 import '@/styles/keyboard.css';
@@ -543,7 +543,7 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
       for (let d = 6; d >= 0; d--) {
         const date = new Date(today);
         date.setDate(date.getDate() - (w * 7 + d));
-        const dayStr = date.toISOString().split('T')[0];
+        const dayStr = getLocalDateString(date);
         weekDays.push({
           date: dayStr,
           dateObj: date,

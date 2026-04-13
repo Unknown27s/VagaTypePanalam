@@ -39,6 +39,9 @@ export interface SessionSnapshot {
   // Endless practice extras
   segmentsCompleted: number;
   totalWordsTyped: number;
+  // Calibration status for the current target key
+  isCalibrated: boolean;
+  samplesCollected: number;
 }
 
 export class SessionTracker {
@@ -235,6 +238,12 @@ export class SessionTracker {
       isComplete: this._state === 'finished',
       segmentsCompleted: this.segmentsCompleted,
       totalWordsTyped: this.totalWordsTyped,
+      isCalibrated: this.text && this.cursorPosition < this.text.length 
+        ? this.keyProfiler.isCalibrated(this.text[this.cursorPosition]) 
+        : true,
+      samplesCollected: this.text && this.cursorPosition < this.text.length 
+        ? this.keyProfiler.getSamples(this.text[this.cursorPosition]) 
+        : 0,
     };
   }
 

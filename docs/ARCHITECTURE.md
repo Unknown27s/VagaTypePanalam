@@ -25,7 +25,7 @@ Located in `src/app` and `src/components`.
 Located in `src/engine`. Completely decoupled from React for pure speed.
 - **`SessionTracker.ts`**: A state machine (`idle` → `ready` → `typing` → `finished`). Passes keystrokes to the KeyProfiler and maintains the session log (WPM, exact latency of every stroke, correctness).
   - *Endless Mode Note*: In practice mode, `finishSegment()` silently saves the session, forces a fresh segment of text, and zeroes out the cursor while keeping aggregate segment numbers moving up.
-- **`KeyProfiler.ts`**: Maintains `CircularBuffer` instances for recent correct/error strokes and latencies per key. Computes a "confidence score" (0.0 to 1.0) based on accuracy and speed.
+- **`KeyProfiler.ts`**: Maintains `CircularBuffer` instances for recent correct/error strokes and latencies per key. Computes a "confidence score" (0.0 to 1.0) based on accuracy and speed. Keys are considered "calibrated" once they have 10+ samples collected.
 - **`TextGenerator*.ts`**: Consumes confidence scores. Keys with low confidence (< 0.6) are weighted higher in a random selection algorithm when picking words. `TextGeneratorAsync.ts` talks to the `WordCache`.
 - **`SoundEngine.ts`**: Uses Web Audio API oscillator/gain nodes for tactile mechanical clicks and error bumps.
 

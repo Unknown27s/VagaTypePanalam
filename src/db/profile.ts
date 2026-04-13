@@ -4,6 +4,7 @@
 
 import { getDB } from './index';
 import type { UserProfile, Language, KeyboardLayout, Theme } from './schema';
+import { getLocalDateString } from '@/engine/statsCalculator';
 
 const DEFAULT_PROFILE_ID = 'default';
 
@@ -51,11 +52,11 @@ export async function recordSessionInProfile(
 
   // Calculate streak
   const todayDate = new Date();
-  const today = todayDate.toISOString().split('T')[0];
+  const today = getLocalDateString(todayDate);
   
   const yesterdayDate = new Date();
   yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterday = yesterdayDate.toISOString().split('T')[0];
+  const yesterday = getLocalDateString(yesterdayDate);
 
   let newCurrentStreak = profile.currentStreak;
   
