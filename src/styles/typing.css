@@ -14,10 +14,8 @@
    METRICS PANEL (Keybr-style structured block)
    ════════════════════════════════════════════ */
 .metrics-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: var(--space-lg);
+  gap: 8px;
+  margin-bottom: var(--space-xl);
   font-family: var(--font-sans);
   font-size: var(--text-sm);
   color: var(--text-secondary);
@@ -138,6 +136,30 @@
 .text-content {
   word-break: break-word;
   white-space: pre-wrap;
+  position: relative;
+}
+
+/* ── Smooth Caret ── */
+.caret {
+  position: absolute;
+  width: 2.5px;
+  height: 1.25em;
+  background-color: var(--color-primary);
+  border-radius: 3px;
+  /* Use transform for buttery smooth movement */
+  transition: transform 0.1s cubic-bezier(0.45, 0, 0.55, 1);
+  pointer-events: none;
+  z-index: 5;
+  top: 0;
+  left: 0;
+}
+
+.caret.blinking {
+  animation: caret-blink 0.8s steps(2, start) infinite;
+}
+
+@keyframes caret-blink {
+  50% { opacity: 0; }
 }
 
 /* ── Focus Overlay ── */
@@ -202,15 +224,15 @@
 }
 
 .char.current {
-  color: var(--bg-surface);
-  background-color: var(--typing-cursor);
-  border-radius: 2px;
+  color: var(--text-primary);
+  background-color: transparent; /* Caret handles the highlight now */
 }
 
 .char.current-error {
-  color: var(--bg-surface);
-  background-color: var(--typing-error);
-  border-radius: 2px;
+  color: var(--typing-error);
+  background-color: transparent;
+  text-decoration: underline;
+  text-underline-offset: 4px;
 }
 
 /* Keybr uses centered-dot for spaces in the text */

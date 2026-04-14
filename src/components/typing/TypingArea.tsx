@@ -57,7 +57,8 @@ export default function TypingArea({
 
   const [isFocused, setIsFocused] = useState(false);
   const [liveWpm, setLiveWpm] = useState(0);
-  const [errorChars, setErrorChars] = useState<Set<number>>(new Set());
+  const [caretStyle, setCaretStyle] = useState({ transform: 'translate(0, 0)', opacity: 0 });
+  const [isIdle, setIsIdle] = useState(true);
   const [idleStats, setIdleStats] = useState({ wpm: 0, accuracy: 1, todayTimeMs: 0 });
   const [segmentFlash, setSegmentFlash] = useState(false);
 
@@ -66,6 +67,7 @@ export default function TypingArea({
   const inputRef = useRef<HTMLInputElement>(null);
   const rafRef = useRef<number>(0);
   const lastWpmUpdate = useRef<number>(0);
+  const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isProcessingRef = useRef<boolean>(false);
   const updateStore = useTypingStore((s) => s.updateSnapshot);
   const soundEnabled = useUIStore((s) => s.soundEnabled);
@@ -100,7 +102,6 @@ export default function TypingArea({
 
     await tracker.init(targetKeys, customText);
     trackerRef.current = tracker;
-    setErrorChars(new Set());
   }, [language, targetKeys, customText, mode, updateStore]);
 
   // Load historical stats for Idle state display
@@ -169,6 +170,29 @@ export default function TypingArea({
     };
   }, [snapshot.state]);
 
+  // Caret coordinate tracking + Idle detection
+  useEffect(() => {
+    const updateCaret = () => {
+      const currentSpan = containerRef.current?.querySelector('.char.current');
+      if (currentSpan) {
+        const x = (currentSpan as HTMLElement).offsetLeft;
+        const y = (currentSpan as HTMLElement).offsetTop;
+        setCaretStyle({ transform: `translate(${x}px, ${y}px)`, opacity: 1 });
+      }
+    };
+
+    updateCaret();
+    
+    // Reset idle timer
+    setIsIdle(false);
+    if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    idleTimerRef.current = setTimeout(() => setIsIdle(true), 1200);
+
+    // Re-check after a brief moment for layout shifts
+    const timeout = setTimeout(updateCaret, 50);
+    return () => clearTimeout(timeout);
+  }, [snapshot.cursorPosition, snapshot.text, isFocused]);
+
   // Handle keydown events
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -181,7 +205,6 @@ export default function TypingArea({
           initSession();
         } else {
           tracker.reset();
-          setErrorChars(new Set());
         }
         return;
       }
@@ -191,6 +214,7 @@ export default function TypingArea({
 
       if (e.key === 'Backspace') {
         e.preventDefault();
+        tracker.backspace();
         return;
       }
 
@@ -240,23 +264,16 @@ export default function TypingArea({
       isProcessingRef.current = true;
       try {
         for (const char of typed) {
-          const correct = tracker.processKeystroke(char);
-          if (!correct) {
-            setErrorChars((prev) => new Set(prev).add(snapshot.cursorPosition));
-            if (soundEnabled) {
-              soundEngine.playError();
-            }
-          } else {
-            if (soundEnabled) {
-              soundEngine.playKeystroke();
-            }
+          tracker.processKeystroke(char);
+          if (soundEnabled) {
+            soundEngine.playKeystroke();
           }
         }
       } finally {
         isProcessingRef.current = false;
       }
     },
-    [snapshot.cursorPosition, soundEnabled]
+    [soundEnabled]
   );
 
   // Render character spans
@@ -265,11 +282,12 @@ export default function TypingArea({
 
     return snapshot.text.split('').map((char, index) => {
       let className = 'char';
+      const isError = snapshot.errorIndices?.includes(index);
 
       if (index < snapshot.cursorPosition) {
-        className += errorChars.has(index) ? ' error' : ' correct';
+        className += isError ? ' error' : ' correct';
       } else if (index === snapshot.cursorPosition) {
-        className += errorChars.has(index) ? ' current-error' : ' current';
+        className += isError ? ' current-error' : ' current';
       } else {
         className += ' upcoming';
       }
@@ -426,7 +444,13 @@ export default function TypingArea({
           </div>
         )}
 
-        <div className="text-content">{renderText()}</div>
+        <div className="text-content">
+          <div 
+            className={`caret ${isIdle ? 'blinking' : ''}`} 
+            style={caretStyle}
+          />
+          {renderText()}
+        </div>
       </div>
 
 
@@ -471,10 +495,7 @@ export default function TypingArea({
               </button>
               <button
                 className="btn btn-secondary btn-lg"
-                onClick={() => {
-                  trackerRef.current?.reset();
-                  setErrorChars(new Set());
-                }}
+                onClick={() => trackerRef.current?.reset()}
                 id="retry-btn"
               >
                 Retry Same Text

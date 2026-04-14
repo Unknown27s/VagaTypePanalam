@@ -42,6 +42,9 @@ export interface SessionSnapshot {
   // Calibration status for the current target key
   isCalibrated: boolean;
   samplesCollected: number;
+  // Loose mode / Correction status
+  errorIndices: number[];
+  typedChars: Record<number, string>;
 }
 
 export class SessionTracker {
@@ -59,6 +62,8 @@ export class SessionTracker {
   private errorChars: number = 0;
   private totalKeystrokes: number = 0;
   private keystrokeLog: KeystrokeRecord[] = [];
+  private errorIndices: Set<number> = new Set();
+  private typedChars: Map<number, string> = new Map();
 
   // Endless practice tracking
   private segmentsCompleted: number = 0;
@@ -129,6 +134,8 @@ export class SessionTracker {
     this.totalWordsTyped = 0;
     this.segmentStartCorrectChars = 0;
     this.segmentStartTime = 0;
+    this.errorIndices.clear();
+    this.typedChars.clear();
     this._state = 'ready';
 
     this.emitSnapshot();
@@ -197,20 +204,51 @@ export class SessionTracker {
       latencyMs: Math.round(effectiveLatency),
     });
 
+    // Loose mode: always advance cursor, but track errors
+    this.typedChars.set(this.cursorPosition, typedChar);
     if (correct) {
-      this.correctChars++;
-      this.cursorPosition++;
-
-      // Check if current text segment is complete
-      if (this.cursorPosition >= this.text.length) {
-        this.finishSegment();
+      if (!this.errorIndices.has(this.cursorPosition)) {
+        this.correctChars++;
       }
     } else {
-      this.errorChars++;
+      if (!this.errorIndices.has(this.cursorPosition)) {
+        this.errorChars++;
+        this.errorIndices.add(this.cursorPosition);
+      }
+    }
+
+    this.cursorPosition++;
+
+    // Check if current text segment is complete
+    if (this.cursorPosition >= this.text.length) {
+      this.finishSegment();
     }
 
     this.emitSnapshot();
     return correct;
+  }
+
+  /**
+   * Move the cursor back by one position and clear the record for that index.
+   */
+  backspace(): void {
+    if (this.cursorPosition === 0 || this._state === 'finished') return;
+
+    this.cursorPosition--;
+    
+    // If we are backspacing an index, we need to adjust correct/error counts
+    // but only if we were actually tracking them per-index accurately.
+    // In our simplified logic:
+    const wasError = this.errorIndices.has(this.cursorPosition);
+    if (wasError) {
+      this.errorChars = Math.max(0, this.errorChars - 1);
+      this.errorIndices.delete(this.cursorPosition);
+    } else {
+      this.correctChars = Math.max(0, this.correctChars - 1);
+    }
+    
+    this.typedChars.delete(this.cursorPosition);
+    this.emitSnapshot();
   }
 
   /**
@@ -244,6 +282,8 @@ export class SessionTracker {
       samplesCollected: this.text && this.cursorPosition < this.text.length 
         ? this.keyProfiler.getSamples(this.text[this.cursorPosition]) 
         : 0,
+      errorIndices: Array.from(this.errorIndices),
+      typedChars: Object.fromEntries(this.typedChars),
     };
   }
 
@@ -283,6 +323,9 @@ export class SessionTracker {
     this.lastKeystrokeTime = 0;
     this.segmentsCompleted = 0;
     this.totalWordsTyped = 0;
+    this.segmentStartTime = 0;
+    this.errorIndices.clear();
+    this.typedChars.clear();
     this._state = 'ready';
     this.emitSnapshot();
   }
@@ -340,6 +383,8 @@ export class SessionTracker {
       this.keystrokeLog = [];
       this.startTime = 0;
       this.lastKeystrokeTime = 0;
+      this.errorIndices.clear();
+      this.typedChars.clear();
       this._state = 'ready';
 
       // Restore cumulative counters
