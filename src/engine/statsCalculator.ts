@@ -28,6 +28,16 @@ export function calculateRawWPM(totalChars: number, elapsedMs: number): number {
 }
 
 /**
+ * Calculate Burst WPM for a single word.
+ * Measures speed for just one segment of typing.
+ */
+export function calculateBurstWPM(charCount: number, durationMs: number): number {
+  if (durationMs <= 0 || charCount <= 0) return 0;
+  const minutes = durationMs / 60_000;
+  return Math.round((charCount / CHARS_PER_WORD) / minutes);
+}
+
+/**
  * Calculate accuracy as a ratio (0-1).
  */
 export function calculateAccuracy(correct: number, total: number): number {
@@ -74,8 +84,32 @@ export function getLocalDateString(date: Date = new Date()): string {
 }
 
 /**
- * Calculate consistency score (lower std deviation = more consistent).
- * Returns 0-1 where 1 is perfectly consistent.
+ * Calculate consistency score using the Kogasa method (Monkeytype standard).
+ * Kogasa consistency = (1 - (StdDev / Mean)) * 100.
+ * Higher score (closer to 1.0) means more rhythmic and fluid typing.
+ */
+export function calculateKogasa(latencies: number[]): number {
+  if (latencies.length < 2) return 1;
+
+  // Filter out extreme pauses (manual break/distraction) to avoid skewed results
+  const filtered = latencies.filter(l => l < 2000);
+  if (filtered.length < 2) return 1;
+
+  const mean = filtered.reduce((a, b) => a + b, 0) / filtered.length;
+  if (mean === 0) return 1;
+
+  const variance = filtered.reduce((sum, l) => sum + Math.pow(l - mean, 2), 0) / filtered.length;
+  const stdDev = Math.sqrt(variance);
+
+  // Kogasa formula: 1 - (StdDev / Mean)
+  // We clamp it to [0, 1]
+  const score = 1 - (stdDev / mean);
+  return Math.max(0, Math.min(1, score));
+}
+
+/**
+ * Legacy consistency calculator (CV-based).
+ * @deprecated Use calculateKogasa for better Monkeytype-like behavior.
  */
 export function calculateConsistency(wpms: number[]): number {
   if (wpms.length < 2) return 1;

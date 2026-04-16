@@ -18,6 +18,7 @@ import type { Language, Session } from '@/db/schema';
 import { useTypingStore } from '@/store/typingStore';
 import { useUIStore } from '@/store/uiStore';
 import { formatAccuracy, formatDuration } from '@/engine/statsCalculator';
+import { CARET_SPEED_SLOW, CARET_SPEED_MEDIUM, CARET_SPEED_FAST } from '@/engine/constants';
 import { KEY_TO_FINGER, getFingerColor } from '@/data/keyboards/qwerty';
 import { soundEngine } from '@/engine/soundEngine';
 import '@/styles/typing.css';
@@ -53,14 +54,29 @@ export default function TypingArea({
     isComplete: false,
     segmentsCompleted: 0,
     totalWordsTyped: 0,
+    isCalibrated: true,
+    samplesCollected: 0,
+    errorIndices: [],
+    typedChars: {},
+    words: [],
+    activeWordIndex: 0,
+    currentWordInput: '',
+    wordInputHistory: [],
+    wordCorrectness: {},
+    burstHistory: [],
+    consistency: 1,
+    slowestDigraphs: [],
   });
 
   const [isFocused, setIsFocused] = useState(false);
   const [liveWpm, setLiveWpm] = useState(0);
-  const [caretStyle, setCaretStyle] = useState({ transform: 'translate(0, 0)', opacity: 0 });
+  const [caretPositionStyle, setCaretPositionStyle] = useState({ transform: 'translate(0, 0)', opacity: 0 });
+  const [contentTranslateY, setContentTranslateY] = useState(0);
   const [isIdle, setIsIdle] = useState(true);
   const [idleStats, setIdleStats] = useState({ wpm: 0, accuracy: 1, todayTimeMs: 0 });
   const [segmentFlash, setSegmentFlash] = useState(false);
+
+  const isComposingRef = useRef(false);
 
   const trackerRef = useRef<SessionTracker | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -68,9 +84,11 @@ export default function TypingArea({
   const rafRef = useRef<number>(0);
   const lastWpmUpdate = useRef<number>(0);
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const segmentFlashTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const globalIdleStatsRef = useRef({ wpm: 0, accuracy: 1 });
   const isProcessingRef = useRef<boolean>(false);
   const updateStore = useTypingStore((s) => s.updateSnapshot);
-  const soundEnabled = useUIStore((s) => s.soundEnabled);
+  const { soundEnabled, errorMode, caretSpeed, caretStyle } = useUIStore();
 
   // Keep latest onComplete in a ref to avoid re-init cycle if parent passes a new function
   const onCompleteRef = useRef(onComplete);
@@ -96,7 +114,8 @@ export default function TypingArea({
       onSegmentComplete: () => {
         // Flash a brief green indicator
         setSegmentFlash(true);
-        setTimeout(() => setSegmentFlash(false), 600);
+        if (segmentFlashTimerRef.current) clearTimeout(segmentFlashTimerRef.current);
+        segmentFlashTimerRef.current = setTimeout(() => setSegmentFlash(false), 600);
       },
     });
 
@@ -107,30 +126,37 @@ export default function TypingArea({
   // Load historical stats for Idle state display
   useEffect(() => {
     async function loadIdleStats() {
-      const { getAllSessions } = await import('@/db/sessions');
-      const sessions = await getAllSessions();
-      if (sessions.length === 0) return;
-      
+      const { getAllSessions, getSessionsSince } = await import('@/db/sessions');
+
       const startOfDay = new Date();
       startOfDay.setHours(0, 0, 0, 0);
       const todayMs = startOfDay.getTime();
-      
-      const todaySessions = sessions.filter(s => s.startedAt >= todayMs);
+
+      // Refresh global averages on first load and when a session is completed.
+      if (globalIdleStatsRef.current.wpm === 0 || snapshot.isComplete) {
+        const sessions = await getAllSessions();
+        if (sessions.length > 0) {
+          globalIdleStatsRef.current = {
+            wpm: Math.round(sessions.reduce((sum, s) => sum + s.wpm, 0) / sessions.length),
+            accuracy: sessions.reduce((sum, s) => sum + s.accuracy, 0) / sessions.length,
+          };
+        }
+      }
+
+      const todaySessions = await getSessionsSince(todayMs);
       const todayTimeMs = todaySessions.reduce((sum, s) => sum + s.durationMs, 0);
-      
-      let avgWpm = sessions[0].wpm; // baseline fallback
-      let avgAccuracy = sessions[0].accuracy;
-      
+
+      let avgWpm = globalIdleStatsRef.current.wpm;
+      let avgAccuracy = globalIdleStatsRef.current.accuracy;
+
       if (todaySessions.length > 0) {
         avgWpm = Math.round(todaySessions.reduce((sum, s) => sum + s.wpm, 0) / todaySessions.length);
         avgAccuracy = todaySessions.reduce((sum, s) => sum + s.accuracy, 0) / todaySessions.length;
-      } else {
-        avgWpm = Math.round(sessions.reduce((sum, s) => sum + s.wpm, 0) / sessions.length);
-        avgAccuracy = sessions.reduce((sum, s) => sum + s.accuracy, 0) / sessions.length;
       }
-      
+
       setIdleStats({ wpm: avgWpm, accuracy: avgAccuracy, todayTimeMs });
     }
+
     loadIdleStats();
   }, [snapshot.isComplete, snapshot.segmentsCompleted]);
 
@@ -139,6 +165,8 @@ export default function TypingArea({
     return () => {
       trackerRef.current?.destroy();
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+      if (segmentFlashTimerRef.current) clearTimeout(segmentFlashTimerRef.current);
     };
   }, [initSession]);
 
@@ -170,34 +198,94 @@ export default function TypingArea({
     };
   }, [snapshot.state]);
 
-  // Caret coordinate tracking + Idle detection
+  // Caret coordinate tracking + Smooth line scrolling
   useEffect(() => {
-    const updateCaret = () => {
-      const currentSpan = containerRef.current?.querySelector('.char.current');
-      if (currentSpan) {
-        const x = (currentSpan as HTMLElement).offsetLeft;
-        const y = (currentSpan as HTMLElement).offsetTop;
-        setCaretStyle({ transform: `translate(${x}px, ${y}px)`, opacity: 1 });
+    const updateLayout = () => {
+      if (!containerRef.current) return;
+
+      // 1. Caret Positioning
+      const activeWord = containerRef.current.querySelector('.word.word-active') as HTMLElement;
+
+      if (activeWord) {
+        // Find letters within the active word
+        const letters = activeWord.querySelectorAll('.letter');
+        const typedLen = snapshot.currentWordInput.length;
+
+        let caretX = activeWord.offsetLeft;
+        let caretY = activeWord.offsetTop;
+
+        // If we have a letter at the current input index, place caret at its LEFT
+        if (typedLen < letters.length) {
+          const letterEl = letters[typedLen] as HTMLElement;
+          caretX += letterEl.offsetLeft;
+          caretY += letterEl.offsetTop;
+        } else {
+          // If we are past the last character (word finished or extra chars),
+          // place caret at the RIGHT of the last rendered letter
+          const lastLetter = letters[letters.length - 1] as HTMLElement;
+          if (lastLetter) {
+            caretX += lastLetter.offsetLeft + lastLetter.offsetWidth;
+            caretY += lastLetter.offsetTop;
+          }
+        }
+
+        setCaretPositionStyle({ transform: `translate(${caretX}px, ${caretY}px)`, opacity: 1 });
+      }
+
+      // 2. Smooth Line Scrolling (keep active word on the 2nd line if possible)
+      if (activeWord) {
+        const wordOffsetTop = (activeWord as HTMLElement).offsetTop;
+        const lineHeight = 48; // Matches 1.5rem * 2 in CSS
+
+        // If we've passed the first line, shift up so the active line stays in place
+        if (wordOffsetTop > lineHeight) {
+          setContentTranslateY(-(wordOffsetTop - lineHeight));
+        } else {
+          setContentTranslateY(0);
+        }
       }
     };
 
-    updateCaret();
-    
+    updateLayout();
+
     // Reset idle timer
     setIsIdle(false);
     if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
     idleTimerRef.current = setTimeout(() => setIsIdle(true), 1200);
 
     // Re-check after a brief moment for layout shifts
-    const timeout = setTimeout(updateCaret, 50);
-    return () => clearTimeout(timeout);
-  }, [snapshot.cursorPosition, snapshot.text, isFocused]);
+    const timeout = setTimeout(updateLayout, 50);
+    return () => {
+      clearTimeout(timeout);
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+  }, [snapshot.currentWordInput, snapshot.activeWordIndex, snapshot.text, isFocused]);
 
   // Handle keydown events
+  const isValidKeystroke = useCallback((key: string) => {
+    const currentWord = snapshot.words[snapshot.activeWordIndex] ?? '';
+
+    if (errorMode === 'stopOnWord' && key === ' ') {
+      if (snapshot.currentWordInput !== currentWord) return false;
+    }
+
+    if (errorMode === 'stopOnLetter') {
+      if (key === ' ') {
+        if (snapshot.currentWordInput !== currentWord) return false;
+      } else {
+        const expectedChar = currentWord[snapshot.currentWordInput.length];
+        if (!expectedChar || key !== expectedChar) return false;
+      }
+    }
+
+    return true;
+  }, [snapshot.words, snapshot.activeWordIndex, snapshot.currentWordInput, errorMode]);
+
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const tracker = trackerRef.current;
       if (!tracker || isProcessingRef.current) return;
+      if (isComposingRef.current) return; // Let IME handle it
 
       if (e.key === 'Tab' || e.key === 'Escape') {
         e.preventDefault();
@@ -209,25 +297,35 @@ export default function TypingArea({
         return;
       }
 
-      if (e.ctrlKey || e.altKey || e.metaKey) return;
-      if (e.key === 'Shift' || e.key === 'CapsLock' || e.key === 'Control') return;
-
       if (e.key === 'Backspace') {
         e.preventDefault();
-        tracker.backspace();
+        if (e.ctrlKey || e.metaKey) {
+          tracker.backspaceWord();
+        } else {
+          tracker.backspace();
+        }
         return;
       }
 
+      if (e.ctrlKey || e.altKey || e.metaKey) return;
+      if (e.key === 'Shift' || e.key === 'CapsLock' || e.key === 'Control') return;
+
       if (e.key.length !== 1) return;
 
+      // Unified Error Mode Intercepts
+      if (!isValidKeystroke(e.key)) {
+        e.preventDefault();
+        if (soundEnabled) soundEngine.playError();
+        return;
+      }
+
       e.preventDefault();
-      
+
       isProcessingRef.current = true;
       try {
         const correct = tracker.processKeystroke(e.key);
 
         if (!correct) {
-          setErrorChars((prev) => new Set(prev).add(snapshot.cursorPosition));
           if (soundEnabled) {
             soundEngine.playError();
           }
@@ -261,12 +359,25 @@ export default function TypingArea({
       const typed = input.value;
       input.value = '';
 
+      // If backspace was pressed on mobile/IME, handle input deletion
+      // (This is a simplified web approximation for android backspace)
+      if (e.nativeEvent && (e.nativeEvent as InputEvent).inputType === 'deleteContentBackward') {
+        tracker.backspace();
+        return;
+      }
+
       isProcessingRef.current = true;
       try {
         for (const char of typed) {
-          tracker.processKeystroke(char);
+          if (!isValidKeystroke(char)) {
+            if (soundEnabled) soundEngine.playError();
+            continue;
+          }
+
+          const correct = tracker.processKeystroke(char);
           if (soundEnabled) {
-            soundEngine.playKeystroke();
+            if (correct) soundEngine.playKeystroke();
+            else soundEngine.playError();
           }
         }
       } finally {
@@ -276,26 +387,62 @@ export default function TypingArea({
     [soundEnabled]
   );
 
-  // Render character spans
-  const renderText = () => {
-    if (!snapshot.text) return null;
+  // Render word-based DOM hierarchy
+  const renderWords = () => {
+    if (!snapshot.words || snapshot.words.length === 0) return null;
 
-    return snapshot.text.split('').map((char, index) => {
-      let className = 'char';
-      const isError = snapshot.errorIndices?.includes(index);
+    return snapshot.words.map((word, wordIdx) => {
+      const isActive = wordIdx === snapshot.activeWordIndex;
+      const isPast = wordIdx < snapshot.activeWordIndex;
 
-      if (index < snapshot.cursorPosition) {
-        className += isError ? ' error' : ' correct';
-      } else if (index === snapshot.cursorPosition) {
-        className += isError ? ' current-error' : ' current';
-      } else {
-        className += ' upcoming';
+      let wordClass = 'word';
+      if (isActive) wordClass += ' word-active';
+      if (isPast && snapshot.wordCorrectness[wordIdx] === false) wordClass += ' word-error';
+
+      // Reconstruct the expected letters and extra typed letters
+      const expectedChars = word.split('');
+      const typedInput = isActive ? snapshot.currentWordInput : (snapshot.wordInputHistory[wordIdx] ?? '');
+
+      const letters = [];
+      const maxLen = Math.max(expectedChars.length, typedInput.length);
+
+      for (let i = 0; i < maxLen; i++) {
+        const expected = expectedChars[i];
+        const typed = typedInput[i];
+
+        let letterClass = 'letter';
+        let displayChar = expected;
+
+        if (i >= expectedChars.length) {
+          // Extra character
+          letterClass += ' extra';
+          displayChar = typed;
+        } else if (typed !== undefined) {
+          // Typed character
+          if (typed === expected) {
+            letterClass += ' correct';
+          } else {
+            letterClass += ' error';
+          }
+        } else if (isActive && i === typedInput.length) {
+          // Current cursor position
+          letterClass += ' current';
+        } else {
+          // Upcoming character
+          letterClass += ' upcoming';
+        }
+
+        letters.push(
+          <span key={i} className={letterClass}>
+            {displayChar}
+          </span>
+        );
       }
 
       return (
-        <span key={index} className={className}>
-          {char === ' ' ? (index === snapshot.cursorPosition ? '␣' : '\u00A0') : char}
-        </span>
+        <div key={wordIdx} className={wordClass} data-word-index={wordIdx}>
+          {letters}
+        </div>
       );
     });
   };
@@ -321,15 +468,18 @@ export default function TypingArea({
     return unique;
   })();
 
+  const caretSpeedMs = caretSpeed === 'slow' ? CARET_SPEED_SLOW : caretSpeed === 'fast' ? CARET_SPEED_FAST : CARET_SPEED_MEDIUM;
+
   return (
     <div className="typing-container">
       {/* ── Keybr-style Metrics Panel ── */}
-      <div className="metrics-panel">
+      <div className={`metrics-panel ${segmentFlash ? 'segment-flash' : ''}`}>
         <div className="metrics-row">
           <span className="metrics-label">Metrics:</span>
           <span className="metrics-value">
             Speed: <strong className="metric-speed">{displayWpm.toFixed(1)} ({globalAvgWpm.toFixed(0)})</strong> wpm
             {' '}Accuracy: <strong className="metric-accuracy">{(displayAccuracy * 100).toFixed(1)}% ({(globalAvgAcc * 100).toFixed(0)}%)</strong>
+            {' '}Consistency: <strong className="metric-consistency">{Math.round(snapshot.consistency * 100)}%</strong>
             {' '}Errors: <strong className="metric-error" style={{ color: snapshot.errorChars > 0 ? 'var(--color-error)' : 'inherit' }}>{snapshot.errorChars}</strong>
             {' '}Score: <strong className="metric-score">{score} ({globalScore})</strong>
           </span>
@@ -372,8 +522,8 @@ export default function TypingArea({
                 </span>
                 {' '}
                 <span className="metric-detail">
-                  {snapshot.isCalibrated 
-                    ? `Calibrated (Confidence: ${Math.round(trackerRef.current?.getKeyProfiler().getConfidence(currentKey) || 0 * 100)}%)`
+                  {snapshot.isCalibrated
+                    ? `Calibrated (Confidence: ${Math.round((trackerRef.current?.getKeyProfiler().getConfidence(currentKey) ?? 0) * 100)}%)`
                     : `Calibrating... (${snapshot.samplesCollected}/10 samples)`}
                 </span>
               </>
@@ -431,6 +581,20 @@ export default function TypingArea({
           autoCorrect="off"
           spellCheck={false}
           onInput={handleInput}
+          onCompositionStart={() => {
+            isComposingRef.current = true;
+          }}
+          onCompositionEnd={(e) => {
+            isComposingRef.current = false;
+            // Some IMEs wait until end to fire input
+            if (e.data) {
+              const syntheticEvent = {
+                currentTarget: { value: e.data },
+                nativeEvent: { inputType: 'insertText' }
+              } as unknown as React.FormEvent<HTMLInputElement>;
+              handleInput(syntheticEvent);
+            }
+          }}
           aria-hidden="true"
           tabIndex={-1}
         />
@@ -439,17 +603,25 @@ export default function TypingArea({
           <div className="interaction-overlay" onClick={handleFocus}>
             <div className="focus-prompt">
               <span className="focus-icon">➔</span>
-              <span>Click here or press any key to focus</span>
+              <span>Click here to focus</span>
             </div>
           </div>
         )}
 
-        <div className="text-content">
-          <div 
-            className={`caret ${isIdle ? 'blinking' : ''}`} 
-            style={caretStyle}
-          />
-          {renderText()}
+        <div className="text-viewport">
+          <div
+            className="text-content"
+            style={{
+              transform: `translateY(${contentTranslateY}px)`,
+              '--caret-speed': `${caretSpeedMs}ms`
+            } as React.CSSProperties}
+          >
+            <div
+              className={`caret caret-${caretStyle} ${isIdle ? 'blinking' : ''}`}
+              style={caretPositionStyle}
+            />
+            {renderWords()}
+          </div>
         </div>
       </div>
 
@@ -484,7 +656,34 @@ export default function TypingArea({
                 </span>
                 <span className="result-label">Errors</span>
               </div>
+              <div className="result-item">
+                <span className="result-value" style={{ color: 'var(--color-info)' }}>
+                  {Math.round(snapshot.consistency * 100)}%
+                </span>
+                <span className="result-label">Consistency</span>
+              </div>
+              <div className="result-item">
+                <span className="result-value" style={{ color: 'var(--text-muted)' }}>
+                  {snapshot.rawWpm}
+                </span>
+                <span className="result-label">Raw WPM</span>
+              </div>
             </div>
+
+            {snapshot.slowestDigraphs && snapshot.slowestDigraphs.length > 0 && (
+              <div className="slowest-digraphs-section">
+                <h3 className="section-title">Slowest Multi-Keys</h3>
+                <div className="digraph-list">
+                  {snapshot.slowestDigraphs.map((dg) => (
+                    <div key={dg.char} className="digraph-badge">
+                      <span className="dg-chars">{dg.char}</span>
+                      <span className="dg-latency">{dg.latency}ms</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             <div className="results-actions">
               <button
                 className="btn btn-primary btn-lg"
@@ -513,6 +712,10 @@ export default function TypingArea({
       )}
 
       <style jsx>{`
+        .metrics-panel.segment-flash {
+          border-color: var(--color-success);
+          box-shadow: 0 0 0 2px rgba(34,197,94,0.15);
+        }
         .session-bar {
           display: flex;
           align-items: center;

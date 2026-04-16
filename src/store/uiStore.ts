@@ -5,7 +5,12 @@
  */
 
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import type { Language, KeyboardLayout, Theme } from '@/db/schema';
+
+export type ErrorMode = 'free' | 'stopOnWord' | 'stopOnLetter';
+export type CaretStyle = 'line' | 'block' | 'underline' | 'outline';
+export type CaretSpeed = 'slow' | 'medium' | 'fast';
 
 interface UIState {
   // Theme
@@ -20,6 +25,14 @@ interface UIState {
   // Keyboard Layout
   keyboardLayout: KeyboardLayout;
   setKeyboardLayout: (layout: KeyboardLayout) => void;
+
+  // Typing engine options
+  errorMode: ErrorMode;
+  setErrorMode: (mode: ErrorMode) => void;
+  caretStyle: CaretStyle;
+  setCaretStyle: (style: CaretStyle) => void;
+  caretSpeed: CaretSpeed;
+  setCaretSpeed: (speed: CaretSpeed) => void;
 
   // Keyboard visibility
   showKeyboard: boolean;
@@ -39,8 +52,10 @@ interface UIState {
   closeModal: () => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  theme: 'light',
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
+      theme: 'light',
   setTheme: (theme) => {
     set({ theme });
     if (typeof document !== 'undefined') {
@@ -72,6 +87,30 @@ export const useUIStore = create<UIState>((set) => ({
   setOnline: (isOnline) => set({ isOnline }),
 
   activeModal: null,
-  openModal: (id) => set({ activeModal: id }),
-  closeModal: () => set({ activeModal: null }),
-}));
+      openModal: (id) => set({ activeModal: id }),
+      closeModal: () => set({ activeModal: null }),
+
+      errorMode: 'free',
+      setErrorMode: (errorMode) => set({ errorMode }),
+
+      caretStyle: 'line',
+      setCaretStyle: (caretStyle) => set({ caretStyle }),
+
+      caretSpeed: 'medium',
+      setCaretSpeed: (caretSpeed) => set({ caretSpeed }),
+    }),
+    {
+      name: 'vaaga-ui-store',
+      // Only persist settings, not dynamic UI state like modals or online status
+      partialize: (state) => ({
+        theme: state.theme,
+        language: state.language,
+        keyboardLayout: state.keyboardLayout,
+        soundEnabled: state.soundEnabled,
+        errorMode: state.errorMode,
+        caretStyle: state.caretStyle,
+        caretSpeed: state.caretSpeed,
+      }),
+    }
+  )
+);

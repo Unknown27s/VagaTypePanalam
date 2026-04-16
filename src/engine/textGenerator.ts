@@ -102,6 +102,13 @@ export function generateAdaptiveText(
     weightedPool.push({ char: 'f', weight: 1 }, { char: 'j', weight: 1 });
   }
 
+  // Extract weak digraphs for prioritized word selection
+  const weakDigraphs = keyStats
+    .filter(s => s.char.length > 1 && s.isWeak)
+    .sort((a, b) => a.confidence - b.confidence)
+    .slice(0, 10)
+    .map(s => s.char);
+
   // Generate words
   const words: string[] = [];
   let charCount = 0;
@@ -118,14 +125,33 @@ export function generateAdaptiveText(
     const candidates = wordBank.get(targetKey);
     if (!candidates || candidates.length === 0) continue;
 
-    // Pick a random word from candidates
-    const word = candidates[Math.floor(Math.random() * candidates.length)];
+    // Pick a candidate word. 
+    // If we have weak digraphs, prefer words that contain them.
+    let selectedWord = '';
+    if (weakDigraphs.length > 0) {
+      // Sample 10 random candidates and pick the one with most weak digraphs
+      let bestScore = -1;
+      for (let i = 0; i < 10; i++) {
+        const candidate = candidates[Math.floor(Math.random() * candidates.length)];
+        let score = 0;
+        for (const dg of weakDigraphs) {
+          if (candidate.includes(dg)) score++;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          selectedWord = candidate;
+        }
+        if (score > 0 && Math.random() > 0.5) break; // Optimization: early exit if we found one
+      }
+    } else {
+      selectedWord = candidates[Math.floor(Math.random() * candidates.length)];
+    }
 
     // Avoid repeating the same word consecutively
-    if (words.length > 0 && words[words.length - 1] === word) continue;
+    if (words.length > 0 && words[words.length - 1] === selectedWord) continue;
 
-    words.push(word);
-    charCount += word.length + 1; // +1 for space
+    words.push(selectedWord);
+    charCount += selectedWord.length + 1; // +1 for space
   }
 
   return words.join(' ').trim();

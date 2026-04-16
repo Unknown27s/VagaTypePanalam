@@ -2,6 +2,23 @@
 
 All notable changes to **VaagaTypePanalam** will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **Practice Segment Auto-Advance**: Ensured endless practice immediately publishes the next generated paragraph after a segment completes, so practice no longer appears to stop at the paragraph boundary.
+- **Timed Test Segment Auto-Advance**: Updated timed test mode to roll into the next generated chunk instead of stalling at the end of a paragraph, while keeping the overall timer session intact.
+
+## [0.2.1] - 2026-04-15
+
+### Fixed
+- **Calibration Confidence Display**: Corrected confidence percentage math in `TypingArea` so calibrated confidence now renders accurately (e.g., 84% instead of 0%-1% misreports).
+- **Timer Cleanup Safety**: Added cleanup for idle and segment-flash timers on unmount/effect teardown to avoid stale timeout callbacks.
+- **Focus Prompt Accuracy**: Updated idle overlay prompt copy to match actual interaction behavior.
+
+### Improved
+- **Idle Metrics Query Efficiency**: Added an indexed sessions query helper (`getSessionsSince`) and switched idle daily-goal refreshes to query only today's sessions, while keeping global averages refreshed on first load and session completion.
+- **Segment Completion Feedback**: Wired `segmentFlash` state to the metrics panel visual style so segment completion feedback is now visible.
+
 ## [0.2.0] - 2026-04-13
 
 ### Added

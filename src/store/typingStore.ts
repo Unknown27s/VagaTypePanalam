@@ -37,6 +37,20 @@ const defaultSnapshot: SessionSnapshot = {
   isComplete: false,
   segmentsCompleted: 0,
   totalWordsTyped: 0,
+  isCalibrated: true,
+  samplesCollected: 0,
+  errorIndices: [],
+  typedChars: {},
+  // Word-based tracking
+  words: [],
+  activeWordIndex: 0,
+  currentWordInput: '',
+  wordInputHistory: [],
+  wordCorrectness: {},
+  // Analytics
+  burstHistory: [],
+  consistency: 1,
+  slowestDigraphs: [],
 };
 
 export const useTypingStore = create<TypingState>((set) => ({

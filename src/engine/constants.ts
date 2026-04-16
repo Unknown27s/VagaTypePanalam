@@ -34,6 +34,12 @@ export const CHARS_PER_WORD = 5; // Standard: 1 word = 5 characters
 // ── Rendering Throttle ──
 export const WPM_UPDATE_INTERVAL_MS = 250; // Update WPM display every 250ms
 
+// ── Caret ──
+export const CARET_SPEED_SLOW = 150;
+export const CARET_SPEED_MEDIUM = 100;
+export const CARET_SPEED_FAST = 85;
+export const CARET_SPEED_DEFAULT = CARET_SPEED_MEDIUM;
+
 // ── IndexedDB Debounce ──
 export const IDB_FLUSH_DEBOUNCE_MS = 2000; // Batch writes every 2 seconds
 

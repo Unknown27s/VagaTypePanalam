@@ -76,6 +76,10 @@ export class KeyProfiler {
   private flushTimer: ReturnType<typeof setTimeout> | null = null;
   private onStatsUpdate?: (char: string, stat: KeyStat) => void;
 
+  // Digraph tracking state
+  private lastChar: string | null = null;
+  private lastCharTime: number = 0;
+
   constructor(language: Language) {
     this.language = language;
   }
@@ -144,6 +148,22 @@ export class KeyProfiler {
     profile.lastPracticed = Date.now();
     profile.dirty = true;
 
+    // ── Digraph Recording ──
+    const now = Date.now();
+    const timeSinceLastChar = now - this.lastCharTime;
+
+    // Only record digraph if:
+    // 1. We have a last character
+    // 2. Both characters are part of the same flow (latency < 2s)
+    // 3. Current character is correct (don't track digraphs for errors)
+    if (this.lastChar && timeSinceLastChar < 2000 && correct) {
+      const digraph = this.lastChar + char;
+      this.recordDigraph(digraph, latencyMs);
+    }
+
+    this.lastChar = char;
+    this.lastCharTime = now;
+
     // Recalculate confidence
     this.updateConfidence(profile);
 
@@ -154,6 +174,49 @@ export class KeyProfiler {
 
     // Schedule debounced flush
     this.scheduleFlush();
+  }
+
+  /**
+   * Internal method to record digraph stats.
+   * Digraphs are stored in the same profile map with multi-char keys.
+   */
+  private recordDigraph(digraph: string, latencyMs: number): void {
+    let profile = this.profiles.get(digraph);
+
+    if (!profile) {
+      profile = {
+        char: digraph,
+        language: this.language,
+        totalAttempts: 0,
+        correctAttempts: 0,
+        recentCorrect: new CircularBuffer(RECENT_CORRECT_BUFFER_SIZE),
+        recentLatencies: new CircularBuffer(RECENT_LATENCY_BUFFER_SIZE),
+        lastPracticed: 0,
+        confidence: 0,
+        isWeak: true,
+        dirty: true,
+      };
+      this.profiles.set(digraph, profile);
+    }
+
+    profile.totalAttempts++;
+    profile.correctAttempts++; // We only record digraphs on correct keystrokes
+    profile.recentCorrect.push(true);
+    if (latencyMs > 0) {
+      profile.recentLatencies.push(latencyMs);
+    }
+    profile.lastPracticed = Date.now();
+    profile.dirty = true;
+
+    this.updateConfidence(profile);
+  }
+
+  /**
+   * Reset the digraph state (e.g., when a session starts or reset).
+   */
+  resetDigraphState(): void {
+    this.lastChar = null;
+    this.lastCharTime = 0;
   }
 
   /**
@@ -184,6 +247,17 @@ export class KeyProfiler {
     return this.getAllStats()
       .filter((s) => s.totalAttempts > 0)
       .sort((a, b) => a.confidence - b.confidence)
+      .slice(0, n);
+  }
+
+  /**
+   * Get the N slowest digraphs (length > 1).
+   */
+  getSlowestDigraphs(n: number = 3): KeyStat[] {
+    return this.getAllStats()
+      .filter((s) => s.char.length > 1 && s.totalAttempts > 0)
+      .sort((a, b) => a.avgLatencyMs - b.avgLatencyMs)
+      .reverse() // Slowest first (highest latency)
       .slice(0, n);
   }
 

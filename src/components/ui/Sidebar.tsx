@@ -66,7 +66,7 @@ export default function Sidebar() {
   }, []);
 
   const NAV_ITEMS = [
-    { href: '/practice', label: 'Practice', icon: <Keyboard size={20} /> },
+    { href: '/', label: 'Practice', icon: <Keyboard size={20} /> },
     { href: '/test', label: 'Test', icon: <Timer size={20} /> },
     { href: '/race', label: 'Race', icon: <Swords size={20} /> },
     { href: '/lessons', label: 'Lessons', icon: <GraduationCap size={20} /> },

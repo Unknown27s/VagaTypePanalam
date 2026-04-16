@@ -9,7 +9,7 @@
  */
 
 import { KeyProfiler } from './keyProfiler';
-import { calculateWPM, calculateRawWPM, calculateAccuracy } from './statsCalculator';
+import { calculateWPM, calculateRawWPM, calculateAccuracy, calculateKogasa, calculateBurstWPM } from './statsCalculator';
 import { generateAdaptiveText, generateLessonText } from './textGenerator';
 import { saveSession, generateSessionId } from '@/db/sessions';
 import { recordSessionInProfile } from '@/db/profile';
@@ -45,6 +45,16 @@ export interface SessionSnapshot {
   // Loose mode / Correction status
   errorIndices: number[];
   typedChars: Record<number, string>;
+  // Word-based tracking
+  words: string[];
+  activeWordIndex: number;
+  currentWordInput: string;
+  wordInputHistory: string[];
+  wordCorrectness: Record<number, boolean>;
+  // Analytics
+  burstHistory: number[];
+  consistency: number;
+  slowestDigraphs: { char: string; latency: number }[];
 }
 
 export class SessionTracker {
@@ -63,6 +73,13 @@ export class SessionTracker {
   private totalKeystrokes: number = 0;
   private keystrokeLog: KeystrokeRecord[] = [];
   private errorIndices: Set<number> = new Set();
+
+  // Word-based tracking
+  private words: string[] = [];
+  private activeWordIndex: number = 0;
+  private currentWordInput: string = '';
+  private wordInputHistory: string[] = [];
+  private wordCorrectness: Map<number, boolean> = new Map();
   private typedChars: Map<number, string> = new Map();
 
   // Endless practice tracking
@@ -70,6 +87,11 @@ export class SessionTracker {
   private totalWordsTyped: number = 0;
   private segmentStartCorrectChars: number = 0;
   private segmentStartTime: number = 0;
+
+  // Analytics
+  private wordStartTime: number = 0;
+  private burstHistory: number[] = []; // Per-word WPMs
+  private allLatencies: number[] = []; // All inter-character latencies for Kogasa
 
   // Target keys (for lesson mode)
   private targetKeys: string[] = [];
@@ -120,22 +142,11 @@ export class SessionTracker {
 
     // Generate or use provided text
     this.text = await this.generateNextText();
+    this.words = this.text.split(' ');
 
     // Reset state
     this.sessionId = generateSessionId();
-    this.cursorPosition = 0;
-    this.correctChars = 0;
-    this.errorChars = 0;
-    this.totalKeystrokes = 0;
-    this.keystrokeLog = [];
-    this.startTime = 0;
-    this.lastKeystrokeTime = 0;
-    this.segmentsCompleted = 0;
-    this.totalWordsTyped = 0;
-    this.segmentStartCorrectChars = 0;
-    this.segmentStartTime = 0;
-    this.errorIndices.clear();
-    this.typedChars.clear();
+    this.resetSessionState();
     this._state = 'ready';
 
     this.emitSnapshot();
@@ -167,7 +178,7 @@ export class SessionTracker {
   }
 
   /**
-   * Process a keystroke.
+   * Process a regular character keystroke (not space, not backspace).
    * Returns true if the character was correct, false otherwise.
    */
   processKeystroke(typedChar: string): boolean {
@@ -178,33 +189,47 @@ export class SessionTracker {
       this._state = 'typing';
       this.startTime = performance.now();
       this.lastKeystrokeTime = this.startTime;
+      this.wordStartTime = this.startTime; // First word starts now
       this.segmentStartTime = this.startTime;
       this.segmentStartCorrectChars = 0;
     }
 
     const now = performance.now();
     const latency = now - this.lastKeystrokeTime;
+    if (latency < IDLE_TIMEOUT_MS) {
+      this.allLatencies.push(latency);
+    }
     this.lastKeystrokeTime = now;
 
-    const expectedChar = this.text[this.cursorPosition];
-    const correct = typedChar === expectedChar;
+    // Handle space — completes the current word and advances
+    if (typedChar === ' ') {
+      return this.processSpace(now, latency);
+    }
+
+    const currentWord = this.words[this.activeWordIndex] ?? '';
+    const charIndex = this.currentWordInput.length;
+    const expectedChar = currentWord[charIndex];
+    // If typing beyond the word length, it's always an error (extra char)
+    const isExtra = charIndex >= currentWord.length;
+    const correct = !isExtra && typedChar === expectedChar;
 
     this.totalKeystrokes++;
+    this.currentWordInput += typedChar;
 
     // Record in key profiler (skip idle latencies)
     const effectiveLatency = latency > IDLE_TIMEOUT_MS ? 0 : latency;
-    if (effectiveLatency > 0) {
+    if (effectiveLatency > 0 && expectedChar) {
       this.keyProfiler.recordKeystroke(expectedChar, correct, effectiveLatency);
     }
 
     // Record in keystroke log
     this.keystrokeLog.push({
-      char: expectedChar,
+      char: expectedChar ?? typedChar,
       correct,
       latencyMs: Math.round(effectiveLatency),
     });
 
-    // Loose mode: always advance cursor, but track errors
+    // Track character-level correctness
     this.typedChars.set(this.cursorPosition, typedChar);
     if (correct) {
       if (!this.errorIndices.has(this.cursorPosition)) {
@@ -219,26 +244,84 @@ export class SessionTracker {
 
     this.cursorPosition++;
 
-    // Check if current text segment is complete
-    if (this.cursorPosition >= this.text.length) {
-      this.finishSegment();
-    }
-
     this.emitSnapshot();
     return correct;
   }
 
   /**
-   * Move the cursor back by one position and clear the record for that index.
+   * Process space key — completes the current word and advances to the next.
+   */
+  private processSpace(now: number, latency: number): boolean {
+    const currentWord = this.words[this.activeWordIndex] ?? '';
+
+    // Don't allow space if nothing typed yet for this word
+    if (this.currentWordInput.length === 0) {
+      return false;
+    }
+
+    this.totalKeystrokes++;
+
+    // Record space in key profiler
+    const effectiveLatency = latency > IDLE_TIMEOUT_MS ? 0 : latency;
+    if (effectiveLatency > 0) {
+      this.keyProfiler.recordKeystroke(' ', true, effectiveLatency);
+    }
+
+    // Determine if the word was typed correctly
+    const wordCorrect = this.currentWordInput === currentWord;
+    this.wordCorrectness.set(this.activeWordIndex, wordCorrect);
+
+    // Calculate Burst WPM for this word
+    const wordEndTime = now;
+    const durationMs = wordEndTime - this.wordStartTime;
+    const burstWpm = calculateBurstWPM(this.currentWordInput.length + 1, durationMs); // +1 for the space
+    this.burstHistory.push(burstWpm);
+
+    // Push completed word input to history
+    this.wordInputHistory.push(this.currentWordInput);
+    this.currentWordInput = '';
+    this.activeWordIndex++;
+
+    // Advance cursor past the space character in the full text
+    // Calculate cursor position: sum of all completed words + spaces
+    this.cursorPosition = this.calculateCursorPosition();
+
+    // Check if all words are completed
+    if (this.activeWordIndex >= this.words.length) {
+      void this.finishSegment();
+      return wordCorrect;
+    }
+
+    this.emitSnapshot();
+    return wordCorrect;
+  }
+
+  /**
+   * Calculate the absolute cursor position from word-level state.
+   */
+  private calculateCursorPosition(): number {
+    let pos = 0;
+    for (let i = 0; i < this.activeWordIndex; i++) {
+      pos += (this.words[i]?.length ?? 0) + 1; // +1 for space
+    }
+    pos += this.currentWordInput.length;
+    return pos;
+  }
+
+  /**
+   * Move the cursor back by one position within the current word.
+   * Does NOT cross word boundaries (Monkeytype behavior).
    */
   backspace(): void {
-    if (this.cursorPosition === 0 || this._state === 'finished') return;
+    if (this._state === 'finished') return;
+    // Don't backspace past the start of the current word
+    if (this.currentWordInput.length === 0) return;
 
-    this.cursorPosition--;
-    
-    // If we are backspacing an index, we need to adjust correct/error counts
-    // but only if we were actually tracking them per-index accurately.
-    // In our simplified logic:
+    // Remove the last character from current word input
+    this.currentWordInput = this.currentWordInput.slice(0, -1);
+    this.cursorPosition = this.calculateCursorPosition();
+
+    // Adjust correct/error counts for the position we're removing
     const wasError = this.errorIndices.has(this.cursorPosition);
     if (wasError) {
       this.errorChars = Math.max(0, this.errorChars - 1);
@@ -246,8 +329,34 @@ export class SessionTracker {
     } else {
       this.correctChars = Math.max(0, this.correctChars - 1);
     }
-    
+
     this.typedChars.delete(this.cursorPosition);
+    this.emitSnapshot();
+  }
+
+  /**
+   * Delete the entire current word input (Ctrl+Backspace).
+   */
+  backspaceWord(): void {
+    if (this._state === 'finished') return;
+    if (this.currentWordInput.length === 0) return;
+
+    // Remove all characters of the current word input
+    const charsToRemove = this.currentWordInput.length;
+    for (let i = 0; i < charsToRemove; i++) {
+      const pos = this.cursorPosition - 1 - i;
+      const wasError = this.errorIndices.has(pos);
+      if (wasError) {
+        this.errorChars = Math.max(0, this.errorChars - 1);
+        this.errorIndices.delete(pos);
+      } else {
+        this.correctChars = Math.max(0, this.correctChars - 1);
+      }
+      this.typedChars.delete(pos);
+    }
+
+    this.currentWordInput = '';
+    this.cursorPosition = this.calculateCursorPosition();
     this.emitSnapshot();
   }
 
@@ -261,6 +370,11 @@ export class SessionTracker {
           ? performance.now() - this.startTime
           : 0
         : 0;
+
+    // Determine the current expected character for calibration info
+    const currentWord = this.words[this.activeWordIndex] ?? '';
+    const charIdx = this.currentWordInput.length;
+    const currentExpectedChar = charIdx < currentWord.length ? currentWord[charIdx] : null;
 
     return {
       state: this._state,
@@ -276,14 +390,26 @@ export class SessionTracker {
       isComplete: this._state === 'finished',
       segmentsCompleted: this.segmentsCompleted,
       totalWordsTyped: this.totalWordsTyped,
-      isCalibrated: this.text && this.cursorPosition < this.text.length 
-        ? this.keyProfiler.isCalibrated(this.text[this.cursorPosition]) 
+      isCalibrated: currentExpectedChar
+        ? this.keyProfiler.isCalibrated(currentExpectedChar)
         : true,
-      samplesCollected: this.text && this.cursorPosition < this.text.length 
-        ? this.keyProfiler.getSamples(this.text[this.cursorPosition]) 
+      samplesCollected: currentExpectedChar
+        ? this.keyProfiler.getSamples(currentExpectedChar)
         : 0,
       errorIndices: Array.from(this.errorIndices),
       typedChars: Object.fromEntries(this.typedChars),
+      // Word-based tracking
+      words: this.words,
+      activeWordIndex: this.activeWordIndex,
+      currentWordInput: this.currentWordInput,
+      wordInputHistory: [...this.wordInputHistory],
+      wordCorrectness: Object.fromEntries(this.wordCorrectness),
+      burstHistory: [...this.burstHistory],
+      consistency: calculateKogasa(this.allLatencies),
+      slowestDigraphs: this.keyProfiler.getSlowestDigraphs(3).map(s => ({
+        char: s.char,
+        latency: Math.round(s.avgLatencyMs)
+      })),
     };
   }
 
@@ -314,6 +440,15 @@ export class SessionTracker {
    * Reset the session (for retrying same text).
    */
   reset(): void {
+    this.resetSessionState();
+    this._state = 'ready';
+    this.emitSnapshot();
+  }
+
+  /**
+   * Internal common reset for state variables.
+   */
+  private resetSessionState(): void {
     this.cursorPosition = 0;
     this.correctChars = 0;
     this.errorChars = 0;
@@ -321,13 +456,19 @@ export class SessionTracker {
     this.keystrokeLog = [];
     this.startTime = 0;
     this.lastKeystrokeTime = 0;
-    this.segmentsCompleted = 0;
-    this.totalWordsTyped = 0;
-    this.segmentStartTime = 0;
     this.errorIndices.clear();
     this.typedChars.clear();
-    this._state = 'ready';
-    this.emitSnapshot();
+    this.activeWordIndex = 0;
+    this.currentWordInput = '';
+    this.wordInputHistory = [];
+    this.wordCorrectness.clear();
+    this.wordStartTime = 0;
+    this.burstHistory = [];
+    this.allLatencies = [];
+    this.keyProfiler.resetDigraphState();
+
+    // Reset cumulative practice trackers ONLY if not in practice-segment loop
+    // Note: segmentsCompleted and totalWordsTyped are handled by finishSegment()
   }
 
   /**
@@ -353,11 +494,8 @@ export class SessionTracker {
    * In lesson/test mode: finish the session.
    */
   private async finishSegment(): Promise<void> {
-    // Count words typed in this segment
-    const segmentText = this.text.slice(
-      Math.max(0, this.cursorPosition - (this.correctChars - this.segmentStartCorrectChars))
-    );
-    this.totalWordsTyped += segmentText.trim().split(/\s+/).length;
+    // Words are already counted in processSpace, no additional counting needed here
+    // for seamless practice flow.
 
     if (this.mode === 'practice') {
       // ── Practice mode: save session silently, then do a full fresh restart ──
@@ -369,34 +507,59 @@ export class SessionTracker {
 
       // Preserve cumulative counters across restarts
       const savedSegments = this.segmentsCompleted;
-      const savedWords = this.totalWordsTyped;
+      const savedTotalWords = this.totalWordsTyped;
 
       // Generate completely fresh text
       this.text = await this.generateNextText();
+      this.words = this.text.split(' ');
 
-      // Reset cursor and per-session counters for a clean slate
+      // Reset state using consolidated method
       this.sessionId = generateSessionId();
-      this.cursorPosition = 0;
-      this.correctChars = 0;
-      this.errorChars = 0;
-      this.totalKeystrokes = 0;
-      this.keystrokeLog = [];
-      this.startTime = 0;
-      this.lastKeystrokeTime = 0;
-      this.errorIndices.clear();
-      this.typedChars.clear();
+      this.resetSessionState();
       this._state = 'ready';
 
       // Restore cumulative counters
       this.segmentsCompleted = savedSegments;
-      this.totalWordsTyped = savedWords;
+      this.totalWordsTyped = savedTotalWords;
       this.segmentStartCorrectChars = 0;
       this.segmentStartTime = 0;
+      this.emitSnapshot();
 
     } else if (this.mode === 'test') {
-      // ── Test mode: refresh text completely but PRESERVE all cumulative test counters ──
+      // ── Test mode: continue into a fresh chunk while preserving total session stats ──
+      const savedStartTime = this.startTime;
+      const savedLastKeystrokeTime = this.lastKeystrokeTime;
+      const savedCorrectChars = this.correctChars;
+      const savedErrorChars = this.errorChars;
+      const savedTotalKeystrokes = this.totalKeystrokes;
+      const savedKeystrokeLog = [...this.keystrokeLog];
+      const savedBurstHistory = [...this.burstHistory];
+      const savedAllLatencies = [...this.allLatencies];
+      const savedSegments = this.segmentsCompleted;
+      const savedTotalWords = this.totalWordsTyped;
+
       this.text = await this.generateNextText();
-      this.cursorPosition = 0;
+      this.words = this.text.split(' ');
+
+      this.sessionId = generateSessionId();
+      this.resetSessionState();
+
+      this.startTime = savedStartTime;
+      this.lastKeystrokeTime = savedLastKeystrokeTime;
+      this.correctChars = savedCorrectChars;
+      this.errorChars = savedErrorChars;
+      this.totalKeystrokes = savedTotalKeystrokes;
+      this.keystrokeLog = savedKeystrokeLog;
+      this.burstHistory = savedBurstHistory;
+      this.allLatencies = savedAllLatencies;
+      this.segmentsCompleted = savedSegments;
+      this.totalWordsTyped = savedTotalWords;
+      this.segmentStartCorrectChars = savedCorrectChars;
+      this.segmentStartTime = performance.now();
+      this.wordStartTime = performance.now();
+      this.lastKeystrokeTime = performance.now();
+      this._state = savedStartTime > 0 ? 'typing' : 'ready';
+      this.emitSnapshot();
 
     } else {
       // ── Lesson mode: finish automatically at end of text ──
@@ -481,7 +644,7 @@ export class SessionTracker {
     Promise.all([
       saveSession(session),
       recordSessionInProfile(session.durationMs, session.wpm),
-    ]).catch(() => {}); // Silently swallow errors — non-critical
+    ]).catch(() => { }); // Silently swallow errors — non-critical
   }
 
   private emitSnapshot(): void {
@@ -493,7 +656,7 @@ export class SessionTracker {
       return 'abcdefghijklmnopqrstuvwxyz'.split('');
     }
     return ['அ', 'ஆ', 'இ', 'ஈ', 'உ', 'ஊ', 'எ', 'ஏ', 'ஐ', 'ஒ', 'ஓ', 'ஔ',
-            'க', 'ச', 'ட', 'த', 'ப', 'ற', 'ன', 'ம', 'ங', 'ஞ', 'ண', 'ந',
-            'ய', 'ர', 'ல', 'வ', 'ழ', 'ள'];
+      'க', 'ச', 'ட', 'த', 'ப', 'ற', 'ன', 'ம', 'ங', 'ஞ', 'ண', 'ந',
+      'ய', 'ர', 'ல', 'வ', 'ழ', 'ள'];
   }
 }

@@ -1,5 +1,5 @@
 /* ============================================
-   Typing Interface Styles — Keybr Full Layout
+   Typing Interface Styles — Word-Based Layout
    ============================================ */
 
 /* ── Container ── */
@@ -113,7 +113,7 @@
 }
 
 /* ════════════════════════════════════════════
-   TEXT DISPLAY AREA
+   TEXT DISPLAY AREA — Line-Scrolling Viewport
    ════════════════════════════════════════════ */
 .text-display {
   position: relative;
@@ -122,43 +122,136 @@
   line-height: 2;
   user-select: none;
   outline: none;
-  padding: var(--space-md) 0;
   cursor: text;
-  min-height: 100px;
   transition: opacity 0.2s ease;
 }
 
-.text-display:not(.focused) .text-content {
+.text-display:not(.focused) .text-viewport {
   opacity: 0.3;
   filter: blur(1.5px);
 }
 
-.text-content {
-  word-break: break-word;
-  white-space: pre-wrap;
+/* Fixed-height viewport: shows ~3 lines, hides overflow */
+.text-viewport {
   position: relative;
+  height: calc(3 * 2 * 1.5rem); /* 3 lines × line-height × font-size */
+  overflow: hidden;
+}
+
+/* Inner container that translates for smooth line scrolling */
+.text-content {
+  position: relative;
+  transition: transform 0.25s ease-out;
+  will-change: transform;
+}
+
+/* ════════════════════════════════════════════
+   WORD & LETTER STRUCTURE (Monkeytype-style)
+   ════════════════════════════════════════════ */
+.word {
+  display: inline-block;
+  margin: 0 0.35ch 0 0; /* Space between words handled by margin, not literal space chars */
+  position: relative;
+  border-bottom: 2px solid transparent;
+  transition: border-color 0.15s ease;
+}
+
+/* Completed word that had errors */
+.word.word-error {
+  border-bottom-color: rgba(239, 68, 68, 0.3);
+}
+
+/* Active word gets a subtle highlight */
+.word.word-active {
+  border-bottom-color: rgba(99, 102, 241, 0.2);
+}
+
+.letter {
+  display: inline;
+  position: relative;
+  transition: color 0.05s;
+}
+
+.letter.upcoming {
+  color: var(--typing-upcoming);
+}
+
+.letter.correct {
+  color: var(--typing-correct);
+}
+
+.letter.error {
+  color: var(--typing-error);
+  background-color: var(--typing-error-bg);
+  border-radius: 2px;
+}
+
+.letter.current {
+  color: var(--text-primary);
+}
+
+.letter.current-error {
+  color: var(--typing-error);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+/* Extra characters typed beyond the word length */
+.letter.extra {
+  color: var(--typing-error);
+  opacity: 0.5;
+  font-size: 0.9em;
 }
 
 /* ── Smooth Caret ── */
 .caret {
   position: absolute;
-  width: 2.5px;
-  height: 1.25em;
-  background-color: var(--color-primary);
-  border-radius: 3px;
-  /* Use transform for buttery smooth movement */
-  transition: transform 0.1s cubic-bezier(0.45, 0, 0.55, 1);
+  /* GPU-accelerated smooth movement */
+  transition: transform var(--caret-speed, 100ms) cubic-bezier(0.22, 0.68, 0, 1.0);
+  will-change: transform;
   pointer-events: none;
   z-index: 5;
   top: 0;
   left: 0;
 }
 
-.caret.blinking {
-  animation: caret-blink 0.8s steps(2, start) infinite;
+/* Caret Style Variants */
+.caret-line {
+  width: 2.5px;
+  height: 1.25em;
+  background-color: var(--color-primary);
+  border-radius: 3px;
 }
 
-@keyframes caret-blink {
+.caret-block {
+  width: 1ch;
+  height: 1.25em;
+  background-color: var(--color-primary);
+  opacity: 0.5;
+}
+
+.caret-underline {
+  width: 1ch;
+  height: 3px;
+  background-color: var(--color-primary);
+  top: auto;
+  bottom: 0;
+  transform: translateY(1.1em); /* Move to bottom of character */
+}
+
+.caret-outline {
+  width: 1ch;
+  height: 1.25em;
+  border: 2px solid var(--color-primary);
+  box-sizing: border-box;
+}
+
+.caret.blinking {
+  animation: caret-blink-smooth 1s ease-in-out infinite;
+}
+
+@keyframes caret-blink-smooth {
+  0%, 100% { opacity: 1; }
   50% { opacity: 0; }
 }
 
@@ -199,44 +292,6 @@
   width: 0;
   height: 0;
 }
-
-/* ════════════════════════════════════════════
-   CHARACTER STATES
-   ════════════════════════════════════════════ */
-.char {
-  display: inline;
-  position: relative;
-  transition: color 0.05s;
-}
-
-.char.upcoming {
-  color: var(--typing-upcoming);
-}
-
-.char.correct {
-  color: var(--typing-correct);
-}
-
-.char.error {
-  color: var(--typing-error);
-  background-color: var(--typing-error-bg);
-  border-radius: 2px;
-}
-
-.char.current {
-  color: var(--text-primary);
-  background-color: transparent; /* Caret handles the highlight now */
-}
-
-.char.current-error {
-  color: var(--typing-error);
-  background-color: transparent;
-  text-decoration: underline;
-  text-underline-offset: 4px;
-}
-
-/* Keybr uses centered-dot for spaces in the text */
-/* Space characters are represented by · (middle dot) */
 
 /* ── Restart Hint ── */
 .restart-hint {
@@ -326,6 +381,52 @@
   flex-wrap: wrap;
 }
 
+/* ── Slowest Digraphs Section ── */
+.slowest-digraphs-section {
+  margin: var(--space-xl) 0;
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--border-subtle);
+}
+
+.slowest-digraphs-section .section-title {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin-bottom: var(--space-md);
+  font-weight: 700;
+}
+
+.digraph-list {
+  display: flex;
+  justify-content: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+}
+
+.digraph-badge {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-sm);
+  padding: var(--space-xs) var(--space-sm);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-width: 60px;
+}
+
+.dg-chars {
+  font-family: var(--font-mono);
+  font-size: var(--text-base);
+  font-weight: 700;
+  color: var(--color-primary-light);
+}
+
+.dg-latency {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
 /* ── Responsive ── */
 @media (max-width: 768px) {
   .metrics-row {
@@ -341,6 +442,10 @@
   .text-display {
     font-size: 1.1rem;
     line-height: 1.8;
+  }
+
+  .text-viewport {
+    height: calc(3 * 1.8 * 1.1rem);
   }
 
   .results-card {

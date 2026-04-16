@@ -31,6 +31,19 @@ export async function getAllSessions(): Promise<Session[]> {
 }
 
 /**
+ * Get sessions started at or after a given timestamp (most recent first).
+ */
+export async function getSessionsSince(startedAtMs: number): Promise<Session[]> {
+  const db = await getDB();
+  const sessions = await db.getAllFromIndex(
+    'sessions',
+    'by-date',
+    IDBKeyRange.lowerBound(startedAtMs)
+  );
+  return sessions.sort((a, b) => b.startedAt - a.startedAt);
+}
+
+/**
  * Get sessions by language (most recent first).
  */
 export async function getSessionsByLanguage(

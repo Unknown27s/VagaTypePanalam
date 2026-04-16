@@ -49,9 +49,10 @@ Open [http://localhost:3000](http://localhost:3000) to start typing!
 ```
 src/
 ├── app/                    # Next.js App Router pages
-│   ├── page.tsx            # Landing page
-│   ├── practice/           # Free practice mode
+│   ├── page.tsx            # Practice mode (home route: /)
 │   ├── lessons/            # Progressive lesson system
+│   ├── test/               # Timed test mode
+│   ├── race/               # Ghost race mode
 │   ├── stats/              # Statistics dashboard
 │   └── layout.tsx          # Root layout (fonts, theme, SEO)
 ├── components/             # React components
@@ -102,6 +103,39 @@ src/
 - `requestAnimationFrame` throttled to 4fps for display updates
 - DOM updates via CSS class toggles, not React re-renders
 - Page Visibility API pauses everything when tab is hidden
+
+## 🎨 UI Customization Guide
+
+If you want to change the UI, these are the main files to edit:
+
+### Global layout and design tokens
+- `src/app/layout.tsx` — Global shell layout (content + sidebar placement).
+- `src/app/globals.css` — Global theme variables, spacing scale, typography, base element styles.
+
+### Main pages (page-level UI)
+- `src/app/page.tsx` — Practice page UI and custom text panel.
+- `src/app/test/page.tsx` — Timed test UI (countdown ring, result card).
+- `src/app/race/page.tsx` — Race UI (lanes, cars, result card).
+- `src/app/lessons/page.tsx` and `src/app/lessons/[id]/page.tsx` — Lessons list and lesson detail UIs.
+- `src/app/stats/page.tsx` — Stats/profile dashboard UI.
+
+### Reusable UI components
+- `src/components/ui/Sidebar.tsx` — Sidebar navigation, toolbar controls, language/theme/sound controls.
+- `src/components/typing/TypingArea.tsx` — Typing screen UI, metrics panel, result overlays.
+- `src/components/keyboard/VirtualKeyboard.tsx` — On-screen keyboard rendering and key highlight behavior.
+
+### Styling files
+- `src/styles/typing.css` — Typing area visuals (word/letter states, caret, metrics, overlays).
+- `src/styles/keyboard.css` — Virtual keyboard style and key states.
+
+### UI behavior settings
+- `src/store/uiStore.ts` — Theme, sound, language, caret style/speed, and UI toggles.
+
+### Quick examples
+- Change app colors/fonts: edit `src/app/globals.css`.
+- Change sidebar look/links: edit `src/components/ui/Sidebar.tsx`.
+- Change typing text/caret styles: edit `src/styles/typing.css`.
+- Change test/race page card and layout styling: edit `src/app/test/page.tsx` and `src/app/race/page.tsx`.
 
 ## 🗺 Roadmap
 
