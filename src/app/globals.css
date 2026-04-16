@@ -39,6 +39,7 @@
   --bg-overlay: #eaeaea;
   --bg-hover: #e5e5e5;
   --bg-glass: rgba(243, 243, 243, 0.9);
+  --overlay-scrim: rgba(243, 243, 243, 0.92);
 
   /* Text Colors */
   --text-primary: #333333;
@@ -61,13 +62,18 @@
   --key-border: rgba(0, 0, 0, 0.05);
   --key-text: #666666;
   --key-highlight: #f3f3f3;
-  
+
   /* Keybr-style Finger mapping colors */
-  --key-finger-pinky: #df7070;   /* Red */
-  --key-finger-ring: #dfb070;    /* Orange */
-  --key-finger-middle: #b0df70;  /* Yellow-green */
-  --key-finger-index: #70df70;   /* Green */
-  --key-finger-thumb: #999999;   /* Gray */
+  --key-finger-pinky: #df7070;
+  /* Red */
+  --key-finger-ring: #dfb070;
+  /* Orange */
+  --key-finger-middle: #b0df70;
+  /* Yellow-green */
+  --key-finger-index: #70df70;
+  /* Green */
+  --key-finger-thumb: #999999;
+  /* Gray */
 
   /* Borders & Shadows */
   --border-subtle: #eaeaea;
@@ -133,6 +139,7 @@
   --bg-overlay: #333333;
   --bg-hover: #3a3a3a;
   --bg-glass: rgba(26, 26, 26, 0.9);
+  --overlay-scrim: rgba(20, 20, 20, 0.9);
 
   --text-primary: #e0e0e0;
   --text-secondary: #a0a0a0;
@@ -214,16 +221,32 @@ a:hover {
 }
 
 /* ── Headings ── */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   font-weight: 700;
   line-height: var(--leading-tight);
   color: var(--text-primary);
 }
 
-h1 { font-size: var(--text-4xl); }
-h2 { font-size: var(--text-3xl); }
-h3 { font-size: var(--text-2xl); }
-h4 { font-size: var(--text-xl); }
+h1 {
+  font-size: var(--text-4xl);
+}
+
+h2 {
+  font-size: var(--text-3xl);
+}
+
+h3 {
+  font-size: var(--text-2xl);
+}
+
+h4 {
+  font-size: var(--text-xl);
+}
 
 /* ── Utility Classes ── */
 .container {
@@ -360,33 +383,74 @@ h4 { font-size: var(--text-xl); }
 
 /* ── Animations ── */
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(20px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes pulse-glow {
-  0%, 100% { box-shadow: 0 0 8px var(--color-primary-glow); }
-  50% { box-shadow: 0 0 20px var(--color-primary-glow); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 8px var(--color-primary-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 20px var(--color-primary-glow);
+  }
 }
 
 @keyframes cursor-blink {
-  0%, 49% { opacity: 1; }
-  50%, 100% { opacity: 0; }
+
+  0%,
+  49% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
 }
 
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  25% { transform: translateX(-4px); }
-  75% { transform: translateX(4px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  25% {
+    transform: translateX(-4px);
+  }
+
+  75% {
+    transform: translateX(4px);
+  }
 }
 
 @keyframes progress-fill {
-  from { width: 0%; }
+  from {
+    width: 0%;
+  }
 }
 
 .animate-fade-in {

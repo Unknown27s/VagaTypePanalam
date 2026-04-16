@@ -27,7 +27,8 @@ import {
   Volume2,
   VolumeX,
   Timer,
-  Flame
+  Flame,
+  SlidersHorizontal
 } from 'lucide-react';
 
 const LANGUAGE_LABELS: Record<Language, string> = {
@@ -38,9 +39,24 @@ const LANGUAGE_LABELS: Record<Language, string> = {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { theme, toggleTheme, language, setLanguage, isOnline, showKeyboard, toggleKeyboard, soundEnabled, toggleSound } = useUIStore();
+  const {
+    theme,
+    toggleTheme,
+    language,
+    setLanguage,
+    isOnline,
+    showKeyboard,
+    toggleKeyboard,
+    soundEnabled,
+    toggleSound,
+    caretStyle,
+    setCaretStyle,
+    caretSpeed,
+    setCaretSpeed,
+  } = useUIStore();
   const [mounted, setMounted] = useState(false);
   const [streak, setStreak] = useState(0);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -121,6 +137,18 @@ export default function Sidebar() {
             </span>
             <span className="nav-label text-fade">Theme</span>
           </button>
+
+          <button
+            className={`tool-btn ${settingsOpen ? 'active' : ''}`}
+            onClick={() => setSettingsOpen((v) => !v)}
+            title="Typing settings"
+            aria-label="Open typing settings"
+          >
+            <span className="icon-wrapper">
+              <SlidersHorizontal size={20} />
+            </span>
+            <span className="nav-label text-fade">Settings</span>
+          </button>
         </div>
       </div>
 
@@ -151,6 +179,37 @@ export default function Sidebar() {
       </nav>
 
       <div className="sidebar-bottom">
+        {settingsOpen && (
+          <div className="settings-panel text-fade">
+            <label className="setting-row">
+              <span>Caret Style</span>
+              <select value={caretStyle} onChange={(e) => setCaretStyle(e.target.value as typeof caretStyle)}>
+                <option value="line">Line</option>
+                <option value="outline">Outline</option>
+              </select>
+            </label>
+
+            <label className="setting-row">
+              <span>Caret Speed</span>
+              <select value={caretSpeed} onChange={(e) => setCaretSpeed(e.target.value as typeof caretSpeed)}>
+                <option value="slow">Slow</option>
+                <option value="medium">Medium</option>
+                <option value="fast">Fast</option>
+              </select>
+            </label>
+
+            <button className="setting-toggle" onClick={toggleSound}>
+              <span>Sound</span>
+              <strong>{soundEnabled ? 'On' : 'Off'}</strong>
+            </button>
+
+            <button className="setting-toggle" onClick={toggleKeyboard}>
+              <span>Keyboard</span>
+              <strong>{showKeyboard ? 'Shown' : 'Hidden'}</strong>
+            </button>
+          </div>
+        )}
+
         {mounted && !isOnline && (
           <div className="offline-badge" title="Offline">
             <span className="icon-wrapper"><WifiOff size={18} /></span>
@@ -176,10 +235,10 @@ export default function Sidebar() {
 
         <div className="footer-links nav-label text-fade">
           <span className="brand-name">VaagaTypePanalam</span>
+          <span className="trial-note">Trial version - feedback welcome</span>
           <div className="links-row">
-            <a href="#">Github</a>
-            <a href="#">Terms</a>
-            <a href="#">Privacy</a>
+            <a href="https://github.com/Unknown27s/VagaTypePanalam" target="_blank" rel="noopener noreferrer">GitHub</a>
+            <a href="https://github.com/Unknown27s/VagaTypePanalam/issues/new" target="_blank" rel="noopener noreferrer">Feedback</a>
           </div>
         </div>
       </div>
@@ -199,7 +258,7 @@ export default function Sidebar() {
           font-family: var(--font-sans);
           z-index: 1000;
           overflow-x: hidden;
-          overflow-y: hidden;
+          overflow-y: auto;
           transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s;
           white-space: nowrap;
         }
@@ -400,6 +459,52 @@ export default function Sidebar() {
           padding-top: 1rem;
         }
 
+        .settings-panel {
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-sm);
+          background: var(--bg-elevated);
+          padding: 0.6rem;
+          display: flex;
+          flex-direction: column;
+          gap: 0.45rem;
+        }
+
+        .setting-row {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 4px;
+          font-size: 0.75rem;
+          color: var(--text-secondary);
+        }
+
+        .setting-row select {
+          width: 100%;
+          font-size: 0.75rem;
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          color: var(--text-primary);
+          border-radius: var(--radius-sm);
+          padding: 0.3rem 0.4rem;
+        }
+
+        .setting-toggle {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          font-size: 0.75rem;
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          color: var(--text-primary);
+          border-radius: var(--radius-sm);
+          padding: 0.32rem 0.45rem;
+          cursor: pointer;
+        }
+
+        .setting-toggle strong {
+          color: var(--color-primary);
+          font-size: 0.72rem;
+        }
+
         .offline-badge {
           display: flex;
           align-items: center;
@@ -459,6 +564,16 @@ export default function Sidebar() {
         .brand-name {
           font-weight: 700;
           color: var(--text-secondary);
+        }
+
+        .trial-note {
+          color: var(--color-accent-dark);
+          font-size: 0.68rem;
+          font-weight: 600;
+        }
+
+        :global([data-theme='dark']) .trial-note {
+          color: var(--color-accent-light);
         }
 
         .links-row {

@@ -279,6 +279,7 @@ export class SessionTracker {
 
     // Push completed word input to history
     this.wordInputHistory.push(this.currentWordInput);
+    this.totalWordsTyped++;
     this.currentWordInput = '';
     this.activeWordIndex++;
 

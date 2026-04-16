@@ -7,6 +7,20 @@ All notable changes to **VaagaTypePanalam** will be documented in this file.
 ### Fixed
 - **Practice Segment Auto-Advance**: Ensured endless practice immediately publishes the next generated paragraph after a segment completes, so practice no longer appears to stop at the paragraph boundary.
 - **Timed Test Segment Auto-Advance**: Updated timed test mode to roll into the next generated chunk instead of stalling at the end of a paragraph, while keeping the overall timer session intact.
+- **Typing Handler Stale Closures**: Fixed memo dependencies in `TypingArea` keyboard/input handlers so error mode and keystroke validation update reliably after state changes.
+- **Word Count Tracking**: Fixed `SessionTracker.totalWordsTyped` so it increments on each completed word.
+- **Tamil99 Virtual Keyboard Coverage**: Added missing number row and shift labels in Tamil99 layout data to prevent incomplete keyboard rendering.
+- **Consistency Metric Styling**: Added the missing `.metric-consistency` style used by `TypingArea` metrics panel.
+- **Text Generator Cleanup**: Removed leftover typo alias (`WeI`) and wired `MAX_WEAK_KEYS_FOCUS` into weak digraph selection.
+
+### Improved
+- **Metrics UI Refresh**: Replaced dense metrics text wall with card-based metrics (WPM ring, accuracy progress, consistency, streak) and a compact secondary strip for current key, daily goal, and key hints.
+- **Sidebar Settings Drawer**: Added interactive sidebar settings controls for error mode, caret style, caret speed, sound, and virtual keyboard visibility.
+- **Typing Readability**: Increased typing text scale and line-height for easier scanning during high-speed practice.
+- **Theme Token Coverage**: Added `--overlay-scrim` token and applied it to results overlay for better dark/light consistency.
+- **Practice View Fit**: Tightened practice page spacing and keyboard scaling so top metrics, typing area, and virtual keyboard fit in a single viewport more like Keybr.
+- **Settings Simplification**: Removed Keys strip box from metrics HUD, removed Error Mode control from sidebar settings, and limited caret style options to Line/Outline.
+- **Sidebar Scrollability**: Enabled vertical scrolling in the expanded sidebar so settings and links remain reachable on shorter screens.
 
 ## [0.2.1] - 2026-04-15
 

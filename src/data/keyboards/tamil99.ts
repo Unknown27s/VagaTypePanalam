@@ -8,9 +8,21 @@
 import type { KeyData } from './qwerty';
 
 export const TAMIL99_LAYOUT: KeyData[][] = [
-  // Row 1 — Number Row (contains some vowel signs/aytham in shifted state, but base is numbers)
-  // For simplicity MVP we will stick to main 3 rows
-  
+  // Row 0 — Number Row
+  [
+    { key: '1', label: '1', shiftLabel: '!', finger: 'pinky', hand: 'left', row: 0 },
+    { key: '2', label: '2', shiftLabel: '@', finger: 'ring', hand: 'left', row: 0 },
+    { key: '3', label: '3', shiftLabel: '#', finger: 'middle', hand: 'left', row: 0 },
+    { key: '4', label: '4', shiftLabel: '$', finger: 'index', hand: 'left', row: 0 },
+    { key: '5', label: '5', shiftLabel: '%', finger: 'index', hand: 'left', row: 0 },
+    { key: '6', label: '6', shiftLabel: '^', finger: 'index', hand: 'right', row: 0 },
+    { key: '7', label: '7', shiftLabel: '&', finger: 'index', hand: 'right', row: 0 },
+    { key: '8', label: '8', shiftLabel: '*', finger: 'middle', hand: 'right', row: 0 },
+    { key: '9', label: '9', shiftLabel: '(', finger: 'ring', hand: 'right', row: 0 },
+    { key: '0', label: '0', shiftLabel: ')', finger: 'pinky', hand: 'right', row: 0 },
+    { key: 'Backspace', label: 'Backspace', finger: 'pinky', hand: 'right', row: 0, width: 2, isModifier: true },
+  ],
+
   // Row 2 — Top row
   [
     { key: 'ஆ', label: 'ஆ', finger: 'pinky', hand: 'left', row: 1 },
@@ -48,8 +60,8 @@ export const TAMIL99_LAYOUT: KeyData[][] = [
     { key: 'ங', label: 'ங', finger: 'index', hand: 'left', row: 3 },
     { key: 'ல', label: 'ல', finger: 'index', hand: 'right', row: 3 },
     { key: 'ர', label: 'ர', finger: 'index', hand: 'right', row: 3 },
-    { key: ',', label: ',', finger: 'middle', hand: 'right', row: 3 },
-    { key: '.', label: '.', finger: 'ring', hand: 'right', row: 3 },
+    { key: ',', label: ',', shiftLabel: '<', finger: 'middle', hand: 'right', row: 3 },
+    { key: '.', label: '.', shiftLabel: '>', finger: 'ring', hand: 'right', row: 3 },
     { key: 'ஞ', label: 'ஞ', finger: 'pinky', hand: 'right', row: 3 },
   ],
   // Row 5 — Space bar

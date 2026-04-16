@@ -77,7 +77,7 @@ export function generateAdaptiveText(
   }
 
   // Build weighted key pool based on performance
-  const weightedPool: WeI[] = [];
+  const weightedPool: WeightedKey[] = [];
 
   for (const key of unlockedKeys) {
     const stat = statsMap.get(key);
@@ -106,7 +106,7 @@ export function generateAdaptiveText(
   const weakDigraphs = keyStats
     .filter(s => s.char.length > 1 && s.isWeak)
     .sort((a, b) => a.confidence - b.confidence)
-    .slice(0, 10)
+    .slice(0, MAX_WEAK_KEYS_FOCUS)
     .map(s => s.char);
 
   // Generate words
@@ -195,6 +195,3 @@ export function generateLessonText(
 
   return words.join(' ').trim();
 }
-
-// Fix typo alias
-type WeI = WeightedKey;

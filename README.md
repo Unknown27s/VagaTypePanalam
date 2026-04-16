@@ -44,6 +44,23 @@ npm start
 
 Open [http://localhost:3000](http://localhost:3000) to start typing!
 
+## ▲ Deploy On Vercel (Trial)
+
+This project can be deployed directly on Vercel as a **trial version**.
+Please treat the first deployment as beta and collect user feedback before broad rollout.
+
+### Quick deploy steps
+1. Push your latest code to GitHub.
+2. In Vercel, choose **Add New Project**.
+3. Import repository: `Unknown27s/VagaTypePanalam`.
+4. Keep defaults for Next.js build settings.
+5. Click **Deploy**.
+
+### Trial notes
+- Add a short label in the UI: `Trial version - feedback welcome`.
+- Keep feedback channel open via GitHub Issues.
+- Recommended feedback link: `https://github.com/Unknown27s/VagaTypePanalam/issues/new`.
+
 ## 📁 Project Structure
 
 ```

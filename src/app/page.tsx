@@ -120,20 +120,25 @@ export default function HomePage() {
 
       <style jsx>{`
         .practice-page {
-          min-height: 100dvh;
+          height: 100dvh;
           display: flex;
-          align-items: flex-start;
+          align-items: stretch;
           justify-content: center;
-          padding: var(--space-3xl) var(--space-lg) var(--space-xl);
+          padding: var(--space-sm) var(--space-lg) var(--space-sm);
+          overflow: hidden;
         }
         .practice-content {
           width: 100%;
-          max-width: 820px;
+          max-width: 980px;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
         }
         .custom-toolbar {
           display: flex;
           justify-content: flex-end;
-          margin-bottom: var(--space-md);
+          margin-bottom: var(--space-xs);
+          flex-shrink: 0;
         }
         .custom-toggle-btn {
           display: flex;
@@ -170,10 +175,11 @@ export default function HomePage() {
           border: 1px solid var(--border-default);
           border-radius: var(--radius-md);
           padding: var(--space-md);
-          margin-bottom: var(--space-md);
+          margin-bottom: var(--space-sm);
           display: flex;
           flex-direction: column;
           gap: var(--space-sm);
+          flex-shrink: 0;
         }
         .custom-textarea {
           width: 100%;
@@ -204,11 +210,27 @@ export default function HomePage() {
           font-family: var(--font-mono);
         }
         .keyboard-section {
-          margin-top: var(--space-xl);
+          margin-top: var(--space-sm);
+          flex-shrink: 0;
+          display: flex;
+          justify-content: center;
+        }
+        .keyboard-section :global(.virtual-keyboard) {
+          transform: scale(0.88);
+          transform-origin: top center;
         }
         @media (max-width: 768px) {
           .practice-page {
+            height: auto;
+            min-height: 100dvh;
+            overflow: visible;
             padding: var(--space-xl) var(--space-md);
+          }
+          .practice-content {
+            height: auto;
+          }
+          .keyboard-section :global(.virtual-keyboard) {
+            transform: none;
           }
         }
       `}</style>

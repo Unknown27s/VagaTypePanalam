@@ -21,6 +21,7 @@ import { formatAccuracy, formatDuration } from '@/engine/statsCalculator';
 import { CARET_SPEED_SLOW, CARET_SPEED_MEDIUM, CARET_SPEED_FAST } from '@/engine/constants';
 import { KEY_TO_FINGER, getFingerColor } from '@/data/keyboards/qwerty';
 import { soundEngine } from '@/engine/soundEngine';
+import { Gauge, ShieldCheck, Activity, Flame, Target } from 'lucide-react';
 import '@/styles/typing.css';
 
 interface TypingAreaProps {
@@ -338,7 +339,7 @@ export default function TypingArea({
         isProcessingRef.current = false;
       }
     },
-    [snapshot.isComplete, snapshot.cursorPosition, initSession, soundEnabled]
+    [snapshot.isComplete, initSession, soundEnabled, isValidKeystroke]
   );
 
   const handleFocus = useCallback(() => {
@@ -384,7 +385,7 @@ export default function TypingArea({
         isProcessingRef.current = false;
       }
     },
-    [soundEnabled]
+    [soundEnabled, isValidKeystroke]
   );
 
   // Render word-based DOM hierarchy
@@ -455,59 +456,69 @@ export default function TypingArea({
   const globalAvgAcc = idleStats.accuracy;
   const score = Math.round(displayWpm * displayAccuracy);
   const globalScore = Math.round(globalAvgWpm * globalAvgAcc);
+  const goalPct = Math.min((displayElapsedMs / (30 * 60 * 1000)) * 100, 100);
+  const streakCount = snapshot.errorChars === 0 ? snapshot.correctChars : 0;
+  const wpmRingPct = Math.min((displayWpm / 120) * 100, 100);
 
   // Current expected key
   const currentKey = snapshot.text && snapshot.cursorPosition < snapshot.text.length
     ? snapshot.text[snapshot.cursorPosition]
     : null;
 
-  // Build the "all keys" list — unique keys that appear in the text
-  const allKeysInText = (() => {
-    if (!snapshot.text) return [];
-    const unique = [...new Set(snapshot.text.toLowerCase().split(''))].filter(c => c !== ' ').sort();
-    return unique;
-  })();
-
   const caretSpeedMs = caretSpeed === 'slow' ? CARET_SPEED_SLOW : caretSpeed === 'fast' ? CARET_SPEED_FAST : CARET_SPEED_MEDIUM;
+  const activeCaretStyle = caretStyle === 'outline' ? 'outline' : 'line';
 
   return (
     <div className="typing-container">
-      {/* ── Keybr-style Metrics Panel ── */}
-      <div className={`metrics-panel ${segmentFlash ? 'segment-flash' : ''}`}>
-        <div className="metrics-row">
-          <span className="metrics-label">Metrics:</span>
-          <span className="metrics-value">
-            Speed: <strong className="metric-speed">{displayWpm.toFixed(1)} ({globalAvgWpm.toFixed(0)})</strong> wpm
-            {' '}Accuracy: <strong className="metric-accuracy">{(displayAccuracy * 100).toFixed(1)}% ({(globalAvgAcc * 100).toFixed(0)}%)</strong>
-            {' '}Consistency: <strong className="metric-consistency">{Math.round(snapshot.consistency * 100)}%</strong>
-            {' '}Errors: <strong className="metric-error" style={{ color: snapshot.errorChars > 0 ? 'var(--color-error)' : 'inherit' }}>{snapshot.errorChars}</strong>
-            {' '}Score: <strong className="metric-score">{score} ({globalScore})</strong>
-          </span>
+      <div className={`metrics-hud ${segmentFlash ? 'segment-flash' : ''}`}>
+        <div className="metrics-grid">
+          <article className="metric-card metric-card-speed">
+            <div className="metric-head">
+              <Gauge size={16} />
+              <span>Speed</span>
+            </div>
+            <div className="wpm-ring" style={{ '--ring-progress': `${wpmRingPct}%` } as React.CSSProperties}>
+              <strong>{displayWpm.toFixed(0)}</strong>
+              <small>wpm</small>
+            </div>
+            <p className="metric-subtext">Avg {globalAvgWpm.toFixed(0)} wpm</p>
+          </article>
+
+          <article className="metric-card">
+            <div className="metric-head">
+              <ShieldCheck size={16} />
+              <span>Accuracy</span>
+            </div>
+            <strong className="metric-value-xl">{(displayAccuracy * 100).toFixed(1)}%</strong>
+            <div className="metric-progress">
+              <div className="metric-progress-fill" style={{ width: `${Math.min(displayAccuracy * 100, 100)}%` }} />
+            </div>
+            <p className="metric-subtext">Avg {(globalAvgAcc * 100).toFixed(0)}%</p>
+          </article>
+
+          <article className="metric-card">
+            <div className="metric-head">
+              <Activity size={16} />
+              <span>Consistency</span>
+            </div>
+            <strong className="metric-value-xl">{Math.round(snapshot.consistency * 100)}%</strong>
+            <p className="metric-subtext">Score {score} (avg {globalScore})</p>
+          </article>
+
+          <article className="metric-card">
+            <div className="metric-head">
+              <Flame size={16} />
+              <span>Streak</span>
+            </div>
+            <strong className="metric-value-xl">{streakCount}</strong>
+            <p className="metric-subtext">{snapshot.errorChars} errors</p>
+          </article>
         </div>
 
-        <div className="metrics-row">
-          <span className="metrics-label">All keys:</span>
-          <span className="metrics-keys">
-            {allKeysInText.map((char) => {
-              const fingerData = KEY_TO_FINGER.get(char);
-              const bgColor = fingerData ? getFingerColor(fingerData.finger) : 'var(--key-bg)';
-              const isCurrentKey = currentKey?.toLowerCase() === char;
-              return (
-                <span
-                  key={char}
-                  className={`key-badge ${isCurrentKey ? 'key-badge-active' : ''}`}
-                  style={{ background: bgColor }}
-                >
-                  {char.toUpperCase()}
-                </span>
-              );
-            })}
-          </span>
-        </div>
-
-        <div className="metrics-row">
-          <span className="metrics-label">Current key:</span>
-          <span className="metrics-value">
+        <div className="metrics-strip">
+          <div className="metrics-strip-item">
+            <Target size={14} />
+            <span className="metrics-strip-label">Current key</span>
             {currentKey ? (
               <>
                 <span
@@ -520,43 +531,25 @@ export default function TypingArea({
                 >
                   {currentKey === ' ' ? '␣' : currentKey.toUpperCase()}
                 </span>
-                {' '}
                 <span className="metric-detail">
                   {snapshot.isCalibrated
-                    ? `Calibrated (Confidence: ${Math.round((trackerRef.current?.getKeyProfiler().getConfidence(currentKey) ?? 0) * 100)}%)`
-                    : `Calibrating... (${snapshot.samplesCollected}/10 samples)`}
+                    ? `Confidence ${Math.round((trackerRef.current?.getKeyProfiler().getConfidence(currentKey) ?? 0) * 100)}%`
+                    : `Calibrating ${snapshot.samplesCollected}/10`}
                 </span>
               </>
             ) : (
               <span className="metric-detail">—</span>
             )}
-          </span>
-        </div>
+          </div>
 
-        <div className="metrics-row">
-          <span className="metrics-label">Accuracy:</span>
-          <span className="metrics-value">
-            <span className="metric-detail">
-              {snapshot.errorChars === 0 && snapshot.totalKeystrokes > 0
-                ? `${snapshot.correctChars} correct streak!`
-                : snapshot.totalKeystrokes === 0
-                  ? 'No accuracy streaks.'
-                  : `${snapshot.errorChars} errors so far.`}
-            </span>
-          </span>
-        </div>
-
-        <div className="metrics-row">
-          <span className="metrics-label">Daily goal:</span>
-          <span className="metrics-value metrics-goal">
+          <div className="metrics-strip-item metrics-goal">
+            <span className="metrics-strip-label">Daily goal</span>
             <span className="metric-detail">{formatDuration(displayElapsedMs)}/30 minutes</span>
             <div className="goal-bar">
-              <div
-                className="goal-bar-fill"
-                style={{ width: `${Math.min((displayElapsedMs / (30 * 60 * 1000)) * 100, 100)}%` }}
-              />
+              <div className="goal-bar-fill" style={{ width: `${goalPct}%` }} />
             </div>
-          </span>
+          </div>
+
         </div>
       </div>
 
@@ -617,7 +610,7 @@ export default function TypingArea({
             } as React.CSSProperties}
           >
             <div
-              className={`caret caret-${caretStyle} ${isIdle ? 'blinking' : ''}`}
+              className={`caret caret-${activeCaretStyle} ${isIdle ? 'blinking' : ''}`}
               style={caretPositionStyle}
             />
             {renderWords()}
@@ -712,7 +705,7 @@ export default function TypingArea({
       )}
 
       <style jsx>{`
-        .metrics-panel.segment-flash {
+        .metrics-hud.segment-flash {
           border-color: var(--color-success);
           box-shadow: 0 0 0 2px rgba(34,197,94,0.15);
         }
