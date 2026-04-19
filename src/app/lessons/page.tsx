@@ -49,10 +49,14 @@ export default function LessonsPage() {
 
   function isLevelUnlocked(level: number): boolean {
     if (level <= 1) return true;
-    const prevLesson = lessons.find((l) => l.level === level - 1);
-    if (!prevLesson) return true;
-    const prevProgress = progress.get(prevLesson.id);
-    return prevProgress?.completed ?? false;
+    // Level N is unlocked if ALL lessons in Level N-1 are completed
+    const prevLevelLessons = lessons.filter((l) => l.level === level - 1);
+    if (prevLevelLessons.length === 0) return true;
+    
+    return prevLevelLessons.every((l) => {
+      const prog = progress.get(l.id);
+      return prog?.completed ?? false;
+    });
   }
 
   function getStarRating(prog: LessonProgress | undefined, lesson: LessonDefinition): number {

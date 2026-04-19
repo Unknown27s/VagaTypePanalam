@@ -50,6 +50,9 @@ export default function LessonPage() {
   let lesson: LessonDefinition | undefined = ENGLISH_LESSONS.find((l) => l.id === lessonId);
   if (!lesson) lesson = TAMIL_LESSONS.find((l) => l.id === lessonId);
   if (!lesson) lesson = TANGLISH_LESSONS.find((l) => l.id === lessonId);
+  
+  const currentLessons = lessonId.startsWith('ta-') ? TAMIL_LESSONS : (lessonId.startsWith('tang-') ? TANGLISH_LESSONS : ENGLISH_LESSONS);
+  const nextLesson = currentLessons.find(l => l.level === (lesson?.level ?? 0) + 1);
 
   if (!lesson) {
     return (
@@ -78,7 +81,9 @@ export default function LessonPage() {
       language,
       lesson.level,
       session.wpm,
-      session.accuracy
+      session.accuracy,
+      lesson.targetWpm,
+      lesson.targetAccuracy
     );
   };
 
@@ -174,6 +179,9 @@ export default function LessonPage() {
             targetKeys={lesson.keys}
             onComplete={handleComplete}
             mode="lesson"
+            nextLessonId={nextLesson?.id}
+            targetWpm={lesson.targetWpm}
+            targetAccuracy={lesson.targetAccuracy}
           />
 
           {showKeyboard && (language === 'en' || language === 'tanglish' || language === 'ta') && (
