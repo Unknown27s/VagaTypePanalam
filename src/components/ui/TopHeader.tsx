@@ -37,6 +37,7 @@ import {
   LogIn,
   Cloud,
 } from 'lucide-react';
+import AuthModal from './AuthModal';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Practice', icon: Keyboard },
@@ -72,29 +73,11 @@ export default function TopHeader() {
   } = useUIStore();
 
   const [mounted, setMounted] = useState(false);
-  const [streak, setStreak] = useState(0);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    const fetchStreak = async () => {
-      try {
-        const profile = await getProfile();
-        setStreak(profile.currentStreak);
-      } catch (e) {
-        console.error(e);
-      }
-    };
-    fetchStreak();
-
-    const handleProfileUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent;
-      if (customEvent.detail?.currentStreak !== undefined) {
-        setStreak(customEvent.detail.currentStreak);
-      }
-    };
-    window.addEventListener('profile-updated', handleProfileUpdate);
-    return () => window.removeEventListener('profile-updated', handleProfileUpdate);
   }, []);
 
   // Sync with cloud when logged in
@@ -123,12 +106,6 @@ export default function TopHeader() {
         {/* ── Logo ── */}
         <Link href="/" className="header-logo">
           <span className="logo-text">VANGA</span>
-          {mounted && streak > 0 && (
-            <span className="header-streak" title={`${streak} Day Streak!`}>
-              <Flame size={14} className="flame-anim" />
-              <span>{streak}</span>
-            </span>
-          )}
         </Link>
 
         {/* ── Nav Links ── */}
@@ -223,13 +200,19 @@ export default function TopHeader() {
               ) : (
                 <button
                   className="auth-btn-pill"
-                  onClick={() => signIn('github')}
-                  title="Sign in with GitHub"
+                  onClick={() => setAuthModalOpen(true)}
+                  title="Sign In / Sign Up"
                 >
                   <LogIn size={16} />
                   <span>Sign In</span>
                 </button>
               )}
+
+              {/* Auth Modal */}
+              <AuthModal 
+                isOpen={authModalOpen} 
+                onClose={() => setAuthModalOpen(false)} 
+              />
 
               {/* Settings dropdown */}
               <div className="settings-dropdown-wrapper">
@@ -342,20 +325,7 @@ export default function TopHeader() {
           background-clip: text;
         }
 
-        .header-streak {
-          display: flex;
-          align-items: center;
-          gap: 3px;
-          background: var(--color-accent-glow);
-          border-radius: var(--radius-full);
-          padding: 2px 8px;
-          font-size: var(--text-xs);
-          font-weight: 800;
-          color: var(--color-accent);
-        }
-
-        .flame-anim {
-          animation: flicker 2s infinite ease-in-out;
+          background-clip: text;
         }
 
         @keyframes flicker {

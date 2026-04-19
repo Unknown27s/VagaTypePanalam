@@ -14,6 +14,7 @@
     "@auth/prisma-adapter": "^2.11.2",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
+    "bcryptjs": "^3.0.3",
     "idb": "^8.0.3",
     "lucide-react": "^1.8.0",
     "next": "16.2.3",
@@ -24,6 +25,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
     "@types/react": "^19",
