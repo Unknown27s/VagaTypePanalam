@@ -6,10 +6,10 @@ This document describes the high-level architecture of the VangaTypePanalam typi
 
 If you are an AI tasked with modifying this codebase, hold these architectural rules strict:
 
-1. **Strictly Offline-First**: Do not introduce server-side PostgreSQL/MongoDB/Firebase databases or Prisma schemas. All persistent state lives entirely in the browser using IndexedDB (via the `idb` library in `src/db`).
-2. **Zero-Polling Engine**: Do not use `setInterval` or `requestAnimationFrame` loops for the typing core. The engine calculates WPM and state only when a keystroke occurs to drastically save CPU/battery.
-3. **No UI-Blocking Models in Practice Mode**: We use an **Endless Practice** mode. We do NOT show locking modals when a segment finishes; instead, we do a silent background save and dynamically regenerate fresh text for continuous typing flow.
-4. **Bundle Size Sensitivity**: Do not use heavy audio files or unoptimized JSON files synchronously. Sound is generated procedurally (Web Audio API), and massive word banks are lazy-loaded once and cached in IDB.
+1. **Offline-First Hybrid**: The application core is strictly offline-first for performance. However, an **Auth.js + Prisma** layer allows users to sign in with GitHub to securely back up their IndexedDB state to a Neon PostgreSQL database.
+2. **Zero-Polling Engine**: Do not use `setInterval` or `requestAnimationFrame` loops for the typing core. The engine calculates metrics only on keystrokes.
+3. **Seamless Cloud Sync**: Sync happens in the background after session completions. It is "fire-and-forget" to ensure 0ms impact on typing latency.
+4. **No UI-Blocking Models**: We use an **Endless Practice** mode with dynamic paragraph regeneration.
 
 ---
 
@@ -17,9 +17,16 @@ If you are an AI tasked with modifying this codebase, hold these architectural r
 
 ### 1. The UI Layer (React / Next.js)
 Located in `src/app` and `src/components`.
-- **`TypingArea.tsx`**: The nervous system. It intercepts keyboard events, holds a `SessionTracker` instance, and renders the text with correct/error highlights.
-- **`VirtualKeyboard.tsx`**: A visual aid mapping keys to fingers. Uses `qwerty.ts` and `tamil99.ts` definitions.
-- **`Sidebar.tsx`**: Left rail navigation containing Practice, Test, Lessons, and Profile, along with quick toggles (Language, Sound).
+- **`TopHeader.tsx`**: Navigation + Auth UI. Triggers `requestCloudSync()` on session detection.
+- **`TypingArea.tsx`**: High-frequency typing interface.
+- **`LeftSidebar.tsx` / `RightSidebar.tsx`**: Dashboard metrics and live analytics.
+- **`AuthProvider.tsx`**: Client-side wrapper for Auth.js.
+
+### 2. The Server-Side Layer (Auth.js & Prisma)
+Located in `src/auth.ts`, `prisma/`, and `src/app/api`.
+- **`Prisma 7`**: Standard ORM using `@prisma/adapter-pg` for Neon PostgreSQL.
+- **`CloudBackup` Model**: Serialized IDB blobs store keyStats, sessions, and profile.
+- **`/api/sync`**: Secure push/pull endpoints for cloud data.
 
 ### 2. The Typing Engine (Vanilla TypeScript)
 Located in `src/engine`. Completely decoupled from React for pure speed.

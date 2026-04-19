@@ -328,7 +328,9 @@ function StatCard({
 // ─────────────────────────────────────────────
 
 function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
-  const [hovered, setHovered] = useState<KeyStat | null>(null);
+  const [hovered, setHovered] = useState<{ ks: KeyStat; x: number; y: number } | null>(null);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
 
   const W = 600;
   const H = 340;
@@ -336,14 +338,16 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
 
-  // Precompute max once — never changes while component is mounted with same keyStats
+  // Precompute max once
   const maxAttempts = useMemo(
     () => Math.max(...keyStats.map((k) => k.totalAttempts), 1),
     [keyStats],
   );
 
-  const toX = (attempts: number) => (attempts / maxAttempts) * plotW;
-  const toY = (conf: number) => plotH - conf * plotH; // flip: high confidence = top
+  // Logarithmic scaling for better spread on X-axis
+  const maxLog = Math.log10(maxAttempts + 1);
+  const toX = (attempts: number) => (Math.log10(attempts + 1) / maxLog) * plotW;
+  const toY = (conf: number) => plotH - conf * plotH;
 
   const midX = plotW / 2;
   const midY = plotH / 2;
@@ -357,7 +361,8 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
     return '🔒 Unpracticed';
   };
 
-  const GRID_TICKS = [0, 0.25, 0.5, 0.75, 1] as const;
+  const GRID_TICKS_Y = [0, 0.25, 0.5, 0.75, 1];
+  const GRID_TICKS_X = [0.25, 0.5, 0.75, 1]; // represent log boundaries
 
   return (
     <div className="scatter-wrap">
@@ -370,7 +375,6 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
         style={{ width: '100%', maxWidth: W, height: 'auto' }}
       >
         <g transform={`translate(${PAD.left}, ${PAD.top})`}>
-
           {/* ── Quadrant shading ── */}
           <rect x={0} y={0} width={midX} height={midY} fill="hsl(200,40%,50%)" opacity={0.05} />
           <rect x={midX} y={0} width={midX} height={midY} fill="hsl(120,60%,40%)" opacity={0.06} />
@@ -383,23 +387,28 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
           <text x={midX + 8} y={midY + 14} fontSize={9} fill="hsl(0,60%,55%)" opacity={0.7}>Needs Work</text>
           <text x={8} y={midY + 14} fontSize={9} fill="hsl(0,0%,55%)" opacity={0.6}>Unpracticed</text>
 
-          {/* ── Grid lines + tick labels ── */}
-          {GRID_TICKS.map((t) => {
+          {/* ── Grid horizontal lines ── */}
+          {GRID_TICKS_Y.map((t) => {
             const y = toY(t);
-            const x = t * plotW;
             return (
-              <g key={t}>
-                {/* Horizontal */}
-                <line x1={0} x2={plotW} y1={y} y2={y}
-                  stroke="var(--border-default)" strokeWidth={0.5} strokeDasharray="3,3" />
-                <text x={-6} y={y + 4} fontSize={9} fill="var(--text-muted)" textAnchor="end">
+              <g key={`y-${t}`}>
+                <line x1={0} x2={plotW} y1={y} y2={y} stroke="var(--border-default)" strokeWidth={0.5} strokeDasharray="3,3" />
+                <text x={-6} y={y + 3} fontSize={9} fill="var(--text-muted)" textAnchor="end">
                   {(t * 100).toFixed(0)}
                 </text>
-                {/* Vertical */}
-                <line x1={x} x2={x} y1={0} y2={plotH}
-                  stroke="var(--border-default)" strokeWidth={0.5} strokeDasharray="3,3" />
+              </g>
+            );
+          })}
+
+          {/* ── Grid vertical lines ── */}
+          {GRID_TICKS_X.map((t) => {
+            const x = t * plotW;
+            const logValToAttempts = Math.pow(10, t * maxLog) - 1;
+            return (
+              <g key={`x-${t}`}>
+                <line x1={x} x2={x} y1={0} y2={plotH} stroke="var(--border-default)" strokeWidth={0.5} strokeDasharray="3,3" />
                 <text x={x} y={plotH + 14} fontSize={9} fill="var(--text-muted)" textAnchor="middle">
-                  {Math.round(t * maxAttempts)}
+                  {Math.round(logValToAttempts)}
                 </text>
               </g>
             );
@@ -414,32 +423,34 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
             const cx = toX(ks.totalAttempts);
             const cy = toY(ks.confidence);
             const hue = ks.confidence * 120;
-            const isHovered = ks === hovered;
-            const r = isHovered ? 10 : 7;
+            const isHovered = hovered?.ks === ks;
+            const r = isHovered ? 12 : 8;
 
             return (
               <g
                 key={ks.char}
                 transform={`translate(${cx}, ${cy})`}
                 style={{ cursor: 'pointer' }}
-                onMouseEnter={() => setHovered(ks)}
+                onMouseEnter={(e) => {
+                  const rect = (e.target as SVGGElement).getBoundingClientRect();
+                  setHovered({ ks, x: rect.left + rect.width / 2, y: rect.top });
+                }}
                 onMouseLeave={() => setHovered(null)}
               >
-                {/* Glow ring on hover */}
                 {isHovered && (
-                  <circle r={14} fill={`hsl(${hue},70%,55%)`} opacity={0.2} />
+                  <circle r={18} fill={`hsl(${hue},70%,55%)`} opacity={0.2} />
                 )}
                 <circle
                   r={r}
                   fill={`hsl(${hue},70%,50%)`}
-                  stroke={isHovered ? 'white' : `hsl(${hue},70%,35%)`}
-                  strokeWidth={isHovered ? 1.5 : 1}
-                  style={{ transition: 'r 0.15s ease' }}
+                  stroke={isHovered ? 'white' : `hsl(${hue},70%,25%)`}
+                  strokeWidth={isHovered ? 2 : 1.2}
+                  style={{ transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)' }}
                 />
                 <text
                   y={1}
-                  fontSize={isHovered ? 8 : 7}
-                  fontWeight="700"
+                  fontSize={isHovered ? 10 : 8}
+                  fontWeight="800"
                   fill="white"
                   textAnchor="middle"
                   dominantBaseline="middle"
@@ -453,17 +464,29 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
         </g>
       </svg>
 
-      {/* X-axis label */}
-      <div className="axis-label axis-x">Total Attempts →</div>
+      <div className="axis-label axis-x">Total Attempts (Log Scale) →</div>
 
-      {/* Hover tooltip card (inline, top-right corner) */}
-      {hovered && (
-        <div className="scatter-tooltip">
-          <span className="tt-key">{hovered.char.toUpperCase()}</span>
-          <span className="tt-stat">Confidence: <strong>{(hovered.confidence * 100).toFixed(1)}%</strong></span>
-          <span className="tt-stat">Attempts: <strong>{hovered.totalAttempts}</strong></span>
-          <span className="tt-quad">{quadrantLabel(hovered)}</span>
-        </div>
+      {hovered && mounted && createPortal(
+        <div 
+          className="floating-tooltip glass" 
+          style={{ top: hovered.y - 12, left: hovered.x }}
+        >
+          <div className="ft-header">
+            <span className="ft-key">{hovered.ks.char.toUpperCase()}</span>
+            <span className="ft-quad">{quadrantLabel(hovered.ks)}</span>
+          </div>
+          <div className="ft-stats">
+            <div className="ft-stat">
+              <span className="ft-label">Confidence</span>
+              <span className="ft-value">{(hovered.ks.confidence * 100).toFixed(1)}%</span>
+            </div>
+            <div className="ft-stat">
+              <span className="ft-label">Attempts</span>
+              <span className="ft-value">{hovered.ks.totalAttempts}</span>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       <style jsx>{`
@@ -490,40 +513,89 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
         }
         .axis-x {
           text-align: center;
-          margin-top: 4px;
+          margin-top: 14px;
         }
-        .scatter-tooltip {
+      `}</style>
+      
+      {/* Global styles for the floating tooltip */}
+      <style jsx global>{`
+        .floating-tooltip {
+          position: fixed;
+          transform: translate(-50%, -100%);
+          background: rgba(20, 20, 20, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          border-radius: var(--radius-lg);
+          padding: 12px 16px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+          z-index: 9999;
+          pointer-events: none;
+          min-width: 140px;
+          color: white;
+          animation: tooltipFade 0.2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        
+        .floating-tooltip::after {
+          content: '';
           position: absolute;
-          top: 8px;
-          right: 8px;
-          background: var(--bg-surface);
-          border: 1px solid var(--border-default);
-          border-radius: var(--radius-md);
-          padding: 10px 14px;
+          bottom: -5px;
+          left: 50%;
+          transform: translateX(-50%);
+          border-width: 5px 5px 0;
+          border-style: solid;
+          border-color: rgba(255,255,255,0.1) transparent transparent transparent;
+        }
+
+        .ft-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          border-bottom: 1px solid rgba(255,255,255,0.1);
+          padding-bottom: 6px;
+          margin-bottom: 8px;
+        }
+
+        .ft-key {
+          font-family: var(--font-mono);
+          font-size: 1.2rem;
+          font-weight: 800;
+          color: var(--color-primary-light);
+        }
+
+        .ft-quad {
+          font-size: 0.7rem;
+          font-weight: 600;
+          background: rgba(255,255,255,0.1);
+          padding: 2px 6px;
+          border-radius: var(--radius-full);
+          letter-spacing: -0.02em;
+        }
+
+        .ft-stats {
           display: flex;
           flex-direction: column;
           gap: 4px;
-          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-          min-width: 150px;
-          pointer-events: none;
         }
-        .tt-key {
+
+        .ft-stat {
+          display: flex;
+          justify-content: space-between;
+          font-size: 0.75rem;
+        }
+
+        .ft-label {
+          color: rgba(255,255,255,0.6);
+        }
+
+        .ft-value {
+          font-weight: 700;
           font-family: var(--font-mono);
-          font-size: 1.6rem;
-          font-weight: 800;
-          color: var(--text-primary);
-          line-height: 1;
         }
-        .tt-stat {
-          font-size: 12px;
-          color: var(--text-muted);
-        }
-        .tt-stat strong { color: var(--text-primary); }
-        .tt-quad {
-          font-size: 11px;
-          margin-top: 2px;
-          font-weight: 600;
-          color: var(--text-secondary);
+
+        @keyframes tooltipFade {
+          from { opacity: 0; transform: translate(-50%, -90%) scale(0.95); }
+          to { opacity: 1; transform: translate(-50%, -100%) scale(1); }
         }
       `}</style>
     </div>

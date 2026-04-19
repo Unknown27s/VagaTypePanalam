@@ -97,3 +97,11 @@ export async function getKeysByConfidence(
   const stats = await getKeyStatsByLanguage(language);
   return stats.sort((a, b) => a.confidence - b.confidence);
 }
+/**
+ * Get all key stats in the entire database (all languages).
+ * Used for cloud synchronization.
+ */
+export async function getAllKeyStats(): Promise<KeyStat[]> {
+  const db = await getDB();
+  return db.getAll('key-stats');
+}

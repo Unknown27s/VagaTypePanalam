@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import TopHeader from "@/components/ui/TopHeader";
 import Footer from "@/components/ui/Footer";
+import { AuthProvider } from "@/components/providers/AuthProvider";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -48,13 +49,15 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
-        <div id="app-root">
-          <TopHeader />
-          <div className="main-content">
-            {children}
+        <AuthProvider>
+          <div id="app-root">
+            <TopHeader />
+            <div className="main-content">
+              {children}
+            </div>
+            <Footer />
           </div>
-          <Footer />
-        </div>
+        </AuthProvider>
       </body>
     </html>
   );

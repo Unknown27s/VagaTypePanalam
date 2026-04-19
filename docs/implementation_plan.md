@@ -1345,23 +1345,38 @@ npx lighthouse http://localhost:3000 --only-categories=pwa
 > [!IMPORTANT]
 > **Key Decisions Needing Your Input:**
 > 
-> 1. **Monorepo vs Separate Repos** — The plan uses a Turborepo monorepo (`apps/web` + `apps/realtime`). Do you prefer separate repos instead?
+> 1. **Realtime Server Deployment** — We have postponed multiplayer to Phase 2. Once ready, Socket.IO is a long-running process and can't run on Vercel. Recommended: **Fly.io** (free tier) or **Railway**.
 > 
-> 2. **Realtime Server Deployment** — Socket.IO is a long-running process and can't run on Vercel. Recommended: **Fly.io** (free tier) or **Railway**. Which do you prefer?
+> 2. **Authentication (Cloud Sync)** — We are adding a Sign-In feature before deployment! See Section 15 for the proposed architecture (NextAuth + Prisma).
 > 
-> 3. **Authentication** — The current plan is **anonymous-first** (no login required, everything stored locally). Optional login (via Google/GitHub OAuth) for cross-device sync. Is this approach acceptable, or do you want mandatory auth?
-> 
-> 4. **Tamil Keyboard Layout** — Should we support **Tamil99** layout only, or also **Inscript** and **Typewriter** layouts? More layouts = more complexity.
-> 
-> 5. **MVP Scope** — Should I build the **solo typing mode first** (offline, adaptive engine, lessons), then add multiplayer in Phase 2? Or do you want everything at once?
+> 3. **Tamil Keyboard Layout** — Currently we only support **Tamil99**. We can expand to **Inscript** and **Typewriter** layouts in the future.
 
 ---
-
-## Open Questions
 
 > [!NOTE]
 > **Non-blocking but good to know:**
 > - Do you have a preferred color palette / brand identity for VangaTypePanalam?
 > - Should the app support right-to-left (RTL) languages in the future (e.g., Urdu)?
-> - Any specific achievement/gamification ideas you want included?
-> - Do you want sound effects for keystrokes (optional toggle)?
+
+---
+
+## 15. Sign In & Cloud Sync Architecture (Proposed)
+
+To deploy a robust app, adding **Sign In** allows users to sync their local IndexedDB progress to a server database, preventing data loss if they clear their browser cache, and allowing them to play across multiple devices (e.g., phone and laptop).
+
+### 15.1 Recommended Stack
+- **Auth Provider**: [Auth.js (NextAuth v5)](https://authjs.dev/)
+- **Strategy**: OAuth (Google and GitHub sign-in). Magic Links optionally.
+- **Database**: PostgreSQL (Neon.tech free tier)
+- **ORM**: Prisma (already tracked in our initial architecture design)
+
+### 15.2 Why Auth.js?
+It perfectly integrates natively into the Next.js App Router. It is secure, JWT-based (which fits our serverless Vercel deployment), completely free, and doesn't lock us into a paid BaaS provider like Firebase or Clerk. 
+
+### 15.3 Offline-First Sync Flow
+We will maintain our **Offline-First** core principle. The app should *not* require a network connection to type.
+1. User arrives → Uses the app anonymously. Data saves to local IndexedDB.
+2. User signs in via Google → `Auth.js` issues a JWT session.
+3. Once a session is detected, a background worker runs `flushToIDB()` and posts the local IndexedDB key-stats and session data to a Next.js API Route (`/api/sync`).
+4. The API saves it to your Neon PostgreSQL database via Prisma!
+5. On another device, when the user logs in, the app pulls the latest cloud state and merges it into their local IndexedDB to keep the engine fast.

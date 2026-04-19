@@ -2,7 +2,17 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
-## [Unreleased]
+## [0.3.0] - 2026-04-19
+
+### Added
+- **Authentication (Auth.js)**: Integrated GitHub OAuth support with a new "Sign In" pill in the header.
+- **Cloud Synchronization**: Implemented a hybrid background sync engine that securely mirrors local `IndexedDB` progress to a Neon PostgreSQL database.
+- **Serverless Data API**: Added Prisma 7 with a scalable serverless adapter for managing cloud backups.
+- **Project Documentation**: Added a comprehensive `DEPLOYMENT.md` guide for Vercel and a `CHECKLIST.md` for launch readiness.
+
+### Updated
+- **Hybrid Architecture**: Transitioned project from purely offline-first to an **Offline-First Hybrid** model.
+- **Next.js Infrastructure**: Optimized build settings for Vercel compatibility with automated Prisma Client generation.
 
 ### Fixed
 - **Practice Mode Live Analytics**: Changed practice mode segment completion logic so "Live Analytics" statistics correctly accumulate and carry over continuously and no longer reset on new paragraph generation.

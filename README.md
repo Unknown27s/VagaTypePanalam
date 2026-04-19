@@ -10,6 +10,7 @@ A **free, adaptive, offline-first** typing practice web app inspired by [Keybr](
 - **🌐 3 Languages** — English (QWERTY), Tamil (Tamil99 Unicode), and Tanglish (romanized Tamil).
 - **📴 Works Offline** — All data stored in IndexedDB. No account needed. Works without internet.
 - **🎓 30 Progressive Lessons** — Start with two keys (F & J) and build up to full-speed typing with guided finger placement.
+- **🔄 Cloud Synchronization** — Optional GitHub Sign-In to back up your progress and sync across devices.
 - **📊 Detailed Stats** — WPM, accuracy, per-key confidence heatmap, and session history.
 - **⌨️ Virtual Keyboard** — Color-coded finger guides, key highlighting, and press feedback.
 - **⚡ Ultra Fast** — Zero polling, event-driven. Under 16ms keystroke-to-screen latency.
@@ -20,6 +21,9 @@ A **free, adaptive, offline-first** typing practice web app inspired by [Keybr](
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 16 (App Router, React 19) |
+| Auth | Auth.js (NextAuth v5) |
+| Database | Neon PostgreSQL (Production Sync) |
+| ORM | Prisma 7 (with Serverless Adapter) |
 | State | Zustand |
 | Storage | IndexedDB via `idb` |
 | Styling | Vanilla CSS (custom properties) |
@@ -102,8 +106,9 @@ src/
 
 ## 🏗 Architecture
 
-### Offline-First
-- All typing logic runs **entirely client-side** — zero server dependency
+### Offline-First Hybrid
+- All core typing logic runs **entirely client-side** for zero-latency.
+- **Cloud Sync Layer**: Optional background syncing to Neon PostgreSQL.
 - IndexedDB stores: user-profile, key-stats, sessions, lesson-progress
 - Service Worker caching planned for Phase 2
 
@@ -167,9 +172,8 @@ If you want to change the UI, these are the main files to edit:
 - [x] Offline-first with IndexedDB
 
 ### Phase 2 (Planned)
-- [ ] Multiplayer typing races (Socket.IO)
-- [ ] Private rooms & public matchmaking
-- [ ] Server-side sync & leaderboard
+- [x] Multiplayer typing races (Socket.IO Ready)
+- [x] Server-side sync & cloud backup (Auth.js + Prisma) 
 - [ ] Sound effects (Keybr-style toggle)
 - [ ] Service Worker with Serwist
 - [ ] Additional keyboard layouts (Inscript, Typewriter)

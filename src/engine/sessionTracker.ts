@@ -21,6 +21,7 @@ import {
   PRACTICE_SEGMENT_LENGTH,
   MAX_TEXT_BUFFER,
 } from './constants';
+import { requestCloudSync } from '@/lib/sync';
 
 export type SessionState = 'idle' | 'ready' | 'typing' | 'finished';
 
@@ -628,6 +629,8 @@ export class SessionTracker {
     if (this.totalKeystrokes >= MIN_SESSION_CHARS) {
       await saveSession(session);
       await recordSessionInProfile(session.durationMs, session.wpm);
+      // Seamlessly sync to cloud if authenticated
+      void requestCloudSync();
     }
 
     this.onComplete?.(session);
@@ -664,7 +667,10 @@ export class SessionTracker {
     Promise.all([
       saveSession(session),
       recordSessionInProfile(session.durationMs, session.wpm),
-    ]).catch(() => { }); // Silently swallow errors — non-critical
+    ]).then(() => {
+      // Sync to cloud after local save is done (fire-and-forget)
+      void requestCloudSync();
+    }).catch(() => { }); // Silently swallow errors — non-critical
   }
 
   private emitSnapshot(): void {

@@ -15,6 +15,8 @@ import { usePathname } from 'next/navigation';
 import { useUIStore } from '@/store/uiStore';
 import type { Language } from '@/db/schema';
 import { getProfile } from '@/db/profile';
+import { useSession, signIn, signOut } from "next-auth/react";
+import { requestCloudSync } from '@/lib/sync';
 import {
   Keyboard,
   GraduationCap,
@@ -30,6 +32,10 @@ import {
   Flame,
   SlidersHorizontal,
   ChevronDown,
+  LogOut,
+  User as UserIcon,
+  LogIn,
+  Cloud,
 } from 'lucide-react';
 
 const NAV_ITEMS = [
@@ -48,6 +54,7 @@ const LANGUAGE_MAP: Record<Language, string> = {
 
 export default function TopHeader() {
   const pathname = usePathname();
+  const { data: session } = useSession();
   const {
     theme,
     toggleTheme,
@@ -89,6 +96,13 @@ export default function TopHeader() {
     window.addEventListener('profile-updated', handleProfileUpdate);
     return () => window.removeEventListener('profile-updated', handleProfileUpdate);
   }, []);
+
+  // Sync with cloud when logged in
+  useEffect(() => {
+    if (session) {
+      void requestCloudSync();
+    }
+  }, [session]);
 
   // Close settings dropdown on outside click
   useEffect(() => {
@@ -181,6 +195,41 @@ export default function TopHeader() {
               >
                 {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
+
+              <div className="header-divider" />
+
+              {/* Auth */}
+              {session ? (
+                <div className="auth-group">
+                  <div className="user-avatar-wrapper" title={session.user?.name || 'User'}>
+                    {session.user?.image ? (
+                      <img src={session.user.image} alt="" className="avatar-img" />
+                    ) : (
+                      <div className="avatar-fallback"><UserIcon size={16} /></div>
+                    )}
+                    <div className="cloud-indicator" title="Sync Protected">
+                      <Cloud size={10} />
+                    </div>
+                  </div>
+                  <button
+                    className="ctrl-btn logout-btn"
+                    onClick={() => signOut()}
+                    title="Sign Out"
+                    aria-label="Sign out"
+                  >
+                    <LogOut size={16} />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  className="auth-btn-pill"
+                  onClick={() => signIn('github')}
+                  title="Sign in with GitHub"
+                >
+                  <LogIn size={16} />
+                  <span>Sign In</span>
+                </button>
+              )}
 
               {/* Settings dropdown */}
               <div className="settings-dropdown-wrapper">
@@ -434,6 +483,111 @@ export default function TopHeader() {
           display: flex;
           align-items: center;
           padding: 4px;
+        }
+
+        .header-divider {
+          width: 1px;
+          height: 24px;
+          background: var(--border-subtle);
+          margin: 0 var(--space-xs);
+        }
+
+        /* ── Auth ── */
+        .auth-group {
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+        }
+
+        .user-avatar-wrapper {
+          position: relative;
+          width: 32px;
+          height: 32px;
+          border-radius: var(--radius-full);
+          border: 2px solid var(--border-default);
+          overflow: visible;
+          cursor: pointer;
+          transition: border-color 0.2s;
+        }
+
+        .user-avatar-wrapper:hover {
+          border-color: var(--color-primary);
+        }
+
+        .avatar-img {
+          width: 100%;
+          height: 100%;
+          border-radius: inherit;
+          object-fit: cover;
+        }
+
+        .avatar-fallback {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-overlay);
+          color: var(--text-muted);
+        }
+
+        .cloud-indicator {
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          background: var(--color-primary);
+          color: white;
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border: 2px solid var(--bg-surface);
+        }
+
+        .auth-btn-pill {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: var(--color-primary);
+          color: white;
+          border: none;
+          padding: 6px 14px;
+          border-radius: var(--radius-full);
+          font-size: var(--text-xs);
+          font-weight: 700;
+          cursor: pointer;
+          transition: all 0.2s;
+          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+        }
+
+        .auth-btn-pill:hover {
+          background: var(--color-primary-light);
+          transform: translateY(-1px);
+          box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+        }
+
+        .auth-btn-pill:active {
+          transform: translateY(0);
+        }
+
+        .logout-btn {
+          opacity: 0.6;
+        }
+
+        .logout-btn:hover {
+          opacity: 1;
+          color: var(--color-error);
+        }
+
+        @media (max-width: 640px) {
+          .auth-btn-pill span {
+            display: none;
+          }
+          .auth-btn-pill {
+            padding: 8px;
+          }
         }
 
         /* ── Settings Dropdown ── */
