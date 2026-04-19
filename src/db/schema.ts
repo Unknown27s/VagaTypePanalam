@@ -1,7 +1,7 @@
 /**
- * VaagaTypePanalam — IndexedDB Schema Definitions
+ * VangaTypePanalam — IndexedDB Schema Definitions
  *
- * Database: 'vaaga-typing-db' (version 2)
+ * Database: 'VANGA-typing-db' (version 2)
  * Stores: user-profile, key-stats, sessions, lesson-progress, sync-queue, word-cache
  */
 
@@ -101,7 +101,7 @@ export interface WordCacheEntry {
 
 // ── Database Schema ──
 
-export interface VaagaDB extends DBSchema {
+export interface VANGADB extends DBSchema {
   'user-profile': {
     key: string;
     value: UserProfile;

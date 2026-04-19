@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Tamil Word Bank (Tamil99 Layout)
+ * VangaTypePanalam — Tamil Word Bank (Tamil99 Layout)
  *
  * Tamil words organized by which key/character they exercise.
  * Uses Unicode Tamil characters.

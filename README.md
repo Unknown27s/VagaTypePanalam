@@ -1,4 +1,4 @@
-# VaagaTypePanalam ⌨️
+# VangaTypePanalam ⌨️
 
 > வாகை டைப் பணாலம் — Learn Typing in English, Tamil & Tanglish
 
@@ -126,23 +126,25 @@ src/
 If you want to change the UI, these are the main files to edit:
 
 ### Global layout and design tokens
-- `src/app/layout.tsx` — Global shell layout (content + sidebar placement).
-- `src/app/globals.css` — Global theme variables, spacing scale, typography, base element styles.
+- `src/app/layout.tsx` — Global shell layout (TopHeader + 3-column grid support).
+- `src/app/globals.css` — Global theme variables, spacing scale, typography, base element styles (including `three-col-layout` class).
 
 ### Main pages (page-level UI)
-- `src/app/page.tsx` — Practice page UI and custom text panel.
+- `src/app/page.tsx` — Practice page UI, custom text panel, and 3-column layout structure.
 - `src/app/test/page.tsx` — Timed test UI (countdown ring, result card).
 - `src/app/race/page.tsx` — Race UI (lanes, cars, result card).
 - `src/app/lessons/page.tsx` and `src/app/lessons/[id]/page.tsx` — Lessons list and lesson detail UIs.
 - `src/app/stats/page.tsx` — Stats/profile dashboard UI.
 
 ### Reusable UI components
-- `src/components/ui/Sidebar.tsx` — Sidebar navigation, toolbar controls, language/theme/sound controls.
-- `src/components/typing/TypingArea.tsx` — Typing screen UI, metrics panel, result overlays.
-- `src/components/keyboard/VirtualKeyboard.tsx` — On-screen keyboard rendering and key highlight behavior.
+- `src/components/ui/TopHeader.tsx` — Top navigation bar, language/theme/sound/caret settings.
+- `src/components/ui/LeftSidebar.tsx` — Daily progress, streak, and critical keys metrics.
+- `src/components/ui/RightSidebar.tsx` — Live analytics and consistency metrics.
+- `src/components/typing/TypingArea.tsx` — Center typing screen with inline metrics and text rendering.
+- `src/components/keyboard/VirtualKeyboard.tsx` — On-screen keyboard with heatmap overlays and key highlight behavior.
 
 ### Styling files
-- `src/styles/typing.css` — Typing area visuals (word/letter states, caret, metrics, overlays).
+- `src/styles/typing.css` — Typing area visuals (word/letter states, caret, inline metrics, overlays).
 - `src/styles/keyboard.css` — Virtual keyboard style and key states.
 
 ### UI behavior settings
@@ -150,8 +152,8 @@ If you want to change the UI, these are the main files to edit:
 
 ### Quick examples
 - Change app colors/fonts: edit `src/app/globals.css`.
-- Change sidebar look/links: edit `src/components/ui/Sidebar.tsx`.
-- Change typing text/caret styles: edit `src/styles/typing.css`.
+- Change navigation links: edit `src/components/ui/TopHeader.tsx`.
+- Change center metrics: edit `src/components/typing/TypingArea.tsx`.
 - Change test/race page card and layout styling: edit `src/app/test/page.tsx` and `src/app/race/page.tsx`.
 
 ## 🗺 Roadmap

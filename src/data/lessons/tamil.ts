@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Tamil Lesson Definitions
+ * VangaTypePanalam — Tamil Lesson Definitions
  *
  * Progressive lessons for Tamil typing using the Tamil99 Layout.
  */

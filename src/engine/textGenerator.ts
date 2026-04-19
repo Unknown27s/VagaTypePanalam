@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Adaptive Text Generator
+ * VangaTypePanalam — Adaptive Text Generator
  *
  * Generates practice text that emphasizes weak keys while
  * maintaining readability using word banks.

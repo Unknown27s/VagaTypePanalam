@@ -1,10 +1,12 @@
 # Changelog
 
-All notable changes to **VaagaTypePanalam** will be documented in this file.
+All notable changes to **VangaTypePanalam** will be documented in this file.
 
 ## [Unreleased]
 
 ### Fixed
+- **Practice Mode Live Analytics**: Changed practice mode segment completion logic so "Live Analytics" statistics correctly accumulate and carry over continuously and no longer reset on new paragraph generation.
+- **Console Warnings**: Resolved `scroll-behavior: smooth` hydration warnings on document element, and generated placeholder manifest icons for PWA configuration to prevent 404 console errors.
 - **Practice Segment Auto-Advance**: Ensured endless practice immediately publishes the next generated paragraph after a segment completes, so practice no longer appears to stop at the paragraph boundary.
 - **Timed Test Segment Auto-Advance**: Updated timed test mode to roll into the next generated chunk instead of stalling at the end of a paragraph, while keeping the overall timer session intact.
 - **Typing Handler Stale Closures**: Fixed memo dependencies in `TypingArea` keyboard/input handlers so error mode and keystroke validation update reliably after state changes.
@@ -12,6 +14,10 @@ All notable changes to **VaagaTypePanalam** will be documented in this file.
 - **Tamil99 Virtual Keyboard Coverage**: Added missing number row and shift labels in Tamil99 layout data to prevent incomplete keyboard rendering.
 - **Consistency Metric Styling**: Added the missing `.metric-consistency` style used by `TypingArea` metrics panel.
 - **Text Generator Cleanup**: Removed leftover typo alias (`WeI`) and wired `MAX_WEAK_KEYS_FOCUS` into weak digraph selection.
+
+### Improved
+- **Global Rename**: Performed global codebase replacement renaming the application properly to `VangaTypePanalam`.
+- **Header Button UI**: Upgraded top navigation links to gamified pill designs with clear icon/text spacing, distinct backgrounds, and responsive hover transitions for a cleaner premium feel.
 
 ### Improved
 - **Metrics UI Refresh**: Replaced dense metrics text wall with card-based metrics (WPM ring, accuracy progress, consistency, streak) and a compact secondary strip for current key, daily goal, and key hints.

@@ -1,26 +1,26 @@
 /**
- * VaagaTypePanalam — IndexedDB Initialization
+ * VangaTypePanalam — IndexedDB Initialization
  *
  * Uses the 'idb' library for Promise-based IndexedDB access.
  * Singleton pattern ensures only one DB connection is created.
  */
 
 import { openDB, type IDBPDatabase } from 'idb';
-import type { VaagaDB } from './schema';
+import type { VANGADB } from './schema';
 
-const DB_NAME = 'vaaga-typing-db';
+const DB_NAME = 'VANGA-typing-db';
 const DB_VERSION = 2;
 
-let dbInstance: IDBPDatabase<VaagaDB> | null = null;
+let dbInstance: IDBPDatabase<VANGADB> | null = null;
 
 /**
  * Get the database instance (creates it on first call).
  * Safe to call multiple times — returns the same instance.
  */
-export async function getDB(): Promise<IDBPDatabase<VaagaDB>> {
+export async function getDB(): Promise<IDBPDatabase<VANGADB>> {
   if (dbInstance) return dbInstance;
 
-  dbInstance = await openDB<VaagaDB>(DB_NAME, DB_VERSION, {
+  dbInstance = await openDB<VANGADB>(DB_NAME, DB_VERSION, {
     upgrade(db) {
       // ── Store 1: User Profile ──
       if (!db.objectStoreNames.contains('user-profile')) {

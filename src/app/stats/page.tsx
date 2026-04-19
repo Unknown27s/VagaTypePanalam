@@ -1,37 +1,36 @@
 'use client';
 
 /**
- * VaagaTypePanalam — Profile & Statistics Page
+ * VangaTypePanalam — Profile & Statistics Page
  *
  * Designed to mimic Keybr's minimalist layout.
- * Features: All Time vs Today Stats, Key Speed Bar Charts, and Keyboard Heatmap.
+ * Features: All Time vs Today Stats, Key Mastery Scatter Chart, and Keyboard Heatmap.
  */
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useUIStore } from '@/store/uiStore';
 import { getAllSessions } from '@/db/sessions';
 import { getKeyStatsByLanguage } from '@/db/keyStats';
 import { getProfile } from '@/db/profile';
 import { formatDuration, getLocalDateString } from '@/engine/statsCalculator';
-import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
 import type { Session, KeyStat, UserProfile } from '@/db/schema';
 import '@/styles/keyboard.css';
+import { QWERTY_LAYOUT } from '@/data/keyboards/qwerty';
+import { TAMIL99_LAYOUT } from '@/data/keyboards/tamil99';
+
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
 
 interface StatBuckets {
-  allTime: {
-    timeMs: number;
-    sessions: number;
-    topSpeed: number;
-    avgSpeed: number;
-  };
-  today: {
-    timeMs: number;
-    sessions: number;
-    topSpeed: number;
-    avgSpeed: number;
-  };
+  allTime: { timeMs: number; sessions: number; topSpeed: number; avgSpeed: number };
+  today: { timeMs: number; sessions: number; topSpeed: number; avgSpeed: number };
 }
+
+// ─────────────────────────────────────────────
+// ProfilePage
+// ─────────────────────────────────────────────
 
 export default function ProfilePage() {
   const { language } = useUIStore();
@@ -41,34 +40,36 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'speed' | 'heatmap'>('speed');
 
-  useEffect(() => {
-    loadData();
-  }, [language]);
-
-  async function loadData() {
+  // useCallback so the function reference is stable for the effect dep array
+  const loadData = useCallback(async () => {
     setLoading(true);
     try {
       const [_sessions, _keyStats, _profile] = await Promise.all([
-        getAllSessions(), // Filtered client-side since dataset is small for MVP
+        getAllSessions(),
         getKeyStatsByLanguage(language),
         getProfile(),
       ]);
-      setSessions(_sessions.filter(s => s.language === language));
+      setSessions(_sessions.filter((s) => s.language === language));
       setKeyStats(_keyStats);
       setProfile(_profile);
     } catch {
-      // Ignore IDB SSR errors
+      // Silently ignore IDB / SSR errors
     } finally {
       setLoading(false);
     }
-  }
+  }, [language]);
 
-  // Lightweight mathematically bucketing
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // ── Aggregate stats ──────────────────────────────────────────────────────
   const stats = useMemo<StatBuckets>(() => {
-    const now = new Date();
-    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const startOfTodayMs = startOfToday.getTime();
 
-    const result = {
+    const result: StatBuckets = {
       allTime: { timeMs: 0, sessions: 0, topSpeed: 0, avgSpeed: 0 },
       today: { timeMs: 0, sessions: 0, topSpeed: 0, avgSpeed: 0 },
     };
@@ -76,17 +77,13 @@ export default function ProfilePage() {
     let allTimeSpeedSum = 0;
     let todaySpeedSum = 0;
 
-    for (let i = 0; i < sessions.length; i++) {
-      const s = sessions[i];
-
-      // All Time
+    for (const s of sessions) {
       result.allTime.sessions++;
       result.allTime.timeMs += s.durationMs;
       if (s.wpm > result.allTime.topSpeed) result.allTime.topSpeed = s.wpm;
       allTimeSpeedSum += s.wpm;
 
-      // Today
-      if (s.startedAt >= startOfToday) {
+      if (s.startedAt >= startOfTodayMs) {
         result.today.sessions++;
         result.today.timeMs += s.durationMs;
         if (s.wpm > result.today.topSpeed) result.today.topSpeed = s.wpm;
@@ -94,32 +91,29 @@ export default function ProfilePage() {
       }
     }
 
-    if (result.allTime.sessions > 0) {
+    if (result.allTime.sessions > 0)
       result.allTime.avgSpeed = Math.round(allTimeSpeedSum / result.allTime.sessions);
-    }
-    if (result.today.sessions > 0) {
+    if (result.today.sessions > 0)
       result.today.avgSpeed = Math.round(todaySpeedSum / result.today.sessions);
-    }
 
     return result;
   }, [sessions]);
 
-  // Derived heatmap data
-  // Green mapping to ~1.0 confidence, Red to ~0.0
+  // ── Heatmap colour map ───────────────────────────────────────────────────
   const heatmapColors = useMemo(() => {
     const map = new Map<string, string>();
-    keyStats.forEach((ks) => {
-      // Confidence is 0 to 1
-      // 0 = Red (e.g. #e74c3c), 0.5 = Yellow, 1 = Green (e.g. #2ecc71)
-      const hue = ks.confidence * 120; // 0 to 120 (Red to Green in HSL)
+    for (const ks of keyStats) {
+      const hue = ks.confidence * 120; // 0 (red) → 120 (green) in HSL
       map.set(ks.char, `hsl(${hue}, 70%, 50%)`);
-    });
+    }
     return map;
   }, [keyStats]);
 
-  const sortedKeys = useMemo(() => {
-    return [...keyStats].sort((a, b) => b.confidence - a.confidence);
-  }, [keyStats]);
+  // ── Sorted keys for charts ───────────────────────────────────────────────
+  const sortedKeys = useMemo(
+    () => [...keyStats].sort((a, b) => b.confidence - a.confidence),
+    [keyStats],
+  );
 
   if (loading) {
     return <div className="layout-loading">Loading Profile...</div>;
@@ -134,57 +128,14 @@ export default function ProfilePage() {
 
       {/* ── Overview Statistics Row ── */}
       <div className="stats-row">
-        {/* All Time */}
-        <div className="stats-card">
-          <h2 className="card-title">All Time Statistics</h2>
-          <div className="stat-grid">
-            <div className="stat-item">
-              <span className="stat-label">Time spent</span>
-              <span className="stat-value">{formatDuration(stats.allTime.timeMs)}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Sessions count</span>
-              <span className="stat-value">{stats.allTime.sessions}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Top speed</span>
-              <span className="stat-value">{stats.allTime.topSpeed} wpm</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Average speed</span>
-              <span className="stat-value">{stats.allTime.avgSpeed} wpm</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Today */}
-        <div className="stats-card">
-          <h2 className="card-title">Statistics for Today</h2>
-          <div className="stat-grid">
-            <div className="stat-item">
-              <span className="stat-label">Time spent</span>
-              <span className="stat-value">{formatDuration(stats.today.timeMs)}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Sessions count</span>
-              <span className="stat-value">{stats.today.sessions}</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Top speed</span>
-              <span className="stat-value">{stats.today.topSpeed} wpm</span>
-            </div>
-            <div className="stat-item">
-              <span className="stat-label">Average speed</span>
-              <span className="stat-value">{stats.today.avgSpeed} wpm</span>
-            </div>
-          </div>
-        </div>
+        <StatCard title="All Time Statistics" bucket={stats.allTime} />
+        <StatCard title="Statistics for Today" bucket={stats.today} />
       </div>
 
       {/* ── Daily Activity Heatmap ── */}
       <div className="activity-section">
         <h2 className="card-title">Daily Practice Activity</h2>
-        <ActivityHeatmap activity={profile?.dailyActivity || {}} />
+        <ActivityHeatmap activity={profile?.dailyActivity ?? {}} />
       </div>
 
       {/* ── Detailed Analytics ── */}
@@ -194,7 +145,7 @@ export default function ProfilePage() {
             className={`tab-btn ${activeTab === 'speed' ? 'active' : ''}`}
             onClick={() => setActiveTab('speed')}
           >
-            Key Typing Speed (Bar Chart)
+            Key Mastery Chart
           </button>
           <button
             className={`tab-btn ${activeTab === 'heatmap' ? 'active' : ''}`}
@@ -206,53 +157,21 @@ export default function ProfilePage() {
 
         <div className="tab-content">
           {activeTab === 'speed' && (
-            <div className="bar-chart-container">
+            <div className="scatter-chart-container">
               {sortedKeys.length === 0 ? (
                 <div className="empty-state">No typing data recorded yet.</div>
               ) : (
-                <div className="bar-chart">
-                  {sortedKeys.map((ks) => {
-                    const widthPct = Math.max(5, ks.confidence * 100);
-                    return (
-                      <div key={ks.char} className="bar-row">
-                        <div className="bar-label">{ks.char.toUpperCase()}</div>
-                        <div className="bar-track">
-                          <div
-                            className="bar-fill"
-                            style={{
-                              width: `${widthPct}%`,
-                              backgroundColor: `hsl(${ks.confidence * 120}, 70%, 50%)`,
-                            }}
-                          >
-                            <span className="bar-value">{(ks.confidence * 100).toFixed(0)}</span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                <KeyScatterPlot keyStats={sortedKeys} />
               )}
             </div>
           )}
 
           {activeTab === 'heatmap' && (
             <div className="heatmap-container">
-              <p className="heatmap-desc">Keys are colored based on your mastery (Red = Slow/Errors, Green = Fast/Accurate).</p>
-              <div 
-                className="heatmap-keyboard-wrapper" 
-                style={{ 
-                  '--key-finger-pinky': 'var(--key-bg)',
-                  '--key-finger-ring': 'var(--key-bg)',
-                  '--key-finger-middle': 'var(--key-bg)',
-                  '--key-finger-index': 'var(--key-bg)',
-                  '--key-finger-thumb': 'var(--key-bg)',
-                } as React.CSSProperties}
-              >
-                {/* We render standard keyboard but override specific key backgrounds with inline styles via a trick or we need a custom heatmap prop.
-                    For this MVP, we will inject a global style tag dynamically to target individual keys based on char data attribute.
-                    Wait, VirtualKeyboard does not expose data-char. Let's make a custom static keyboard here, or just list them.
-                    Actually, we can parse the Virtual Keyboard classes, but simpler is rendering our own flex rows.
-                */}
+              <p className="heatmap-desc">
+                Keys are colored based on your mastery (Red = Slow/Errors, Green = Fast/Accurate).
+              </p>
+              <div className="heatmap-keyboard-wrapper">
                 <HeatmapKeyboard language={language} colors={heatmapColors} />
               </div>
             </div>
@@ -269,38 +188,28 @@ export default function ProfilePage() {
           max-width: 900px;
           margin: 0 auto;
         }
-
         .profile-header {
           margin-bottom: var(--space-2xl);
         }
-
         .profile-title {
           font-size: var(--text-3xl);
           font-weight: 800;
           margin-bottom: 0;
         }
-
         .profile-subtitle {
           color: var(--text-muted);
           font-size: var(--text-sm);
         }
-
         .layout-loading {
           text-align: center;
           padding: var(--space-3xl);
           color: var(--text-muted);
         }
-
         .stats-row {
           display: flex;
           gap: var(--space-xl);
           margin-bottom: var(--space-2xl);
         }
-
-        .stats-card {
-          flex: 1;
-        }
-
         .card-title {
           font-size: var(--text-lg);
           font-weight: 700;
@@ -308,37 +217,12 @@ export default function ProfilePage() {
           padding-bottom: var(--space-xs);
           margin-bottom: var(--space-md);
         }
-
-        .stat-grid {
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-sm);
-        }
-
-        .stat-item {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-        }
-
-        .stat-label {
-          color: var(--text-muted);
-          font-size: var(--text-sm);
-        }
-
-        .stat-value {
-          font-family: var(--font-mono);
-          font-size: var(--text-base);
-          font-weight: 600;
-        }
-
         .tabs-container {
           display: flex;
           gap: var(--space-md);
           margin-bottom: var(--space-lg);
           border-bottom: 1px solid var(--border-default);
         }
-
         .tab-btn {
           background: none;
           border: none;
@@ -349,99 +233,315 @@ export default function ProfilePage() {
           border-bottom: 3px solid transparent;
           font-weight: 600;
         }
-
-        .tab-btn:hover {
-          color: var(--text-primary);
-        }
-
+        .tab-btn:hover { color: var(--text-primary); }
         .tab-btn.active {
           color: var(--color-primary);
           border-bottom-color: var(--color-primary);
         }
-
-        .tab-content {
-          padding: var(--space-md) 0;
-        }
-
+        .tab-content { padding: var(--space-md) 0; }
         .empty-state {
           text-align: center;
           padding: var(--space-2xl);
           color: var(--text-muted);
         }
-
-        .bar-chart {
-          display: flex;
-          flex-direction: column;
-          gap: 6px;
-        }
-
-        .bar-row {
-          display: flex;
-          align-items: center;
-          gap: var(--space-md);
-        }
-
-        .bar-label {
-          width: 30px;
-          text-align: right;
-          font-family: var(--font-mono);
-          font-weight: 700;
-          color: var(--text-secondary);
-        }
-
-        .bar-track {
-          flex: 1;
-          height: 20px;
-          background: var(--bg-hover);
-          border-radius: 2px;
-        }
-
-        .bar-fill {
-          height: 100%;
-          border-radius: 2px;
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          padding-right: 6px;
-          transition: width 0.5s ease;
-        }
-
-        .bar-value {
-          font-family: var(--font-mono);
-          font-size: 0.7rem;
-          color: white;
-          font-weight: 700;
-        }
-
-        .heatmap-container {
-          text-align: center;
-        }
-
+        .heatmap-container { text-align: center; }
         .heatmap-desc {
           color: var(--text-muted);
           font-size: var(--text-sm);
           margin-bottom: var(--space-xl);
         }
-
         @media (max-width: 768px) {
-          .stats-row {
-            flex-direction: column;
-          }
+          .stats-row { flex-direction: column; }
         }
       `}</style>
     </div>
   );
 }
 
-/**
- * A lightweight, static version of the keyboard used specifically
- * for displaying the heatmap matrix, completely decoupled from
- * typing game logic to save rendering overhead.
- */
-import { QWERTY_LAYOUT } from '@/data/keyboards/qwerty';
-import { TAMIL99_LAYOUT } from '@/data/keyboards/tamil99';
+// ─────────────────────────────────────────────
+// StatCard — extracted to remove JSX repetition
+// ─────────────────────────────────────────────
 
-function HeatmapKeyboard({ language, colors }: { language: string, colors: Map<string, string> }) {
+function StatCard({
+  title,
+  bucket,
+}: {
+  title: string;
+  bucket: StatBuckets['allTime'];
+}) {
+  return (
+    <div className="stats-card">
+      <h2 className="card-title">{title}</h2>
+      <div className="stat-grid">
+        {(
+          [
+            ['Time spent', formatDuration(bucket.timeMs)],
+            ['Sessions count', bucket.sessions],
+            ['Top speed', `${bucket.topSpeed} wpm`],
+            ['Average speed', `${bucket.avgSpeed} wpm`],
+          ] as [string, string | number][]
+        ).map(([label, value]) => (
+          <div key={label} className="stat-item">
+            <span className="stat-label">{label}</span>
+            <span className="stat-value">{value}</span>
+          </div>
+        ))}
+      </div>
+
+      <style jsx>{`
+        .stats-card { flex: 1; }
+        .card-title {
+          font-size: var(--text-lg);
+          font-weight: 700;
+          border-bottom: 2px solid var(--border-default);
+          padding-bottom: var(--space-xs);
+          margin-bottom: var(--space-md);
+        }
+        .stat-grid {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-sm);
+        }
+        .stat-item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+        }
+        .stat-label {
+          color: var(--text-muted);
+          font-size: var(--text-sm);
+        }
+        .stat-value {
+          font-family: var(--font-mono);
+          font-size: var(--text-base);
+          font-weight: 600;
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// KeyScatterPlot
+// X-axis: total attempts  |  Y-axis: confidence
+// Quadrant shading tells the full story at a glance.
+// ─────────────────────────────────────────────
+
+function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
+  const [hovered, setHovered] = useState<KeyStat | null>(null);
+
+  const W = 600;
+  const H = 340;
+  const PAD = { top: 20, right: 20, bottom: 48, left: 48 } as const;
+  const plotW = W - PAD.left - PAD.right;
+  const plotH = H - PAD.top - PAD.bottom;
+
+  // Precompute max once — never changes while component is mounted with same keyStats
+  const maxAttempts = useMemo(
+    () => Math.max(...keyStats.map((k) => k.totalAttempts), 1),
+    [keyStats],
+  );
+
+  const toX = (attempts: number) => (attempts / maxAttempts) * plotW;
+  const toY = (conf: number) => plotH - conf * plotH; // flip: high confidence = top
+
+  const midX = plotW / 2;
+  const midY = plotH / 2;
+
+  const quadrantLabel = (ks: KeyStat): string => {
+    const x = toX(ks.totalAttempts);
+    const y = toY(ks.confidence);
+    if (x >= midX && y <= midY) return '✅ Mastered';
+    if (x < midX && y <= midY) return '🌱 Emerging';
+    if (x >= midX && y > midY) return '⚠️ Needs Work';
+    return '🔒 Unpracticed';
+  };
+
+  const GRID_TICKS = [0, 0.25, 0.5, 0.75, 1] as const;
+
+  return (
+    <div className="scatter-wrap">
+      {/* Y-axis label */}
+      <div className="axis-label axis-y">Confidence →</div>
+
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        className="scatter-svg"
+        style={{ width: '100%', maxWidth: W, height: 'auto' }}
+      >
+        <g transform={`translate(${PAD.left}, ${PAD.top})`}>
+
+          {/* ── Quadrant shading ── */}
+          <rect x={0} y={0} width={midX} height={midY} fill="hsl(200,40%,50%)" opacity={0.05} />
+          <rect x={midX} y={0} width={midX} height={midY} fill="hsl(120,60%,40%)" opacity={0.06} />
+          <rect x={0} y={midY} width={midX} height={midY} fill="hsl(0,0%,50%)" opacity={0.04} />
+          <rect x={midX} y={midY} width={midX} height={midY} fill="hsl(0,70%,50%)" opacity={0.05} />
+
+          {/* ── Quadrant labels ── */}
+          <text x={midX + 8} y={12} fontSize={9} fill="hsl(120,50%,45%)" opacity={0.7}>Mastered</text>
+          <text x={8} y={12} fontSize={9} fill="hsl(200,50%,55%)" opacity={0.7}>Emerging</text>
+          <text x={midX + 8} y={midY + 14} fontSize={9} fill="hsl(0,60%,55%)" opacity={0.7}>Needs Work</text>
+          <text x={8} y={midY + 14} fontSize={9} fill="hsl(0,0%,55%)" opacity={0.6}>Unpracticed</text>
+
+          {/* ── Grid lines + tick labels ── */}
+          {GRID_TICKS.map((t) => {
+            const y = toY(t);
+            const x = t * plotW;
+            return (
+              <g key={t}>
+                {/* Horizontal */}
+                <line x1={0} x2={plotW} y1={y} y2={y}
+                  stroke="var(--border-default)" strokeWidth={0.5} strokeDasharray="3,3" />
+                <text x={-6} y={y + 4} fontSize={9} fill="var(--text-muted)" textAnchor="end">
+                  {(t * 100).toFixed(0)}
+                </text>
+                {/* Vertical */}
+                <line x1={x} x2={x} y1={0} y2={plotH}
+                  stroke="var(--border-default)" strokeWidth={0.5} strokeDasharray="3,3" />
+                <text x={x} y={plotH + 14} fontSize={9} fill="var(--text-muted)" textAnchor="middle">
+                  {Math.round(t * maxAttempts)}
+                </text>
+              </g>
+            );
+          })}
+
+          {/* ── Axes ── */}
+          <line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke="var(--border-default)" strokeWidth={1} />
+          <line x1={0} y1={0} x2={0} y2={plotH} stroke="var(--border-default)" strokeWidth={1} />
+
+          {/* ── Data points ── */}
+          {keyStats.map((ks) => {
+            const cx = toX(ks.totalAttempts);
+            const cy = toY(ks.confidence);
+            const hue = ks.confidence * 120;
+            const isHovered = ks === hovered;
+            const r = isHovered ? 10 : 7;
+
+            return (
+              <g
+                key={ks.char}
+                transform={`translate(${cx}, ${cy})`}
+                style={{ cursor: 'pointer' }}
+                onMouseEnter={() => setHovered(ks)}
+                onMouseLeave={() => setHovered(null)}
+              >
+                {/* Glow ring on hover */}
+                {isHovered && (
+                  <circle r={14} fill={`hsl(${hue},70%,55%)`} opacity={0.2} />
+                )}
+                <circle
+                  r={r}
+                  fill={`hsl(${hue},70%,50%)`}
+                  stroke={isHovered ? 'white' : `hsl(${hue},70%,35%)`}
+                  strokeWidth={isHovered ? 1.5 : 1}
+                  style={{ transition: 'r 0.15s ease' }}
+                />
+                <text
+                  y={1}
+                  fontSize={isHovered ? 8 : 7}
+                  fontWeight="700"
+                  fill="white"
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  style={{ pointerEvents: 'none', userSelect: 'none' }}
+                >
+                  {ks.char.toUpperCase()}
+                </text>
+              </g>
+            );
+          })}
+        </g>
+      </svg>
+
+      {/* X-axis label */}
+      <div className="axis-label axis-x">Total Attempts →</div>
+
+      {/* Hover tooltip card (inline, top-right corner) */}
+      {hovered && (
+        <div className="scatter-tooltip">
+          <span className="tt-key">{hovered.char.toUpperCase()}</span>
+          <span className="tt-stat">Confidence: <strong>{(hovered.confidence * 100).toFixed(1)}%</strong></span>
+          <span className="tt-stat">Attempts: <strong>{hovered.totalAttempts}</strong></span>
+          <span className="tt-quad">{quadrantLabel(hovered)}</span>
+        </div>
+      )}
+
+      <style jsx>{`
+        .scatter-wrap {
+          position: relative;
+          padding-left: 20px;
+        }
+        .scatter-svg {
+          display: block;
+          overflow: visible;
+        }
+        .axis-label {
+          font-size: 11px;
+          color: var(--text-muted);
+          font-weight: 600;
+          letter-spacing: 0.04em;
+        }
+        .axis-y {
+          writing-mode: vertical-rl;
+          position: absolute;
+          left: 0;
+          top: 50%;
+          transform: translateY(-50%) rotate(180deg);
+        }
+        .axis-x {
+          text-align: center;
+          margin-top: 4px;
+        }
+        .scatter-tooltip {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-md);
+          padding: 10px 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+          min-width: 150px;
+          pointer-events: none;
+        }
+        .tt-key {
+          font-family: var(--font-mono);
+          font-size: 1.6rem;
+          font-weight: 800;
+          color: var(--text-primary);
+          line-height: 1;
+        }
+        .tt-stat {
+          font-size: 12px;
+          color: var(--text-muted);
+        }
+        .tt-stat strong { color: var(--text-primary); }
+        .tt-quad {
+          font-size: 11px;
+          margin-top: 2px;
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────
+// HeatmapKeyboard
+// Static, game-logic-free keyboard for the colour overlay.
+// ─────────────────────────────────────────────
+
+function HeatmapKeyboard({
+  language,
+  colors,
+}: {
+  language: string;
+  colors: Map<string, string>;
+}) {
   const layout = language === 'ta' ? TAMIL99_LAYOUT : QWERTY_LAYOUT;
 
   return (
@@ -451,8 +551,8 @@ function HeatmapKeyboard({ language, colors }: { language: string, colors: Map<s
           {row.map((keyData, kIdx) => {
             if (keyData.isModifier || keyData.key === ' ') {
               return (
-                <div 
-                  key={kIdx} 
+                <div
+                  key={kIdx}
                   className="vk-key modifier"
                   style={{ width: keyData.width ? `${keyData.width * 42}px` : '42px' }}
                 >
@@ -462,18 +562,18 @@ function HeatmapKeyboard({ language, colors }: { language: string, colors: Map<s
             }
 
             const char = keyData.key.toLowerCase();
-            const bgColor = colors.get(char) || 'var(--key-bg)';
-            
+            const bgColor = colors.get(char) ?? 'var(--key-bg)';
+
             return (
-              <div 
-                key={kIdx} 
+              <div
+                key={kIdx}
                 className="vk-key active"
-                style={{ 
+                style={{
                   backgroundColor: bgColor,
-                  color: colors.has(char) ? 'white' : 'var(--text-muted)'
+                  color: colors.has(char) ? 'white' : 'var(--text-muted)',
                 }}
               >
-                 <span className="vk-label">{keyData.label}</span>
+                <span className="vk-label">{keyData.label}</span>
               </div>
             );
           })}
@@ -490,10 +590,7 @@ function HeatmapKeyboard({ language, colors }: { language: string, colors: Map<s
           background: var(--bg-surface);
           border-radius: var(--radius-md);
         }
-        .vk-row {
-          display: flex;
-          gap: 2px;
-        }
+        .vk-row { display: flex; gap: 2px; }
         .vk-key {
           height: 44px;
           min-width: 44px;
@@ -512,66 +609,57 @@ function HeatmapKeyboard({ language, colors }: { language: string, colors: Map<s
         }
         .active {
           position: relative;
-          text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+          text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
         }
       `}</style>
     </div>
   );
 }
 
-/**
- * Activity Heatmap (Premium GitHub Style)
- * Renders 52 weeks with Month and Day-of-week labels.
- */
+// ─────────────────────────────────────────────
+// ActivityHeatmap — GitHub-style 52-week grid
+// ─────────────────────────────────────────────
+
 function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
-  const [hoverInfo, setHoverInfo] = useState<{ x: number; y: number; text: string; date: string } | null>(null);
+  const [hoverInfo, setHoverInfo] = useState<{
+    x: number; y: number; text: string; date: string;
+  } | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
   const weeks = useMemo(() => {
-    const wks = [];
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Build 52 weeks spanning exactly back from today or end of week
-    // GitHub aligns to days of week. We will align exactly 52 weeks.
-    for (let w = 51; w >= 0; w--) {
-      const weekDays = [];
-      for (let d = 6; d >= 0; d--) {
+    return Array.from({ length: 52 }, (_, wOffset) => {
+      const w = 51 - wOffset;
+      return Array.from({ length: 7 }, (_, dOffset) => {
+        const d = 6 - dOffset;
         const date = new Date(today);
         date.setDate(date.getDate() - (w * 7 + d));
         const dayStr = getLocalDateString(date);
-        weekDays.push({
-          date: dayStr,
-          dateObj: date,
-          durationMs: activity[dayStr] || 0,
-        });
-      }
-      wks.push(weekDays);
-    }
-    return wks;
+        return { date: dayStr, dateObj: date, durationMs: activity[dayStr] ?? 0 };
+      });
+    });
   }, [activity]);
 
-  const getColor = (ms: number) => {
-    const mins = ms / 60000;
+  // Stable colour helper — no new function per render
+  const getColor = (ms: number): string => {
+    const mins = ms / 60_000;
     if (mins === 0) return 'var(--bg-overlay)';
-    if (mins < 15) return '#c6e48b'; // Light green
-    if (mins < 30) return '#7bc96f'; // Medium green
-    if (mins < 40) return '#239a3b'; // Full green
-    return '#ffd700'; // Gold (40+ mins)
+    if (mins < 15) return '#c6e48b';
+    if (mins < 30) return '#7bc96f';
+    if (mins < 40) return '#239a3b';
+    return '#ffd700';
   };
 
   const handleMouseEnter = (e: React.MouseEvent, date: string, ms: number) => {
     const rect = (e.target as HTMLElement).getBoundingClientRect();
     const formatted = ms > 0 ? `${formatDuration(ms)} practiced` : 'No practice';
-    
-    // We adjust the X/Y to center above the block
     setHoverInfo({
       x: rect.left + rect.width / 2,
-      y: rect.top - 8, // 8px above the cell
+      y: rect.top - 8,
       text: formatted,
       date,
     });
@@ -582,8 +670,8 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
   return (
     <div className="heatmap-card animate-fade-in">
       <div className="heatmap-scroll-container">
-        
-        {/* Day Labels (Left Y-Axis) */}
+
+        {/* Day-of-week labels (Y-axis) */}
         <div className="day-labels">
           <span>Mon</span>
           <span>Wed</span>
@@ -591,14 +679,17 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
         </div>
 
         <div className="heatmap-matrix">
-          {/* Months Labels (Top X-Axis) */}
+          {/* Month labels (X-axis) */}
           <div className="month-labels">
             {weeks.map((week, idx) => {
-              // Try to place a label if it's the start of a month in this week
               const firstDay = week[0].dateObj;
               if (firstDay.getDate() <= 7 && idx > 0) {
                 return (
-                  <span key={idx} className="month-label" style={{ left: `${idx * 16}px` }}>
+                  <span
+                    key={idx}
+                    className="month-label"
+                    style={{ left: `${idx * 16}px` }}
+                  >
                     {firstDay.toLocaleString('default', { month: 'short' })}
                   </span>
                 );
@@ -625,29 +716,34 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
         </div>
       </div>
 
+      {/* Footer: legend */}
       <div className="heatmap-footer">
         <a href="#" className="heatmap-link">Learn how our goals work</a>
         <div className="heatmap-legend">
           <span className="legend-text">Less</span>
-          <div className="legend-cell" style={{ backgroundColor: 'var(--bg-overlay)' }} />
-          <div className="legend-cell" style={{ backgroundColor: '#c6e48b' }} />
-          <div className="legend-cell" style={{ backgroundColor: '#7bc96f' }} />
-          <div className="legend-cell" style={{ backgroundColor: '#239a3b' }} />
-          <div className="legend-cell" style={{ backgroundColor: '#ffd700' }} />
-          <span className="legend-text" style={{ color: '#d97706', fontWeight: 'bold' }}>Mastery</span>
+          {(['var(--bg-overlay)', '#c6e48b', '#7bc96f', '#239a3b', '#ffd700'] as const).map(
+            (color) => (
+              <div key={color} className="legend-cell" style={{ backgroundColor: color }} />
+            ),
+          )}
+          <span className="legend-text" style={{ color: '#d97706', fontWeight: 'bold' }}>
+            Mastery
+          </span>
         </div>
       </div>
 
-      {mounted && hoverInfo && createPortal(
-        <div 
-          className="custom-tooltip"
-          style={{ top: hoverInfo.y, left: hoverInfo.x }}
-        >
-          <strong>{hoverInfo.text}</strong>
-          <span className="tooltip-date">on {hoverInfo.date}</span>
-        </div>,
-        document.body
-      )}
+      {/* Portal tooltip */}
+      {mounted && hoverInfo &&
+        createPortal(
+          <div
+            className="custom-tooltip"
+            style={{ top: hoverInfo.y, left: hoverInfo.x }}
+          >
+            <strong>{hoverInfo.text}</strong>
+            <span className="tooltip-date">on {hoverInfo.date}</span>
+          </div>,
+          document.body,
+        )}
 
       <style jsx>{`
         .heatmap-card {
@@ -663,54 +759,38 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
           overflow-x: auto;
           padding-bottom: var(--space-md);
         }
-        .heatmap-scroll-container::-webkit-scrollbar {
-          height: 6px;
-        }
+        .heatmap-scroll-container::-webkit-scrollbar { height: 6px; }
         .heatmap-scroll-container::-webkit-scrollbar-thumb {
           background: var(--border-default);
           border-radius: 10px;
         }
-
         .day-labels {
           display: flex;
           flex-direction: column;
           justify-content: space-between;
-          padding-top: 24px; /* offset for month labels */
+          padding-top: 24px;
           padding-right: 8px;
           color: var(--text-muted);
           font-size: 10px;
-          height: 105px; /* approx 7 * 15px */
+          height: 105px;
         }
         .day-labels span:nth-child(1) { margin-top: 14px; }
         .day-labels span:nth-child(2) { margin-top: 20px; }
         .day-labels span:nth-child(3) { margin-top: 20px; }
-
         .heatmap-matrix {
           position: relative;
           display: flex;
           flex-direction: column;
         }
-
         .month-labels {
           position: relative;
           height: 20px;
           font-size: 10px;
           color: var(--text-muted);
         }
-        .month-label {
-          position: absolute;
-          top: 0;
-        }
-
-        .weeks-container {
-          display: flex;
-          gap: 4px;
-        }
-        .week-col {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
+        .month-label { position: absolute; top: 0; }
+        .weeks-container { display: flex; gap: 4px; }
+        .week-col { display: flex; flex-direction: column; gap: 4px; }
         .heatmap-cell {
           width: 12px;
           height: 12px;
@@ -721,9 +801,8 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
         .heatmap-cell:hover {
           transform: scale(1.3);
           z-index: 2;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
         }
-
         .heatmap-footer {
           display: flex;
           justify-content: space-between;
@@ -735,26 +814,16 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
           color: var(--text-muted);
           text-decoration: none;
         }
-        .heatmap-link:hover {
-          color: var(--color-primary);
-        }
+        .heatmap-link:hover { color: var(--color-primary); }
         .heatmap-legend {
           display: flex;
           align-items: center;
           gap: 4px;
         }
-        .legend-text {
-          font-size: var(--text-xs);
-          color: var(--text-muted);
-        }
-        .legend-cell {
-          width: 12px;
-          height: 12px;
-          border-radius: 3px;
-        }
-
-        /* Float Custom Tooltip outside normal flow */
+        .legend-text { font-size: var(--text-xs); color: var(--text-muted); }
+        .legend-cell { width: 12px; height: 12px; border-radius: 3px; }
       `}</style>
+
       <style jsx global>{`
         .custom-tooltip {
           position: fixed;
@@ -763,7 +832,7 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
           padding: 8px 12px;
           border-radius: var(--radius-md);
           border: 1px solid var(--border-default);
-          box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
           pointer-events: none;
           transform: translate(-50%, -100%);
           z-index: 1000;

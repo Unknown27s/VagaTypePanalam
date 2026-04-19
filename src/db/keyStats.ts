@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Key Statistics CRUD Operations
+ * VangaTypePanalam — Key Statistics CRUD Operations
  */
 
 import { getDB } from './index';

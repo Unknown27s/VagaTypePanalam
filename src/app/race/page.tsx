@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VaagaTypePanalam — Ghost Racing Mode
+ * VangaTypePanalam — Ghost Racing Mode
  *
  * Compete offline against simulated bots with fixed WPMs to build competitive speed.
  */

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
-import Sidebar from "@/components/ui/Sidebar";
+import TopHeader from "@/components/ui/TopHeader";
+import Footer from "@/components/ui/Footer";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -7,11 +8,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
-  themeColor: "#6366f1",
+  themeColor: "#0e0e0e",
 };
 
 export const metadata: Metadata = {
-  title: "VaagaTypePanalam — Learn Typing in English, Tamil & Tanglish",
+  title: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
   description:
     "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback. Supports English, Tamil (Tamil99), and Tanglish.",
   keywords: [
@@ -25,7 +26,7 @@ export const metadata: Metadata = {
     "typing tutor",
     "free typing app",
   ],
-  authors: [{ name: "VaagaTypePanalam" }],
+  authors: [{ name: "VangaTypePanalam" }],
   manifest: "/manifest.json",
 };
 
@@ -35,7 +36,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" data-theme="light">
+    <html lang="en" data-theme="dark" data-scroll-behavior="smooth">
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -48,10 +49,11 @@ export default function RootLayout({
       </head>
       <body>
         <div id="app-root">
+          <TopHeader />
           <div className="main-content">
             {children}
           </div>
-          <Sidebar />
+          <Footer />
         </div>
       </body>
     </html>

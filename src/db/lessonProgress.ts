@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Lesson Progress CRUD Operations
+ * VangaTypePanalam — Lesson Progress CRUD Operations
  */
 
 import { getDB } from './index';

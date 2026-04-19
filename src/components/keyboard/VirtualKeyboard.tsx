@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VaagaTypePanalam — Virtual Keyboard Component
+ * VangaTypePanalam — Virtual Keyboard Component
  *
  * Full keyboard visualization matching Keybr's style:
  * - All rows including number row, modifiers, space bar
@@ -20,12 +20,14 @@ interface VirtualKeyboardProps {
   unlockedKeys?: string[];
   showFingerColors?: boolean;
   language?: string;
+  heatmapData?: Map<string, { accuracy: number; frequency: number }>;
 }
 
 export default function VirtualKeyboard({
   unlockedKeys,
   showFingerColors = true,
   language = 'en',
+  heatmapData,
 }: VirtualKeyboardProps) {
   const snapshot = useTypingStore((s) => s.snapshot);
   const [pressedKey, setPressedKey] = useState<string | null>(null);
@@ -132,14 +134,42 @@ export default function VirtualKeyboard({
 
   const layoutToUse = language === 'ta' ? TAMIL99_LAYOUT : QWERTY_LAYOUT;
 
-  // Calculate inline width style for keys
+  // Calculate inline width and heatmap styles for keys
   const getKeyStyle = (keyData: KeyData): React.CSSProperties | undefined => {
-    if (!keyData.width || keyData.width === 1) return undefined;
-    // Each standard key = 44px, gap = 2px
-    const baseWidth = 44;
-    const gap = 2;
-    const totalWidth = keyData.width * baseWidth + (keyData.width - 1) * gap;
-    return { width: `${totalWidth}px` };
+    let style: React.CSSProperties = {};
+    
+    // Width logic
+    if (keyData.width && keyData.width !== 1) {
+      // Each standard key = 44px, gap = 2px
+      const baseWidth = 44;
+      const gap = 2;
+      const totalWidth = keyData.width * baseWidth + (keyData.width - 1) * gap;
+      style.width = `${totalWidth}px`;
+    }
+
+    // Heatmap styling overlay
+    if (heatmapData && !keyData.isModifier) {
+      const stats = heatmapData.get(keyData.key.toLowerCase());
+      // Only show heatmap color if we have at least 3 samples
+      if (stats && stats.frequency >= 3) {
+        const accPct = Math.round(stats.accuracy * 100);
+        if (accPct < 70) {
+          // Hot gradient (red/error area)
+          const intensity = Math.min((70 - accPct) / 30, 1);
+          style.backgroundColor = `rgba(248, 113, 113, ${0.1 + intensity * 0.4})`;
+          style.boxShadow = `0 0 ${10 * intensity}px rgba(248, 113, 113, ${0.2 + intensity * 0.3})`;
+          style.borderColor = `rgba(248, 113, 113, ${0.3 + intensity * 0.5})`;
+        } else if (accPct >= 85) {
+          // Warm gradient (gold/mastery area)
+          const intensity = Math.min((accPct - 85) / 15, 1);
+          style.backgroundColor = `rgba(238, 194, 36, ${0.1 + intensity * 0.3})`;
+          style.boxShadow = `0 0 ${8 * intensity}px rgba(238, 194, 36, ${0.15 + intensity * 0.25})`;
+          style.borderColor = `rgba(238, 194, 36, ${0.2 + intensity * 0.4})`;
+        }
+      }
+    }
+
+    return Object.keys(style).length > 0 ? style : undefined;
   };
 
   return (

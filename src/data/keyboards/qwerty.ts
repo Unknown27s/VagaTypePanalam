@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — QWERTY Keyboard Layout Data
+ * VangaTypePanalam — QWERTY Keyboard Layout Data
  *
  * Full US QWERTY keyboard including number row, modifiers,
  * and a per-key finger assignment matching Keybr's color scheme.

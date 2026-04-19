@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VaagaTypePanalam — Sound Engine
+ * VangaTypePanalam — Sound Engine
  *
  * Procedural Web Audio API sound synthesis for zero-latency, zero-download
  * tactile typing feedback (mechanical clicks and error bumps).

@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Sessions CRUD Operations
+ * VangaTypePanalam — Sessions CRUD Operations
  */
 
 import { getDB } from './index';

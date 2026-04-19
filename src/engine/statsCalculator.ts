@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Stats Calculator
+ * VangaTypePanalam — Stats Calculator
  *
  * Pure functions for WPM, accuracy, and raw WPM calculations.
  * No side effects, no state — just math.

@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Typing Zustand Store
+ * VangaTypePanalam — Typing Zustand Store
  *
  * Manages the global typing session state.
  * Event-driven — only updates when something changes.

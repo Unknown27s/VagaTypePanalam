@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VaagaTypePanalam — TypingArea Component
+ * VangaTypePanalam — TypingArea Component
  *
  * Core typing interface with Keybr-style metrics panel:
  * - Structured metrics block (Speed, Accuracy, Score)
@@ -19,9 +19,7 @@ import { useTypingStore } from '@/store/typingStore';
 import { useUIStore } from '@/store/uiStore';
 import { formatAccuracy, formatDuration } from '@/engine/statsCalculator';
 import { CARET_SPEED_SLOW, CARET_SPEED_MEDIUM, CARET_SPEED_FAST } from '@/engine/constants';
-import { KEY_TO_FINGER, getFingerColor } from '@/data/keyboards/qwerty';
 import { soundEngine } from '@/engine/soundEngine';
-import { Gauge, ShieldCheck, Activity, Flame, Target } from 'lucide-react';
 import '@/styles/typing.css';
 
 interface TypingAreaProps {
@@ -450,106 +448,28 @@ export default function TypingArea({
 
   const displayWpm = snapshot.state === 'idle' ? idleStats.wpm : (snapshot.state === 'typing' ? liveWpm : snapshot.wpm);
   const displayAccuracy = snapshot.state === 'idle' ? idleStats.accuracy : snapshot.accuracy;
-  const displayElapsedMs = snapshot.state === 'idle' ? idleStats.todayTimeMs : snapshot.elapsedMs + idleStats.todayTimeMs;
-
-  const globalAvgWpm = idleStats.wpm;
-  const globalAvgAcc = idleStats.accuracy;
-  const score = Math.round(displayWpm * displayAccuracy);
-  const globalScore = Math.round(globalAvgWpm * globalAvgAcc);
-  const goalPct = Math.min((displayElapsedMs / (30 * 60 * 1000)) * 100, 100);
-  const streakCount = snapshot.errorChars === 0 ? snapshot.correctChars : 0;
-  const wpmRingPct = Math.min((displayWpm / 120) * 100, 100);
-
-  // Current expected key
-  const currentKey = snapshot.text && snapshot.cursorPosition < snapshot.text.length
-    ? snapshot.text[snapshot.cursorPosition]
-    : null;
+  const displayElapsedMs = snapshot.state === 'idle' ? idleStats.todayTimeMs : snapshot.elapsedMs;
 
   const caretSpeedMs = caretSpeed === 'slow' ? CARET_SPEED_SLOW : caretSpeed === 'fast' ? CARET_SPEED_FAST : CARET_SPEED_MEDIUM;
   const activeCaretStyle = caretStyle === 'outline' ? 'outline' : 'line';
 
   return (
     <div className="typing-container">
-      <div className={`metrics-hud ${segmentFlash ? 'segment-flash' : ''}`}>
-        <div className="metrics-grid">
-          <article className="metric-card metric-card-speed">
-            <div className="metric-head">
-              <Gauge size={16} />
-              <span>Speed</span>
-            </div>
-            <div className="wpm-ring" style={{ '--ring-progress': `${wpmRingPct}%` } as React.CSSProperties}>
-              <strong>{displayWpm.toFixed(0)}</strong>
-              <small>wpm</small>
-            </div>
-            <p className="metric-subtext">Avg {globalAvgWpm.toFixed(0)} wpm</p>
-          </article>
-
-          <article className="metric-card">
-            <div className="metric-head">
-              <ShieldCheck size={16} />
-              <span>Accuracy</span>
-            </div>
-            <strong className="metric-value-xl">{(displayAccuracy * 100).toFixed(1)}%</strong>
-            <div className="metric-progress">
-              <div className="metric-progress-fill" style={{ width: `${Math.min(displayAccuracy * 100, 100)}%` }} />
-            </div>
-            <p className="metric-subtext">Avg {(globalAvgAcc * 100).toFixed(0)}%</p>
-          </article>
-
-          <article className="metric-card">
-            <div className="metric-head">
-              <Activity size={16} />
-              <span>Consistency</span>
-            </div>
-            <strong className="metric-value-xl">{Math.round(snapshot.consistency * 100)}%</strong>
-            <p className="metric-subtext">Score {score} (avg {globalScore})</p>
-          </article>
-
-          <article className="metric-card">
-            <div className="metric-head">
-              <Flame size={16} />
-              <span>Streak</span>
-            </div>
-            <strong className="metric-value-xl">{streakCount}</strong>
-            <p className="metric-subtext">{snapshot.errorChars} errors</p>
-          </article>
+      {/* ── Compact Inline Metrics Bar ── */}
+      <div className={`inline-metrics ${segmentFlash ? 'segment-flash' : ''}`}>
+        <div className="im-stat">
+          <span className="im-label">WPM</span>
+          <span className="im-value im-primary">{displayWpm.toFixed(0)}</span>
         </div>
-
-        <div className="metrics-strip">
-          <div className="metrics-strip-item">
-            <Target size={14} />
-            <span className="metrics-strip-label">Current key</span>
-            {currentKey ? (
-              <>
-                <span
-                  className="key-badge key-badge-active"
-                  style={{
-                    background: KEY_TO_FINGER.get(currentKey.toLowerCase())
-                      ? getFingerColor(KEY_TO_FINGER.get(currentKey.toLowerCase())!.finger)
-                      : 'var(--key-bg)',
-                  }}
-                >
-                  {currentKey === ' ' ? '␣' : currentKey.toUpperCase()}
-                </span>
-                <span className="metric-detail">
-                  {snapshot.isCalibrated
-                    ? `Confidence ${Math.round((trackerRef.current?.getKeyProfiler().getConfidence(currentKey) ?? 0) * 100)}%`
-                    : `Calibrating ${snapshot.samplesCollected}/10`}
-                </span>
-              </>
-            ) : (
-              <span className="metric-detail">—</span>
-            )}
-          </div>
-
-          <div className="metrics-strip-item metrics-goal">
-            <span className="metrics-strip-label">Daily goal</span>
-            <span className="metric-detail">{formatDuration(displayElapsedMs)}/30 minutes</span>
-            <div className="goal-bar">
-              <div className="goal-bar-fill" style={{ width: `${goalPct}%` }} />
-            </div>
-          </div>
-
+        <div className="im-divider" />
+        <div className="im-stat">
+          <span className="im-label">ACCURACY</span>
+          <span className="im-value">{(displayAccuracy * 100).toFixed(1)}<small>%</small></span>
+        </div>
+        <div className="im-divider" />
+        <div className="im-stat">
+          <span className="im-label">TIME</span>
+          <span className="im-value">{formatDuration(displayElapsedMs)}</span>
         </div>
       </div>
 
@@ -705,44 +625,9 @@ export default function TypingArea({
       )}
 
       <style jsx>{`
-        .metrics-hud.segment-flash {
+        .inline-metrics.segment-flash {
           border-color: var(--color-success);
-          box-shadow: 0 0 0 2px rgba(34,197,94,0.15);
-        }
-        .session-bar {
-          display: flex;
-          align-items: center;
-          gap: var(--space-md);
-          padding: 0.6rem 1rem;
-          margin-top: var(--space-md);
-          border-radius: var(--radius-md);
-          background: var(--bg-surface);
-          border: 1px solid var(--border-subtle);
-          font-size: var(--text-sm);
-          color: var(--text-secondary);
-          transition: border-color 0.3s, box-shadow 0.3s;
-        }
-        .session-bar.segment-flash {
-          border-color: var(--color-success);
-          box-shadow: 0 0 0 2px rgba(34,197,94,0.15);
-        }
-        .session-stat strong {
-          color: var(--text-primary);
-          font-weight: 700;
-        }
-        .session-divider {
-          color: var(--border-default);
-        }
-        .segment-milestone {
-          margin-left: auto;
-          color: var(--color-success);
-          font-weight: 600;
-          font-size: var(--text-xs);
-          animation: fadeInRight 0.3s ease;
-        }
-        @keyframes fadeInRight {
-          from { opacity: 0; transform: translateX(8px); }
-          to   { opacity: 1; transform: translateX(0); }
+          box-shadow: 0 0 0 2px rgba(52,211,153,0.15);
         }
       `}</style>
     </div>

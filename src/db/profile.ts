@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — User Profile CRUD Operations
+ * VangaTypePanalam — User Profile CRUD Operations
  */
 
 import { getDB } from './index';
@@ -8,19 +8,21 @@ import { getLocalDateString } from '@/engine/statsCalculator';
 
 const DEFAULT_PROFILE_ID = 'default';
 
+// ─────────────────────────────────────────────
+// Public API
+// ─────────────────────────────────────────────
+
 /**
  * Get the user profile (creates a default one if none exists).
  */
 export async function getProfile(): Promise<UserProfile> {
   const db = await getDB();
-  let profile = await db.get('user-profile', DEFAULT_PROFILE_ID);
+  const profile = await db.get('user-profile', DEFAULT_PROFILE_ID);
+  if (profile) return profile;
 
-  if (!profile) {
-    profile = createDefaultProfile();
-    await db.put('user-profile', profile);
-  }
-
-  return profile;
+  const defaultProfile = createDefaultProfile();
+  await db.put('user-profile', defaultProfile);
+  return defaultProfile;
 }
 
 /**
@@ -29,16 +31,8 @@ export async function getProfile(): Promise<UserProfile> {
 export async function updateProfile(
   updates: Partial<Omit<UserProfile, 'id'>>
 ): Promise<UserProfile> {
-  const db = await getDB();
   const current = await getProfile();
-  const updated = { ...current, ...updates };
-  await db.put('user-profile', updated);
-  
-  if (typeof window !== 'undefined') {
-    window.dispatchEvent(new CustomEvent('profile-updated', { detail: updated }));
-  }
-  
-  return updated;
+  return _applyAndSave(current, updates);
 }
 
 /**
@@ -48,50 +42,45 @@ export async function recordSessionInProfile(
   durationMs: number,
   wpm: number
 ): Promise<void> {
+  // Single DB read — reuse the fetched profile directly
   const profile = await getProfile();
 
-  // Calculate streak
-  const todayDate = new Date();
-  const today = getLocalDateString(todayDate);
-  
-  const yesterdayDate = new Date();
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1);
-  const yesterday = getLocalDateString(yesterdayDate);
+  const today = getLocalDateString(new Date());
+  const yesterday = getPreviousDay(today);
 
-  let newCurrentStreak = profile.currentStreak;
-  
-  if (profile.lastActiveDay === yesterday) {
-    newCurrentStreak += 1;
-  } else if (profile.lastActiveDay !== today) {
-    newCurrentStreak = 1;
-  }
-  
-  const newLongestStreak = Math.max(profile.longestStreak, newCurrentStreak);
+  const newCurrentStreak =
+    profile.lastActiveDay === today
+      ? profile.currentStreak                  // already counted today
+      : profile.lastActiveDay === yesterday
+        ? profile.currentStreak + 1            // extend streak
+        : 1;                                   // streak broken
 
-  // Update Daily Activity mapping
-  const dailyActivity = { ...profile.dailyActivity };
-  dailyActivity[today] = (dailyActivity[today] || 0) + durationMs;
-
-  await updateProfile({
+  await _applyAndSave(profile, {
     totalSessions: profile.totalSessions + 1,
     totalTimeMs: profile.totalTimeMs + durationMs,
     lastSessionAt: Date.now(),
     bestWpm: Math.max(profile.bestWpm, wpm),
     currentStreak: newCurrentStreak,
-    longestStreak: newLongestStreak,
+    longestStreak: Math.max(profile.longestStreak, newCurrentStreak),
     lastActiveDay: today,
-    dailyActivity,
+    // Targeted update — avoids cloning the entire dailyActivity map
+    dailyActivity: {
+      ...profile.dailyActivity,
+      [today]: (profile.dailyActivity[today] ?? 0) + durationMs,
+    },
   });
 }
 
 /**
- * Unlock a new key for the user.
+ * Unlock new keys for the user (ignores already-unlocked keys).
  */
 export async function unlockKeys(keys: string[]): Promise<void> {
   const profile = await getProfile();
-  const newKeys = keys.filter((k) => !profile.unlockedKeys.includes(k));
+  const existingKeys = new Set(profile.unlockedKeys);   // O(1) lookup
+  const newKeys = keys.filter((k) => !existingKeys.has(k));
+
   if (newKeys.length > 0) {
-    await updateProfile({
+    await _applyAndSave(profile, {
       unlockedKeys: [...profile.unlockedKeys, ...newKeys],
     });
   }
@@ -103,34 +92,57 @@ export async function unlockKeys(keys: string[]): Promise<void> {
 export async function advanceLevel(): Promise<number> {
   const profile = await getProfile();
   const newLevel = profile.currentLevel + 1;
-  await updateProfile({ currentLevel: newLevel });
+  await _applyAndSave(profile, { currentLevel: newLevel });
   return newLevel;
 }
 
-/**
- * Update language preference.
- */
+/** Update language preference. */
 export async function setLanguage(language: Language): Promise<void> {
   await updateProfile({ language });
 }
 
-/**
- * Update keyboard layout preference.
- */
-export async function setKeyboardLayout(
-  layout: KeyboardLayout
-): Promise<void> {
+/** Update keyboard layout preference. */
+export async function setKeyboardLayout(layout: KeyboardLayout): Promise<void> {
   await updateProfile({ keyboardLayout: layout });
 }
 
-/**
- * Update theme preference.
- */
+/** Update theme preference. */
 export async function setTheme(theme: Theme): Promise<void> {
   await updateProfile({ theme });
 }
 
-// ── Private ──
+// ─────────────────────────────────────────────
+// Private Helpers
+// ─────────────────────────────────────────────
+
+/**
+ * Merges updates onto an already-fetched profile and persists it.
+ * Avoids the double-read that occurred when updateProfile() called getProfile() internally.
+ */
+async function _applyAndSave(
+  current: UserProfile,
+  updates: Partial<Omit<UserProfile, 'id'>>
+): Promise<UserProfile> {
+  const db = await getDB();
+  const updated: UserProfile = { ...current, ...updates };
+  await db.put('user-profile', updated);
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent('profile-updated', { detail: updated }));
+  }
+
+  return updated;
+}
+
+/**
+ * Returns the ISO date string for the day before a given YYYY-MM-DD string.
+ * Avoids creating a second `new Date()` in `recordSessionInProfile`.
+ */
+function getPreviousDay(dateStr: string): string {
+  const d = new Date(dateStr);
+  d.setDate(d.getDate() - 1);
+  return getLocalDateString(d);
+}
 
 function createDefaultProfile(): UserProfile {
   return {
@@ -145,7 +157,7 @@ function createDefaultProfile(): UserProfile {
     totalTimeMs: 0,
     bestWpm: 0,
     currentLevel: 1,
-    unlockedKeys: ['f', 'j'], // Start with home row basics
+    unlockedKeys: ['f', 'j'],
     currentStreak: 0,
     longestStreak: 0,
     lastActiveDay: '',

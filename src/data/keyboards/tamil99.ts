@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Tamil99 Keyboard Layout Data
+ * VangaTypePanalam — Tamil99 Keyboard Layout Data
  *
  * Key positions and visual layout for the standard Tamil99 keyboard.
  * Tamil99 splits vowels to the left hand and consonants to the right hand.

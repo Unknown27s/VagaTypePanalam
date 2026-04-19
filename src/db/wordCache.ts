@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Word Cache (Lazy-load + IDB)
+ * VangaTypePanalam — Word Cache (Lazy-load + IDB)
  *
  * Fetches word banks from /public/data/words-{lang}.json on first use,
  * then permanently stores them in IndexedDB so the app works fully offline.

@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — English Word Bank
+ * VangaTypePanalam — English Word Bank
  *
  * Words organized by which key they exercise.
  * Used by the adaptive text generator to build practice text

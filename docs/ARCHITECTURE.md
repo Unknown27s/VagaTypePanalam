@@ -1,6 +1,6 @@
-# VaagaTypePanalam Architecture & AI Guide
+# VangaTypePanalam Architecture & AI Guide
 
-This document describes the high-level architecture of the VaagaTypePanalam typing application and serves as a **context guide for LLMs/AIs** touching this codebase.
+This document describes the high-level architecture of the VangaTypePanalam typing application and serves as a **context guide for LLMs/AIs** touching this codebase.
 
 ## 🤖 Read Me First (For AI Agents)
 
@@ -35,7 +35,7 @@ Located in `src/store`.
 - **`useUIStore.ts`**: Manages global preferences (dark mode, language, sound toggle, keyboard visibility).
 
 ### 4. Storage & Caching Layer (IndexedDB)
-Located in `src/db`. Database Name: `vaaga-typing-db`. Upgraded to Version 2.
+Located in `src/db`. Database Name: `VANGA-typing-db`. Upgraded to Version 2.
 - **Stores**:
   - `user-profile`: Settings and level progress.
   - `key-stats`: Granular metrics for 'a', 'b', 'க', etc. Saved frequently.

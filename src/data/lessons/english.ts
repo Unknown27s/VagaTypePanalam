@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — English Lesson Definitions
+ * VangaTypePanalam — English Lesson Definitions
  *
  * 30 progressive levels from two-key basics to full-speed typing.
  */

@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Tanglish Lesson Definitions
+ * VangaTypePanalam — Tanglish Lesson Definitions
  *
  * Progressive lessons for typing Tanglish (Tamil in English script).
  */

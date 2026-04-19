@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Tanglish Word Bank
+ * VangaTypePanalam — Tanglish Word Bank
  *
  * Tanglish = Tamil words written in English script.
  * Words organized by which English key they exercise.

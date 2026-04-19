@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VaagaTypePanalam — Lessons Page
+ * VangaTypePanalam — Lessons Page
  *
  * Progressive lesson list with level progression.
  */

@@ -1,17 +1,22 @@
 'use client';
 
 /**
- * VaagaTypePanalam — Home Page (Practice)
+ * VangaTypePanalam — Home Page (Practice)
  *
- * Endless adaptive practice with optional custom text input.
- * This is now the default landing experience.
+ * 3-column layout:
+ * Left: Daily progress, streaks, critical keys
+ * Center: Typing interface with inline metrics + keyboard
+ * Right: Live analytics, milestones
  */
 
 import TypingArea from '@/components/typing/TypingArea';
 import VirtualKeyboard from '@/components/keyboard/VirtualKeyboard';
+import LeftSidebar from '@/components/ui/LeftSidebar';
+import RightSidebar from '@/components/ui/RightSidebar';
 import { useUIStore } from '@/store/uiStore';
 import { useEffect, useState } from 'react';
 import { FileText, X } from 'lucide-react';
+import { getKeyStatsByLanguage } from '@/db/keyStats';
 
 export default function HomePage() {
   const { language, showKeyboard, setOnline } = useUIStore();
@@ -19,6 +24,7 @@ export default function HomePage() {
   const [customDraft, setCustomDraft] = useState('');
   const [activeCustomText, setActiveCustomText] = useState<string | undefined>(undefined);
   const [instanceKey, setInstanceKey] = useState(0);
+  const [heatmapData, setHeatmapData] = useState<Map<string, { accuracy: number; frequency: number }>>();
 
   // Online/offline listener
   useEffect(() => {
@@ -32,6 +38,21 @@ export default function HomePage() {
       window.removeEventListener('offline', handleOffline);
     };
   }, [setOnline]);
+
+  // Load heatmap data on language change
+  useEffect(() => {
+    async function loadHeatmap() {
+      try {
+        const stats = await getKeyStatsByLanguage(language);
+        const map = new Map<string, { accuracy: number; frequency: number }>();
+        stats.forEach((s) => {
+          map.set(s.char.toLowerCase(), { accuracy: s.confidence, frequency: s.totalAttempts });
+        });
+        setHeatmapData(map);
+      } catch (e) {}
+    }
+    loadHeatmap();
+  }, [language, instanceKey]); // Reload when finishing custom text session
 
   const handleSubmitCustomText = () => {
     const trimmed = customDraft.trim();
@@ -49,10 +70,13 @@ export default function HomePage() {
   };
 
   return (
-    <main className="practice-page animate-fade-in">
-      <div className="practice-content">
+    <main className="three-col-layout animate-fade-in">
+      {/* ── Left Sidebar ── */}
+      <LeftSidebar language={language} />
 
-        {/* ── Custom Text Toolbar ── */}
+      {/* ── Center: Typing Interface ── */}
+      <div className="center-column">
+        {/* Custom Text Toolbar */}
         <div className="custom-toolbar">
           {activeCustomText ? (
             <button className="custom-badge" onClick={handleClearCustom} title="Back to adaptive practice">
@@ -72,7 +96,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* ── Custom Text Input Panel ── */}
+        {/* Custom Text Input Panel */}
         {showCustomInput && !activeCustomText && (
           <div className="custom-panel">
             <textarea
@@ -113,33 +137,28 @@ export default function HomePage() {
 
         {showKeyboard && (
           <div className="keyboard-section">
-            <VirtualKeyboard showFingerColors={true} language={language} />
+            <VirtualKeyboard showFingerColors={true} language={language} heatmapData={heatmapData} />
           </div>
         )}
       </div>
 
+      {/* ── Right Sidebar ── */}
+      <RightSidebar />
+
       <style jsx>{`
-        .practice-page {
-          height: 100dvh;
-          display: flex;
-          align-items: stretch;
-          justify-content: center;
-          padding: var(--space-sm) var(--space-lg) var(--space-sm);
-          overflow: hidden;
-        }
-        .practice-content {
-          width: 100%;
-          max-width: 980px;
-          height: 100%;
+        .center-column {
           display: flex;
           flex-direction: column;
+          min-width: 0;
         }
+
         .custom-toolbar {
           display: flex;
-          justify-content: flex-end;
-          margin-bottom: var(--space-xs);
+          justify-content: center;
+          margin-bottom: var(--space-sm);
           flex-shrink: 0;
         }
+
         .custom-toggle-btn {
           display: flex;
           align-items: center;
@@ -153,10 +172,12 @@ export default function HomePage() {
           cursor: pointer;
           transition: all 0.15s;
         }
+
         .custom-toggle-btn:hover {
           border-color: var(--color-primary);
           color: var(--color-primary-light);
         }
+
         .custom-badge {
           display: flex;
           align-items: center;
@@ -170,10 +191,11 @@ export default function HomePage() {
           cursor: pointer;
           font-weight: 600;
         }
+
         .custom-panel {
           background: var(--bg-surface);
           border: 1px solid var(--border-default);
-          border-radius: var(--radius-md);
+          border-radius: var(--radius-lg);
           padding: var(--space-md);
           margin-bottom: var(--space-sm);
           display: flex;
@@ -181,6 +203,7 @@ export default function HomePage() {
           gap: var(--space-sm);
           flex-shrink: 0;
         }
+
         .custom-textarea {
           width: 100%;
           resize: vertical;
@@ -195,46 +218,36 @@ export default function HomePage() {
           outline: none;
           transition: border-color 0.15s;
         }
+
         .custom-textarea:focus {
           border-color: var(--color-primary);
         }
+
         .custom-panel-actions {
           display: flex;
           align-items: center;
           gap: var(--space-sm);
         }
+
         .char-count {
           margin-left: auto;
           font-size: var(--text-xs);
           color: var(--text-muted);
           font-family: var(--font-mono);
         }
+
         .keyboard-section {
-          margin-top: var(--space-sm);
+          margin-top: var(--space-md);
           flex-shrink: 0;
           display: flex;
           justify-content: center;
         }
+
         .keyboard-section :global(.virtual-keyboard) {
-          transform: scale(0.88);
+          transform: scale(0.85);
           transform-origin: top center;
-        }
-        @media (max-width: 768px) {
-          .practice-page {
-            height: auto;
-            min-height: 100dvh;
-            overflow: visible;
-            padding: var(--space-xl) var(--space-md);
-          }
-          .practice-content {
-            height: auto;
-          }
-          .keyboard-section :global(.virtual-keyboard) {
-            transform: none;
-          }
         }
       `}</style>
     </main>
   );
 }
-

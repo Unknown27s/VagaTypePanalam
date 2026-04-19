@@ -1,5 +1,6 @@
 /* ============================================
-   VaagaTypePanalam — Design System
+   VangaTypePanalam — Design System v2
+   Premium Dark-First • Night/Morning Themes
    ============================================ */
 
 /* ── Google Fonts ── */
@@ -14,75 +15,73 @@
   padding: 0;
 }
 
-/* ── Design Tokens ── */
+/* ── Design Tokens (Night Mode — Default) ── */
 :root {
   /* Brand Colors */
-  --color-primary: #6366f1;
-  --color-primary-light: #818cf8;
-  --color-primary-dark: #4f46e5;
-  --color-primary-glow: rgba(99, 102, 241, 0.3);
+  --color-primary: #818cf8;
+  --color-primary-light: #a5b4fc;
+  --color-primary-dark: #6366f1;
+  --color-primary-glow: rgba(129, 140, 248, 0.25);
 
-  --color-accent: #f59e0b;
-  --color-accent-light: #fbbf24;
-  --color-accent-dark: #d97706;
+  --color-accent: #eec224;
+  --color-accent-light: #fdd034;
+  --color-accent-dark: #c9a41e;
+  --color-accent-glow: rgba(238, 194, 36, 0.2);
 
-  --color-success: #22c55e;
-  --color-success-light: #4ade80;
-  --color-error: #ef4444;
-  --color-error-light: #f87171;
-  --color-warning: #f59e0b;
+  --color-success: #34d399;
+  --color-success-light: #6ee7b7;
+  --color-error: #f87171;
+  --color-error-light: #fca5a5;
+  --color-error-dark: #7e2b17;
+  --color-warning: #fbbf24;
 
-  /* Background Layers - Keybr light minimal default */
-  --bg-base: #f3f3f3;
-  --bg-surface: #ffffff;
-  --bg-elevated: #ffffff;
-  --bg-overlay: #eaeaea;
-  --bg-hover: #e5e5e5;
-  --bg-glass: rgba(243, 243, 243, 0.9);
-  --overlay-scrim: rgba(243, 243, 243, 0.92);
+  /* Background Layers — Deep dark (Night) */
+  --bg-base: #0e0e0e;
+  --bg-surface: #131313;
+  --bg-elevated: #191a1a;
+  --bg-overlay: #1f2020;
+  --bg-hover: #252626;
+  --bg-glass: rgba(14, 14, 14, 0.82);
+  --overlay-scrim: rgba(10, 10, 10, 0.92);
 
   /* Text Colors */
-  --text-primary: #333333;
-  --text-secondary: #666666;
-  --text-muted: #999999;
-  --text-disabled: #cccccc;
+  --text-primary: #e7e5e5;
+  --text-secondary: #9c9ea1;
+  --text-muted: #6b6d70;
+  --text-disabled: #3e3f42;
 
   /* Typing-specific Colors */
-  --typing-correct: #333333;
-  --typing-error: #cc0000;
-  --typing-error-bg: rgba(204, 0, 0, 0.1);
-  --typing-current: #333333;
-  --typing-upcoming: #999999;
-  --typing-cursor: #000000;
+  --typing-correct: #e7e5e5;
+  --typing-error: #f87171;
+  --typing-error-bg: rgba(248, 113, 113, 0.12);
+  --typing-current: #e7e5e5;
+  --typing-upcoming: #4a4b4e;
+  --typing-cursor: #818cf8;
 
   /* Keyboard Colors */
-  --key-bg: #e5e5e5;
-  --key-bg-hover: #d5d5d5;
-  --key-bg-active: #999999;
-  --key-border: rgba(0, 0, 0, 0.05);
-  --key-text: #666666;
-  --key-highlight: #f3f3f3;
+  --key-bg: #252626;
+  --key-bg-hover: #2f3030;
+  --key-bg-active: #3a3b3c;
+  --key-border: rgba(255, 255, 255, 0.04);
+  --key-text: #9c9ea1;
+  --key-highlight: #1f2020;
 
   /* Keybr-style Finger mapping colors */
   --key-finger-pinky: #df7070;
-  /* Red */
   --key-finger-ring: #dfb070;
-  /* Orange */
   --key-finger-middle: #b0df70;
-  /* Yellow-green */
   --key-finger-index: #70df70;
-  /* Green */
-  --key-finger-thumb: #999999;
-  /* Gray */
+  --key-finger-thumb: #4a4b4e;
 
   /* Borders & Shadows */
-  --border-subtle: #eaeaea;
-  --border-default: #cccccc;
-  --border-focus: #999999;
-  --shadow-sm: none;
-  --shadow-md: none;
-  --shadow-lg: none;
-  --shadow-glow: none;
+  --border-subtle: rgba(255, 255, 255, 0.05);
+  --border-default: rgba(255, 255, 255, 0.08);
+  --border-focus: rgba(129, 140, 248, 0.5);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px var(--color-primary-glow);
+  --shadow-header: 0 32px 64px -12px rgba(231, 229, 229, 0.04);
 
   /* Spacing */
   --space-xs: 0.25rem;
@@ -126,39 +125,58 @@
   --transition-slow: 300ms ease;
 
   /* Layout */
-  --max-width: 1200px;
-  --header-height: 60px;
+  --max-width: 1440px;
+  --header-height: 80px;
   --typing-max-width: 800px;
 }
 
-/* ── Dark Mode (Optional/Secondary) ── */
-[data-theme="dark"] {
-  --bg-base: #1a1a1a;
-  --bg-surface: #222222;
-  --bg-elevated: #2a2a2a;
-  --bg-overlay: #333333;
-  --bg-hover: #3a3a3a;
-  --bg-glass: rgba(26, 26, 26, 0.9);
-  --overlay-scrim: rgba(20, 20, 20, 0.9);
+/* ── Morning Mode (Light Theme) ── */
+[data-theme="light"] {
+  --color-primary: #6366f1;
+  --color-primary-light: #818cf8;
+  --color-primary-dark: #4f46e5;
+  --color-primary-glow: rgba(99, 102, 241, 0.2);
 
-  --text-primary: #e0e0e0;
-  --text-secondary: #a0a0a0;
-  --text-muted: #666666;
-  --text-disabled: #444444;
+  --color-accent: #d4a017;
+  --color-accent-light: #eec224;
+  --color-accent-dark: #b8860b;
+  --color-accent-glow: rgba(212, 160, 23, 0.15);
 
-  --typing-upcoming: #777777;
-  --typing-correct: #e0e0e0;
-  --typing-error: #ff6666;
-  --typing-current: #e0e0e0;
-  --typing-cursor: #ffffff;
+  --bg-base: #f8f8f8;
+  --bg-surface: #ffffff;
+  --bg-elevated: #ffffff;
+  --bg-overlay: #f0f0f0;
+  --bg-hover: #e8e8e8;
+  --bg-glass: rgba(248, 248, 248, 0.88);
+  --overlay-scrim: rgba(248, 248, 248, 0.92);
 
-  --key-bg: #2a2a2a;
-  --key-bg-hover: #333333;
-  --key-border: rgba(255, 255, 255, 0.05);
-  --key-text: #a0a0a0;
+  --text-primary: #1a1a1a;
+  --text-secondary: #5a5c5f;
+  --text-muted: #9a9c9f;
+  --text-disabled: #c5c7ca;
 
-  --border-subtle: #333333;
-  --border-default: #444444;
+  --typing-correct: #1a1a1a;
+  --typing-error: #dc2626;
+  --typing-error-bg: rgba(220, 38, 38, 0.08);
+  --typing-current: #1a1a1a;
+  --typing-upcoming: #c0c2c5;
+  --typing-cursor: #6366f1;
+
+  --key-bg: #e8e8e8;
+  --key-bg-hover: #dcdcdc;
+  --key-bg-active: #d0d0d0;
+  --key-border: rgba(0, 0, 0, 0.04);
+  --key-text: #5a5c5f;
+
+  --border-subtle: rgba(0, 0, 0, 0.06);
+  --border-default: rgba(0, 0, 0, 0.1);
+  --border-focus: rgba(99, 102, 241, 0.5);
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 20px var(--color-primary-glow);
+  --shadow-header: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
 /* ── Base Styles ── */
@@ -258,13 +276,16 @@ h4 {
 
 .glass {
   background: var(--bg-glass);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--border-subtle);
 }
 
 .gradient-text {
-  /* Removed gradient for flat aesthetic, keep class for compatibility */
-  color: var(--text-primary);
+  background: linear-gradient(135deg, var(--color-primary-light), var(--color-accent));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
   font-weight: 700;
 }
 
@@ -278,6 +299,14 @@ h4 {
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
   border: 0;
+}
+
+/* ── Surface Cards ── */
+.surface-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  padding: var(--space-lg);
 }
 
 /* ── Button Base ── */
@@ -309,6 +338,7 @@ h4 {
 
 .btn-primary:hover {
   background: var(--color-primary-dark);
+  box-shadow: var(--shadow-glow);
 }
 
 .btn-secondary {
@@ -367,17 +397,17 @@ h4 {
 }
 
 .badge-success {
-  background: rgba(34, 197, 94, 0.15);
+  background: rgba(52, 211, 153, 0.15);
   color: var(--color-success);
 }
 
 .badge-error {
-  background: rgba(239, 68, 68, 0.15);
+  background: rgba(248, 113, 113, 0.15);
   color: var(--color-error);
 }
 
 .badge-primary {
-  background: rgba(99, 102, 241, 0.15);
+  background: rgba(129, 140, 248, 0.15);
   color: var(--color-primary-light);
 }
 
@@ -461,7 +491,46 @@ h4 {
   animation: slideUp 0.4s ease forwards;
 }
 
+/* ── Layout: Top Header + Main ── */
+#app-root {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex-grow: 1;
+  padding-top: var(--header-height);
+}
+
+/* ── 3-Column Grid Utility ── */
+.three-col-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr 280px;
+  gap: var(--space-xl);
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: var(--space-2xl) var(--space-xl);
+  min-height: calc(100vh - var(--header-height));
+}
+
 /* ── Responsive ── */
+@media (max-width: 1200px) {
+  .three-col-layout {
+    grid-template-columns: 240px 1fr 240px;
+    gap: var(--space-lg);
+    padding: var(--space-xl) var(--space-lg);
+  }
+}
+
+@media (max-width: 1024px) {
+  .three-col-layout {
+    grid-template-columns: 1fr;
+    gap: var(--space-lg);
+    padding: var(--space-lg) var(--space-md);
+  }
+}
+
 @media (max-width: 768px) {
   :root {
     --text-4xl: 2rem;
@@ -469,6 +538,7 @@ h4 {
     --text-2xl: 1.25rem;
     --space-lg: 1rem;
     --space-xl: 1.5rem;
+    --header-height: 64px;
   }
 
   .container {
@@ -488,23 +558,5 @@ h4 {
   body {
     background: white;
     color: black;
-  }
-}
-
-#app-root {
-  display: flex;
-  width: 100%;
-}
-
-.main-content {
-  flex-grow: 1;
-  margin-right: 64px;
-  min-height: 100vh;
-}
-
-@media (max-width: 768px) {
-  .main-content {
-    margin-right: 0;
-    margin-bottom: 60px;
   }
 }

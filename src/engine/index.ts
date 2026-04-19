@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Engine Public API
+ * VangaTypePanalam — Engine Public API
  *
  * Re-exports all engine modules for clean imports.
  */

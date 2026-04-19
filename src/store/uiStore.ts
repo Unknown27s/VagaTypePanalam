@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — UI Zustand Store
+ * VangaTypePanalam — UI Zustand Store
  *
  * Manages global UI state: theme, language, modals.
  */
@@ -101,7 +101,7 @@ export const useUIStore = create<UIState>()(
       setCaretSpeed: (caretSpeed) => set({ caretSpeed }),
     }),
     {
-      name: 'vaaga-ui-store',
+      name: 'VANGA-ui-store',
       // Only persist settings, not dynamic UI state like modals or online status
       partialize: (state) => ({
         theme: state.theme,

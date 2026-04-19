@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Typing Engine Constants
+ * VangaTypePanalam — Typing Engine Constants
  *
  * Tuning parameters for the adaptive typing algorithm.
  */

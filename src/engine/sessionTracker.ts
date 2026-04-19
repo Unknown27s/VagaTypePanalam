@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Session Tracker
+ * VangaTypePanalam — Session Tracker
  *
  * State machine that manages an active typing session.
  * Coordinates between KeyProfiler, StatsCalculator, and IndexedDB.
@@ -499,14 +499,22 @@ export class SessionTracker {
     // for seamless practice flow.
 
     if (this.mode === 'practice') {
-      // ── Practice mode: save session silently, then do a full fresh restart ──
+      // ── Practice mode: continue into a fresh chunk while preserving total session stats ──
       this.segmentsCompleted++;
       this.onSegmentComplete?.(this.segmentsCompleted);
 
       // Save the completed session silently (fire-and-forget)
       this.saveSegmentAsync();
 
-      // Preserve cumulative counters across restarts
+      // Preserve cumulative session states across restarts
+      const savedStartTime = this.startTime;
+      const savedLastKeystrokeTime = this.lastKeystrokeTime;
+      const savedCorrectChars = this.correctChars;
+      const savedErrorChars = this.errorChars;
+      const savedTotalKeystrokes = this.totalKeystrokes;
+      const savedKeystrokeLog = [...this.keystrokeLog];
+      const savedBurstHistory = [...this.burstHistory];
+      const savedAllLatencies = [...this.allLatencies];
       const savedSegments = this.segmentsCompleted;
       const savedTotalWords = this.totalWordsTyped;
 
@@ -514,16 +522,27 @@ export class SessionTracker {
       this.text = await this.generateNextText();
       this.words = this.text.split(' ');
 
-      // Reset state using consolidated method
       this.sessionId = generateSessionId();
       this.resetSessionState();
-      this._state = 'ready';
 
-      // Restore cumulative counters
+      // Restore cumulative counters to seamlessly continue analytics
+      this.startTime = savedStartTime;
+      this.lastKeystrokeTime = savedLastKeystrokeTime;
+      this.correctChars = savedCorrectChars;
+      this.errorChars = savedErrorChars;
+      this.totalKeystrokes = savedTotalKeystrokes;
+      this.keystrokeLog = savedKeystrokeLog;
+      this.burstHistory = savedBurstHistory;
+      this.allLatencies = savedAllLatencies;
       this.segmentsCompleted = savedSegments;
       this.totalWordsTyped = savedTotalWords;
-      this.segmentStartCorrectChars = 0;
-      this.segmentStartTime = 0;
+      
+      this.segmentStartCorrectChars = savedCorrectChars;
+      this.segmentStartTime = performance.now();
+      this.wordStartTime = performance.now();
+      this.lastKeystrokeTime = performance.now();
+      
+      this._state = savedStartTime > 0 ? 'typing' : 'ready';
       this.emitSnapshot();
 
     } else if (this.mode === 'test') {

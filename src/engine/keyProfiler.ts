@@ -1,5 +1,5 @@
 /**
- * VaagaTypePanalam — Key Profiler
+ * VangaTypePanalam — Key Profiler
  *
  * Tracks per-key performance using circular buffers for
  * rolling averages. This is the adaptive learning core.

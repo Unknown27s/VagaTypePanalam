@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VaagaTypePanalam — 60-Second Timed Test Page
+ * VangaTypePanalam — 60-Second Timed Test Page
  *
  * Countdown timer with live WPM, then a shareable score card.
  */
@@ -175,7 +175,7 @@ export default function TestPage() {
               <button
                 className="btn btn-secondary btn-lg"
                 onClick={() => {
-                  const text = `VaagaTypePanalam | ${result.wpm.toFixed(0)} WPM · ${(result.accuracy * 100).toFixed(1)}% accuracy · ${selectedDuration}s test`;
+                  const text = `VangaTypePanalam | ${result.wpm.toFixed(0)} WPM · ${(result.accuracy * 100).toFixed(1)}% accuracy · ${selectedDuration}s test`;
                   navigator.clipboard?.writeText(text);
                 }}
                 id="copy-score-btn"

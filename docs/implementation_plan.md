@@ -1,4 +1,4 @@
-# VaagaTypePanalam — Full System Architecture & Implementation Plan
+# VangaTypePanalam — Full System Architecture & Implementation Plan
 
 > *A minimal, high-performance, offline-first typing practice PWA for English, Tamil (Unicode), and Tanglish.*
 
@@ -25,9 +25,9 @@
 
 ## 1. System Overview
 
-### 1.1 What is VaagaTypePanalam?
+### 1.1 What is VangaTypePanalam?
 
-**VaagaTypePanalam** ("வாகை டைப் பணாலம்") is a beginner-friendly, adaptive typing practice web app. It teaches touch typing from scratch, tracks per-key performance, and generates targeted practice text — all running **offline-first** in the browser.
+**VangaTypePanalam** ("வாகை டைப் பணாலம்") is a beginner-friendly, adaptive typing practice web app. It teaches touch typing from scratch, tracks per-key performance, and generates targeted practice text — all running **offline-first** in the browser.
 
 ### 1.2 Core Principles
 
@@ -1016,7 +1016,7 @@ document.addEventListener('click', () => hiddenInput.focus());
 ```json
 // manifest.json
 {
-  "name": "VaagaTypePanalam",
+  "name": "VangaTypePanalam",
   "short_name": "Vaaga",
   "description": "Learn typing in English, Tamil & Tanglish",
   "start_url": "/",
@@ -1110,7 +1110,7 @@ Level 11-20: Full sentences and paragraphs
 ## 12. Folder Structure
 
 ```
-VaagaTypePanalam/
+VangaTypePanalam/
 ├── .github/
 │   └── workflows/
 │       └── ci.yml                    # GitHub Actions CI
@@ -1361,7 +1361,7 @@ npx lighthouse http://localhost:3000 --only-categories=pwa
 
 > [!NOTE]
 > **Non-blocking but good to know:**
-> - Do you have a preferred color palette / brand identity for VaagaTypePanalam?
+> - Do you have a preferred color palette / brand identity for VangaTypePanalam?
 > - Should the app support right-to-left (RTL) languages in the future (e.g., Urdu)?
 > - Any specific achievement/gamification ideas you want included?
 > - Do you want sound effects for keystrokes (optional toggle)?

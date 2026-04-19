@@ -11,173 +11,59 @@
 }
 
 /* ════════════════════════════════════════════
-   METRICS HUD (Card Layout)
+   INLINE METRICS (Compact Strip)
    ════════════════════════════════════════════ */
-.metrics-hud {
-  margin-bottom: var(--space-xl);
-  display: grid;
-  gap: var(--space-sm);
-}
-
-.metrics-grid {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: var(--space-sm);
-}
-
-.metric-card {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
+.inline-metrics {
   display: flex;
-  flex-direction: column;
-  gap: var(--space-xs);
-  min-height: 108px;
-}
-
-.metric-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--text-secondary);
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.metric-value-xl {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xl);
-  color: var(--text-primary);
-  line-height: 1;
-}
-
-.metric-subtext {
-  color: var(--text-muted);
-  font-size: var(--text-xs);
-}
-
-.wpm-ring {
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
-  background:
-    radial-gradient(circle at center, var(--bg-surface) 56%, transparent 57%),
-    conic-gradient(var(--color-primary) var(--ring-progress), var(--bg-hover) 0);
-}
-
-.wpm-ring strong {
-  display: block;
-  font-family: var(--font-mono);
-  color: var(--text-primary);
-  font-size: var(--text-lg);
-  line-height: 1;
-  text-align: center;
-}
-
-.wpm-ring small {
-  display: block;
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 0.62rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.metric-progress {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--bg-hover);
-  overflow: hidden;
-}
-
-.metric-progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--color-primary), var(--color-success));
-}
-
-.metrics-strip {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: var(--space-sm);
-}
-
-.metrics-strip-item {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: var(--space-sm) var(--space-md);
-  display: flex;
-  align-items: center;
-  gap: var(--space-xs);
-  min-height: 54px;
-}
-
-.metrics-strip-label {
-  font-size: var(--text-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--text-secondary);
-  font-weight: 600;
-}
-
-.metric-detail {
-  color: var(--text-muted);
-  font-size: var(--text-sm);
-}
-
-/* ── Key Badges (All keys row) ── */
-.metrics-keys {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 3px;
-  align-items: center;
-}
-
-.key-badge {
-  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 22px;
-  height: 22px;
-  padding: 0 4px;
-  font-family: var(--font-mono);
-  font-size: 0.7rem;
+  gap: var(--space-xl);
+  margin-bottom: var(--space-xl);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  padding: var(--space-sm) var(--space-2xl);
+  width: max-content;
+  margin-left: auto;
+  margin-right: auto;
+  transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+.im-stat {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-sm);
+}
+
+.im-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.95);
-  border-radius: 3px;
-  line-height: 1;
 }
 
-.key-badge-active {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
+.im-value {
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
-/* ── Daily Goal Progress Bar ── */
-.metrics-goal {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
+.im-value small {
+  font-size: var(--text-xs);
+  color: var(--text-muted);
+  margin-left: 2px;
 }
 
-.goal-bar {
-  width: 200px;
-  height: 6px;
-  background: var(--bg-hover);
-  border-radius: 3px;
-  overflow: hidden;
+.im-primary {
+  color: var(--color-primary-light);
 }
 
-.goal-bar-fill {
-  height: 100%;
-  background: var(--color-primary);
-  border-radius: 3px;
-  transition: width 0.3s ease;
-  min-width: 2px;
+.im-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--border-default);
 }
 
 /* ════════════════════════════════════════════

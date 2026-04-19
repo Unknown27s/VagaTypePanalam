@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * VaagaTypePanalam — Individual Lesson Page
+ * VangaTypePanalam — Individual Lesson Page
  */
 
 import { useParams, useRouter } from 'next/navigation';
