@@ -12,7 +12,7 @@ import { useUIStore } from '@/store/uiStore';
 import type { Session } from '@/db/schema';
 import { Timer } from 'lucide-react';
 
-const DURATIONS = [15, 30, 60, 120] as const;
+const DURATIONS = [15, 30, 60, 120, 300] as const;
 type Duration = typeof DURATIONS[number];
 
 export default function TestPage() {

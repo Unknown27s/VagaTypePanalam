@@ -1,49 +1,40 @@
 'use client';
 
-/**
- * VangaTypePanalam — Top Header Navigation
- *
- * Fixed top navigation bar with glassmorphic backdrop.
- * Replaces the old right-sidebar navigation.
- *
- * Layout: [Logo] --- [Nav Links] --- [Controls]
- */
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUIStore } from '@/store/uiStore';
 import type { Language } from '@/db/schema';
-import { getProfile } from '@/db/profile';
-import { useSession, signIn, signOut } from "next-auth/react";
+import { useSession, signOut } from 'next-auth/react';
 import { requestCloudSync } from '@/lib/sync';
 import {
-  Keyboard,
-  GraduationCap,
-  BarChart2,
-  Swords,
-  Timer,
   Sun,
   Moon,
   Globe,
   WifiOff,
   Volume2,
   VolumeX,
-  Flame,
-  SlidersHorizontal,
   ChevronDown,
   LogOut,
   User as UserIcon,
   LogIn,
   Cloud,
+  Settings,
+  Eye,
+  EyeOff,
+  Keyboard,
+  Timer,
+  Gamepad2,
+  BookOpen,
+  BarChart2,
 } from 'lucide-react';
 import AuthModal from './AuthModal';
 
 const NAV_ITEMS = [
   { href: '/', label: 'Practice', icon: Keyboard },
   { href: '/test', label: 'Test', icon: Timer },
-  { href: '/race', label: 'Race', icon: Swords },
-  { href: '/lessons', label: 'Lessons', icon: GraduationCap },
+  { href: '/race', label: 'Race', icon: Gamepad2 },
+  { href: '/lessons', label: 'Lessons', icon: BookOpen },
   { href: '/stats', label: 'Stats', icon: BarChart2 },
 ];
 
@@ -76,23 +67,16 @@ export default function TopHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  useEffect(() => { setMounted(true); }, []);
 
-  // Sync with cloud when logged in
   useEffect(() => {
-    if (session) {
-      void requestCloudSync();
-    }
+    if (session) void requestCloudSync();
   }, [session]);
 
-  // Close settings dropdown on outside click
   useEffect(() => {
     if (!settingsOpen) return;
     const handleClick = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      if (!target.closest('.settings-dropdown-wrapper')) {
+      if (!(e.target as HTMLElement).closest('.settings-dropdown-wrapper')) {
         setSettingsOpen(false);
       }
     };
@@ -101,67 +85,83 @@ export default function TopHeader() {
   }, [settingsOpen]);
 
   return (
-    <header className="top-header glass">
+    <header className="top-header">
       <nav className="header-inner">
-        {/* ── Logo ── */}
-        <Link href="/" className="header-logo">
-          <span className="logo-text">VANGA</span>
-        </Link>
 
-        {/* ── Nav Links ── */}
-        <div className="header-nav">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`nav-item ${isActive ? 'active' : ''}`}
-                title={item.label}
-              >
-                <Icon size={18} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
+        {/* ── Logo ── */}
+        <div className="header-left">
+          <Link href="/" className="header-logo">
+            <span className="logo-text">VangaTypePanalam</span>
+          </Link>
+        </div>
+
+        {/* ── Nav Links (centered container box) ── */}
+        <div className="header-nav-wrap">
+          <div className="header-nav">
+            {NAV_ITEMS.map((item, index) => {
+              const Icon = item.icon;
+              return (
+                <React.Fragment key={item.href}>
+                  <Link
+                    href={item.href}
+                    className={`nav-item ${pathname === item.href ? 'active' : ''}`}
+                    title={item.label}
+                  >
+                    <Icon size={16} className="nav-icon" />
+                    <span className="nav-label">{item.label}</span>
+                  </Link>
+                  {index < NAV_ITEMS.length - 1 && (
+                    <span className="nav-divider" />
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Controls ── */}
         <div className="header-controls">
           {mounted ? (
             <>
-              {/* Offline indicator */}
-              {!isOnline && (
-                <span className="offline-indicator" title="Offline">
-                  <WifiOff size={16} />
-                </span>
+              {/* Online / Offline status */}
+              {isOnline ? (
+                <div className="status-pill online">
+                  <span className="status-dot" />
+                  <span className="status-label">Online</span>
+                </div>
+              ) : (
+                <div className="status-pill offline" title="Offline">
+                  <WifiOff size={12} />
+                  <span className="status-label">Offline</span>
+                </div>
               )}
 
+              <span className="ctrl-divider" />
+
               {/* Language */}
-              <div className="control-group" title="Language">
-                <Globe size={16} />
+              <div className="ctrl-btn" title="Language" style={{ position: 'relative' }}>
+                <Globe size={15} />
+                <span style={{ fontSize: '11px', fontWeight: 600, margin: '0 2px' }}>
+                  {LANGUAGE_MAP[language]}
+                </span>
+                <ChevronDown size={9} style={{ opacity: 0.7 }} />
+                
                 <select
                   className="lang-select"
                   value={language}
                   onChange={(e) => setLanguage(e.target.value as Language)}
                   aria-label="Select language"
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0, width: '100%', height: '100%',
+                    opacity: 0, cursor: 'pointer'
+                  }}
                 >
                   <option value="en">English</option>
                   <option value="ta">தமிழ்</option>
                   <option value="tanglish">Tanglish</option>
                 </select>
               </div>
-
-              {/* Sound */}
-              <button
-                className={`ctrl-btn ${soundEnabled ? 'active' : ''}`}
-                onClick={toggleSound}
-                title={soundEnabled ? 'Sound On' : 'Sound Off'}
-                aria-label="Toggle sound"
-              >
-                {soundEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
-              </button>
 
               {/* Theme */}
               <button
@@ -170,111 +170,141 @@ export default function TopHeader() {
                 title={theme === 'dark' ? 'Morning Mode' : 'Night Mode'}
                 aria-label="Toggle theme"
               >
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
               </button>
 
-              <div className="header-divider" />
-
-              {/* Auth */}
-              {session ? (
-                <div className="auth-group">
-                  <div className="user-avatar-wrapper" title={session.user?.name || 'User'}>
-                    {session.user?.image ? (
-                      <img src={session.user.image} alt="" className="avatar-img" />
-                    ) : (
-                      <div className="avatar-fallback"><UserIcon size={16} /></div>
-                    )}
-                    <div className="cloud-indicator" title="Sync Protected">
-                      <Cloud size={10} />
-                    </div>
-                  </div>
-                  <button
-                    className="ctrl-btn logout-btn"
-                    onClick={() => signOut()}
-                    title="Sign Out"
-                    aria-label="Sign out"
-                  >
-                    <LogOut size={16} />
-                  </button>
-                </div>
-              ) : (
-                <button
-                  className="auth-btn-pill"
-                  onClick={() => setAuthModalOpen(true)}
-                  title="Sign In / Sign Up"
-                >
-                  <LogIn size={16} />
-                  <span>Sign In</span>
-                </button>
-              )}
-
-              {/* Auth Modal */}
-              <AuthModal 
-                isOpen={authModalOpen} 
-                onClose={() => setAuthModalOpen(false)} 
-              />
+              <span className="ctrl-divider" />
 
               {/* Settings dropdown */}
               <div className="settings-dropdown-wrapper">
                 <button
-                  className={`ctrl-btn ${settingsOpen ? 'active' : ''}`}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSettingsOpen((v) => !v);
-                  }}
+                  className={`ctrl-btn settings-trigger ${settingsOpen ? 'active' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); setSettingsOpen((v) => !v); }}
                   title="Settings"
                   aria-label="Open settings"
                 >
-                  <SlidersHorizontal size={18} />
-                  <ChevronDown size={12} />
+                  <Settings size={15} />
+                  <ChevronDown size={9} className={`chevron ${settingsOpen ? 'open' : ''}`} />
                 </button>
 
                 {settingsOpen && (
                   <div className="settings-dropdown">
-                    <label className="dropdown-row">
-                      <span>Caret Style</span>
-                      <select value={caretStyle} onChange={(e) => setCaretStyle(e.target.value as typeof caretStyle)}>
+
+                    {/* Sound */}
+                    <button className="dd-row" onClick={toggleSound}>
+                      <span className="dd-left">
+                        {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+                        Sound
+                      </span>
+                      <div className={`toggle-switch ${soundEnabled ? 'on' : ''}`}>
+                        <div className="toggle-thumb" />
+                      </div>
+                    </button>
+
+                    {/* Keyboard */}
+                    <button className="dd-row" onClick={toggleKeyboard}>
+                      <span className="dd-left">
+                        {showKeyboard ? <Eye size={13} /> : <EyeOff size={13} />}
+                        Keyboard
+                      </span>
+                      <div className={`toggle-switch ${showKeyboard ? 'on' : ''}`}>
+                        <div className="toggle-thumb" />
+                      </div>
+                    </button>
+
+                    <div className="dd-divider" />
+                    <div className="dd-section">Caret</div>
+
+                    {/* Caret Style */}
+                    <label className="dd-row">
+                      <span className="dd-left">Style</span>
+                      <select
+                        className="dd-select"
+                        value={caretStyle}
+                        onChange={(e) => setCaretStyle(e.target.value as typeof caretStyle)}
+                      >
                         <option value="line">Line</option>
                         <option value="outline">Outline</option>
                       </select>
                     </label>
-                    <label className="dropdown-row">
-                      <span>Caret Speed</span>
-                      <select value={caretSpeed} onChange={(e) => setCaretSpeed(e.target.value as typeof caretSpeed)}>
+
+                    {/* Caret Speed */}
+                    <label className="dd-row">
+                      <span className="dd-left">Speed</span>
+                      <select
+                        className="dd-select"
+                        value={caretSpeed}
+                        onChange={(e) => setCaretSpeed(e.target.value as typeof caretSpeed)}
+                      >
                         <option value="slow">Slow</option>
                         <option value="medium">Medium</option>
                         <option value="fast">Fast</option>
                       </select>
                     </label>
-                    <button className="dropdown-toggle" onClick={toggleSound}>
-                      <span>Sound</span>
-                      <strong>{soundEnabled ? 'On' : 'Off'}</strong>
-                    </button>
-                    <button className="dropdown-toggle" onClick={toggleKeyboard}>
-                      <span>Keyboard</span>
-                      <strong>{showKeyboard ? 'Shown' : 'Hidden'}</strong>
-                    </button>
+
+                    <div className="dd-divider" />
+
+                    {/* ── Auth Section ── */}
+                    {session ? (
+                      <div className="dd-auth">
+                        {/* User card */}
+                        <div className="dd-user-card">
+                          {session.user?.image ? (
+                            <img src={session.user.image} alt="" className="avatar-img" />
+                          ) : (
+                            <div className="avatar-fallback">
+                              <UserIcon size={13} />
+                            </div>
+                          )}
+                          <div className="dd-user-info">
+                            <span className="dd-user-name">{session.user?.name || 'User'}</span>
+                            <span className="dd-user-sub">Synced to cloud</span>
+                          </div>
+                          <Cloud size={12} className="dd-cloud-icon" />
+                        </div>
+
+                        {/* Sign out */}
+                        <button className="dd-row logout-row" onClick={() => signOut()}>
+                          <span className="dd-left">
+                            <LogOut size={13} />
+                            Sign Out
+                          </span>
+                        </button>
+                      </div>
+                    ) : (
+                      /* Sign in */
+                      <button
+                        className="dd-signin-btn"
+                        onClick={() => { setAuthModalOpen(true); setSettingsOpen(false); }}
+                      >
+                        <span className="dd-left">
+                          <LogIn size={13} />
+                          Sign In to Sync
+                        </span>
+                        <span className="sync-badge">Cloud</span>
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
+
+              <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
             </>
           ) : (
+            /* SSR skeleton */
             <>
-              {/* Skeleton controls for SSR / hydration */}
-              <div className="control-group" title="Language">
-                <Globe size={16} />
-                <span className="lang-select" style={{ opacity: 0 }}>EN</span>
+              <div className="ctrl-btn" style={{ opacity: 0 }}>
+                <Globe size={15} />
+                <span style={{ fontSize: '11px', fontWeight: 600, margin: '0 2px' }}>EN</span>
+                <ChevronDown size={9} />
               </div>
-              <button className="ctrl-btn" aria-label="Toggle sound">
-                <VolumeX size={18} />
-              </button>
               <button className="ctrl-btn" aria-label="Toggle theme">
-                <Moon size={18} />
+                <Moon size={15} />
               </button>
               <div className="settings-dropdown-wrapper">
-                <button className="ctrl-btn" aria-label="Open settings">
-                  <SlidersHorizontal size={18} />
-                  <ChevronDown size={12} />
+                <button className="ctrl-btn settings-trigger" aria-label="Open settings">
+                  <Settings size={15} />
+                  <ChevronDown size={9} />
                 </button>
               </div>
             </>
@@ -283,16 +313,22 @@ export default function TopHeader() {
       </nav>
 
       <style jsx>{`
+        /* ═══════════════════════════════════════════
+           VangaTypePanalam — Top Header
+           ═══════════════════════════════════════════ */
+
         .top-header {
           position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
+          top: 0; left: 0; right: 0;
           z-index: 1000;
           height: var(--header-height);
           display: flex;
           align-items: center;
-          box-shadow: var(--shadow-header);
+
+          background: var(--bg-header, var(--bg-glass));
+          backdrop-filter: blur(18px) saturate(140%);
+          -webkit-backdrop-filter: blur(18px) saturate(140%);
+          border-bottom: 1px solid var(--border-subtle);
         }
 
         .header-inner {
@@ -306,134 +342,161 @@ export default function TopHeader() {
           gap: var(--space-xl);
         }
 
+        /* ── Header Left ── */
+        .header-left {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-shrink: 0;
+        }
+
         /* ── Logo ── */
         .header-logo {
           display: flex;
           align-items: center;
-          gap: var(--space-sm);
           text-decoration: none;
           flex-shrink: 0;
         }
 
         .logo-text {
-          font-size: 1.4rem;
+          font-size: 1.15rem;
           font-weight: 800;
-          letter-spacing: -0.04em;
-          background: linear-gradient(135deg, var(--color-primary-light), var(--color-accent));
-          -webkit-background-clip: text;
-          -webkit-text-fill-color: transparent;
-          background-clip: text;
+          letter-spacing: -0.01em;
+          color: var(--text-primary);
+          line-height: 1;
         }
 
-          background-clip: text;
+        /* ── Nav ── */
+        .header-nav-wrap {
+          flex: 1;
+          display: flex;
+          justify-content: center;
+          min-width: 0;
         }
 
-        @keyframes flicker {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.15); opacity: 0.8; }
-        }
-
-        /* ── Nav Links ── */
         .header-nav {
           display: flex;
           align-items: center;
-          gap: var(--space-sm);
-          min-width: 0;
-          padding: 4px;
-          border-radius: var(--radius-lg);
-          background: rgba(255, 255, 255, 0.02);
+          gap: 12px;
+          background: rgba(255, 255, 255, 0.04);
           border: 1px solid var(--border-subtle);
+          border-radius: 12px;
+          padding: 6px 10px;
         }
 
         .nav-item {
+          position: relative;
           display: flex;
           align-items: center;
-          justify-content: center;
           gap: 8px;
-          padding: 8px 16px;
-          border-radius: var(--radius-full);
+          padding: 6px 14px;
           font-size: var(--text-sm);
-          font-weight: 600;
+          font-weight: 500;
           color: var(--text-muted);
           text-decoration: none;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+          letter-spacing: 0.02em;
+          transition: color 0.2s ease, background 0.2s ease;
+          border-radius: 8px;
           white-space: nowrap;
-          min-height: 38px;
-          line-height: 1;
-          background: transparent;
-          border: 1px solid transparent;
         }
 
         .nav-item:hover {
           color: var(--text-primary);
-          background: rgba(255, 255, 255, 0.05);
-          transform: translateY(-1px);
+          background: var(--bg-hover);
         }
 
         .nav-item.active {
           color: var(--color-primary-light);
-          background: rgba(129, 140, 248, 0.15);
-          border-color: rgba(129, 140, 248, 0.3);
-          box-shadow: 0 2px 8px rgba(129, 140, 248, 0.15);
         }
 
-        .nav-item :global(svg) {
+        .nav-item.active::after {
+          content: '';
+          position: absolute;
+          bottom: 0;
+          left: 12px;
+          right: 12px;
+          height: 2px;
+          background: var(--color-primary-light);
+          border-radius: 2px 2px 0 0;
+        }
+
+        .nav-divider {
+          width: 1px;
+          height: 14px;
+          background: rgba(255, 255, 255, 0.15); /* light, not dark line */
           flex-shrink: 0;
-          margin-right: 4px;
-        }
-
-        .nav-item span {
-          display: inline-block;
-          line-height: 1;
         }
 
         /* ── Controls ── */
         .header-controls {
           display: flex;
           align-items: center;
-          gap: var(--space-xs);
+          gap: 4px;
           flex-shrink: 0;
         }
 
-        .control-group {
+        .ctrl-divider {
+          width: 1px;
+          height: 18px;
+          background: var(--border-subtle);
+          margin: 0 2px;
+          flex-shrink: 0;
+        }
+
+        /* Status pill */
+        .status-pill {
           display: flex;
           align-items: center;
-          gap: 4px;
-          color: var(--text-muted);
-          position: relative;
+          gap: 5px;
+          height: 26px;
+          padding: 0 9px;
+          border-radius: 20px;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.05em;
+          text-transform: uppercase;
         }
 
-        .lang-select {
-          appearance: none;
-          background: transparent;
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-sm);
-          padding: 4px 8px;
-          font-size: var(--text-xs);
-          font-family: var(--font-sans);
-          color: var(--text-secondary);
-          cursor: pointer;
-          outline: none;
-          transition: border-color 0.15s;
+        .status-pill.online {
+          border: 1px solid rgba(165, 180, 252, 0.25);
+          background: rgba(165, 180, 252, 0.07);
+          color: var(--color-primary-light);
         }
 
-        .lang-select:hover,
-        .lang-select:focus {
-          border-color: var(--color-primary);
-          color: var(--text-primary);
+        .status-pill.offline {
+          border: 1px solid rgba(var(--color-error-rgb, 220, 80, 80), 0.3);
+          background: rgba(var(--color-error-rgb, 220, 80, 80), 0.07);
+          color: var(--color-error);
         }
 
+        .status-dot {
+          width: 5px; height: 5px;
+          border-radius: 50%;
+          background: currentColor;
+          animation: status-pulse 2.5s ease infinite;
+        }
+
+        .status-label { line-height: 1; }
+
+        @keyframes status-pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+
+        /* Language dropdown hidden because it matches ctrl-btn styling now */
+
+        /* Control buttons */
         .ctrl-btn {
           display: flex;
           align-items: center;
           justify-content: center;
-          gap: 2px;
-          height: 36px;
-          min-width: 36px;
-          padding: 8px;
+          gap: 3px;
+          height: 32px;
+          min-width: 32px;
+          padding: 0 8px;
           border: none;
           background: transparent;
-          border-radius: var(--radius-md);
+          border-radius: 8px;
           color: var(--text-muted);
           cursor: pointer;
           transition: all 0.15s;
@@ -441,123 +504,19 @@ export default function TopHeader() {
 
         .ctrl-btn:hover {
           background: var(--bg-hover);
-          color: var(--text-primary);
+          color: var(--text-secondary);
         }
 
         .ctrl-btn.active {
           color: var(--color-primary-light);
         }
 
-        .offline-indicator {
-          color: var(--color-error);
-          display: flex;
-          align-items: center;
-          padding: 4px;
+        .chevron {
+          transition: transform 0.2s ease;
         }
 
-        .header-divider {
-          width: 1px;
-          height: 24px;
-          background: var(--border-subtle);
-          margin: 0 var(--space-xs);
-        }
-
-        /* ── Auth ── */
-        .auth-group {
-          display: flex;
-          align-items: center;
-          gap: var(--space-xs);
-        }
-
-        .user-avatar-wrapper {
-          position: relative;
-          width: 32px;
-          height: 32px;
-          border-radius: var(--radius-full);
-          border: 2px solid var(--border-default);
-          overflow: visible;
-          cursor: pointer;
-          transition: border-color 0.2s;
-        }
-
-        .user-avatar-wrapper:hover {
-          border-color: var(--color-primary);
-        }
-
-        .avatar-img {
-          width: 100%;
-          height: 100%;
-          border-radius: inherit;
-          object-fit: cover;
-        }
-
-        .avatar-fallback {
-          width: 100%;
-          height: 100%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--bg-overlay);
-          color: var(--text-muted);
-        }
-
-        .cloud-indicator {
-          position: absolute;
-          bottom: -2px;
-          right: -2px;
-          background: var(--color-primary);
-          color: white;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          border: 2px solid var(--bg-surface);
-        }
-
-        .auth-btn-pill {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          background: var(--color-primary);
-          color: white;
-          border: none;
-          padding: 6px 14px;
-          border-radius: var(--radius-full);
-          font-size: var(--text-xs);
-          font-weight: 700;
-          cursor: pointer;
-          transition: all 0.2s;
-          box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
-        }
-
-        .auth-btn-pill:hover {
-          background: var(--color-primary-light);
-          transform: translateY(-1px);
-          box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
-        }
-
-        .auth-btn-pill:active {
-          transform: translateY(0);
-        }
-
-        .logout-btn {
-          opacity: 0.6;
-        }
-
-        .logout-btn:hover {
-          opacity: 1;
-          color: var(--color-error);
-        }
-
-        @media (max-width: 640px) {
-          .auth-btn-pill span {
-            display: none;
-          }
-          .auth-btn-pill {
-            padding: 8px;
-          }
+        .chevron.open {
+          transform: rotate(180deg);
         }
 
         /* ── Settings Dropdown ── */
@@ -569,126 +528,231 @@ export default function TopHeader() {
           position: absolute;
           top: calc(100% + 8px);
           right: 0;
-          width: 220px;
+          width: 240px;
           background: var(--bg-elevated);
           border: 1px solid var(--border-default);
-          border-radius: var(--radius-lg);
-          padding: var(--space-sm);
+          border-radius: 12px;
+          padding: 8px;
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          box-shadow: var(--shadow-lg);
+          gap: 2px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4), 0 0 0 0.5px rgba(255, 255, 255, 0.04);
           z-index: 100;
-          animation: fadeIn 0.15s ease;
+          animation: dd-slide 0.14s ease;
         }
 
-        .dropdown-row {
+        @keyframes dd-slide {
+          from { opacity: 0; transform: translateY(-5px) scale(0.98); }
+          to   { opacity: 1; transform: none; }
+        }
+
+        .dd-section {
+          padding: 4px 10px 2px;
+          font-size: 10px;
+          font-weight: 600;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          margin-top: 2px;
+        }
+
+        .dd-divider {
+          height: 1px;
+          background: var(--border-subtle);
+          margin: 4px 0;
+        }
+
+        .dd-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          gap: 8px;
+          justify-content: space-between;
+          padding: 7px 10px;
+          border-radius: 8px;
+          cursor: pointer;
+          transition: background 0.13s;
+          width: 100%;
+          background: transparent;
+          border: none;
+          font-family: var(--font-sans);
           font-size: var(--text-xs);
           color: var(--text-secondary);
-          padding: 6px 8px;
         }
 
-        .dropdown-row select {
+        .dd-row:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .dd-left {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+
+        /* Toggle switch */
+        .toggle-switch {
+          width: 34px; height: 20px;
+          border-radius: 10px;
           background: var(--bg-surface);
           border: 1px solid var(--border-default);
-          color: var(--text-primary);
-          border-radius: var(--radius-sm);
-          padding: 3px 6px;
+          position: relative;
+          cursor: pointer;
+          transition: background 0.2s, border-color 0.2s;
+          flex-shrink: 0;
+        }
+
+        .toggle-switch.on {
+          background: rgba(165, 180, 252, 0.15);
+          border-color: rgba(165, 180, 252, 0.4);
+        }
+
+        .toggle-thumb {
+          position: absolute;
+          top: 3px; left: 3px;
+          width: 12px; height: 12px;
+          border-radius: 50%;
+          background: var(--text-muted);
+          transition: transform 0.2s, background 0.2s;
+        }
+
+        .toggle-switch.on .toggle-thumb {
+          transform: translateX(14px);
+          background: var(--color-primary-light);
+        }
+
+        /* Caret selects */
+        .dd-select {
+          background: transparent;
+          border: none;
+          outline: none;
           font-size: var(--text-xs);
+          font-weight: 600;
+          color: var(--color-primary-light);
           font-family: var(--font-sans);
           cursor: pointer;
         }
 
-        .dropdown-toggle {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          font-size: var(--text-xs);
-          background: var(--bg-surface);
-          border: 1px solid var(--border-default);
+        .dd-select option {
+          background: var(--bg-elevated);
           color: var(--text-primary);
-          border-radius: var(--radius-sm);
-          padding: 6px 8px;
-          cursor: pointer;
-          transition: background 0.15s;
         }
 
-        .dropdown-toggle:hover {
-          background: var(--bg-hover);
+        /* ── Auth section ── */
+        .dd-auth {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
         }
 
-        .dropdown-toggle strong {
-          color: var(--color-primary-light);
+        .dd-user-card {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          padding: 10px 10px 8px;
+        }
+
+        .avatar-img {
+          width: 28px; height: 28px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 1px solid var(--border-default);
+          flex-shrink: 0;
+        }
+
+        .avatar-fallback {
+          width: 28px; height: 28px;
+          border-radius: 50%;
+          background: var(--bg-overlay);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--text-muted);
+          flex-shrink: 0;
+        }
+
+        .dd-user-info {
+          flex: 1;
+          overflow: hidden;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .dd-user-name {
           font-size: var(--text-xs);
+          font-weight: 600;
+          color: var(--text-primary);
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
 
-        /* ── Responsive Header ── */
-        @media (max-width: 1200px) {
-          .header-inner {
-            padding: 0 var(--space-lg);
-            gap: var(--space-md);
-          }
-
-          .nav-item {
-            padding: 8px 10px;
-          }
-
-          .nav-item span {
-            display: none;
-          }
+        .dd-user-sub {
+          font-size: 10px;
+          color: var(--text-muted);
+          line-height: 1;
         }
 
+        .dd-cloud-icon {
+          color: var(--color-primary-light);
+          flex-shrink: 0;
+        }
+
+        .logout-row:hover {
+          color: var(--color-error) !important;
+        }
+
+        /* Sign In button */
+        .dd-signin-btn {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 9px 10px;
+          border-radius: 8px;
+          border: 1px solid rgba(165, 180, 252, 0.2);
+          background: rgba(165, 180, 252, 0.06);
+          cursor: pointer;
+          font-family: var(--font-sans);
+          font-size: var(--text-xs);
+          font-weight: 500;
+          color: var(--color-primary-light);
+          width: 100%;
+          transition: border-color 0.15s, background 0.15s;
+        }
+
+        .dd-signin-btn:hover {
+          border-color: rgba(165, 180, 252, 0.4);
+          background: rgba(165, 180, 252, 0.1);
+        }
+
+        .sync-badge {
+          font-size: 9px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          background: var(--color-primary-light);
+          color: var(--bg-base);
+          padding: 2px 6px;
+          border-radius: 4px;
+        }
+
+        /* ── Responsive ── */
         @media (max-width: 900px) {
           .header-inner {
+            padding: 0 var(--space-md);
             gap: var(--space-sm);
           }
 
-          .header-nav {
-            flex: 1;
-            overflow-x: auto;
-            scrollbar-width: none;
-            -ms-overflow-style: none;
-          }
-
-          .header-nav::-webkit-scrollbar {
-            display: none;
-          }
-
-          .header-controls {
-            gap: 2px;
-          }
-
-          .control-group svg {
-            display: none;
-          }
-
-          .lang-select {
-            max-width: 88px;
-            padding: 4px 6px;
-          }
+          .status-label { display: none; }
+          .status-pill { padding: 0 7px; }
         }
 
         @media (max-width: 640px) {
-          .header-logo {
-            gap: 0;
-          }
-
-          .header-streak {
-            display: none;
-          }
-
-          .logo-text {
-            font-size: 1.1rem;
-          }
-
-          .nav-item {
-            min-width: 36px;
-            padding: 8px;
-          }
+          .status-pill { display: none; }
+          .nav-label { display: none; }
+          .nav-divider { display: none; }
+          .header-nav { gap: 4px; padding: 4px 6px; }
+          .nav-item { padding: 6px 8px; }
         }
       `}</style>
     </header>

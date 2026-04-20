@@ -180,7 +180,7 @@ If you want to change the UI, these are the main files to edit:
 
 ## 📄 License
 
-MIT
+GNU General Public License v3.0
 
 ---
 
