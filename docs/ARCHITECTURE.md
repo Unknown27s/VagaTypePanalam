@@ -54,7 +54,8 @@ Located in `src/db`. Database Name: `VANGA-typing-db`. Upgraded to Version 2.
 ### 5. Static Data Definitions
 Located in `src/data`.
 - **Lessons (`lessons/*.ts`)**: Progressive milestone lists mapping specific letters (e.g., `tamil.ts` introduces "அ, ஆ" mapped to "q, w") with target WPMs.
-- **Keyboards (`keyboards/*.ts`)**: Physical mapping arrays that connect `keydown` Event codes to physical UI rendering layout and assigned fingers.
+- **Keyboards (`keyboards/*.ts`)**: Physical mapping arrays that connect `keydown` Event codes to physical UI rendering layout and assigned fingers. 
+  - *Pattern Note*: Layout files export `KEY_DATA_BY_KEY` (all keys) and `KEY_TO_FINGER` (typeable keys only) maps for O(1) metadata lookups.
 
 ---
 

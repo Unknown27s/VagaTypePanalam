@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import { useUIStore } from '@/store/uiStore';
 import { ENGLISH_LESSONS, type LessonDefinition } from '@/data/lessons/english';
 import { TAMIL_LESSONS } from '@/data/lessons/tamil';
@@ -23,17 +24,36 @@ const TA_TO_EN_MAP: Record<string, string> = {
 
 export default function LessonsPage() {
   const { language } = useUIStore();
+  const pathname = usePathname();
+  const router = useRouter();
   const [progress, setProgress] = useState<Map<string, LessonProgress>>(new Map());
   const [loading, setLoading] = useState(true);
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const lessons = getLessonsForLanguage(language);
 
   useEffect(() => {
     loadProgress();
-  }, [language]);
+  }, [language, refreshKey]);
+
+  useEffect(() => {
+    const handleRouteChange = () => {
+      setRefreshKey(k => k + 1);
+    };
+    window.addEventListener('lesson-progress-updated', handleRouteChange);
+    return () => window.removeEventListener('lesson-progress-updated', handleRouteChange);
+  }, []);
+
+  // Refresh on pathname change (when navigating back to lessons)
+  useEffect(() => {
+    if (pathname === '/lessons') {
+      setRefreshKey(k => k + 1);
+    }
+  }, [pathname]);
 
   async function loadProgress() {
     try {
+      setLoading(true);
       const allProgress = await getLessonProgressByLanguage(language);
       const map = new Map<string, LessonProgress>();
       for (const p of allProgress) {
@@ -52,6 +72,9 @@ export default function LessonsPage() {
     // Level N is unlocked if ALL lessons in Level N-1 are completed
     const prevLevelLessons = lessons.filter((l) => l.level === level - 1);
     if (prevLevelLessons.length === 0) return true;
+    
+    // If progress is still loading, assume unlocked (will re-check after load)
+    if (loading) return true;
     
     return prevLevelLessons.every((l) => {
       const prog = progress.get(l.id);

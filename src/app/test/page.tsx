@@ -47,20 +47,22 @@ export default function TestPage() {
     };
   }, []);
 
-  // Reset timer when duration changes
-  useEffect(() => {
-    setSecondsLeft(selectedDuration);
-    setRunning(false);
-    setResult(null);
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setKey((k) => k + 1);
-  }, [selectedDuration]);
+  // Reset timer when duration changes is now handled in changeDuration
 
   const handleRestart = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     setRunning(false);
     setResult(null);
     setSecondsLeft(selectedDuration);
+    setKey((k) => k + 1);
+  };
+
+  const changeDuration = (d: Duration) => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setSelectedDuration(d);
+    setSecondsLeft(d);
+    setRunning(false);
+    setResult(null);
     setKey((k) => k + 1);
   };
 
@@ -93,7 +95,7 @@ export default function TestPage() {
               <button
                 key={d}
                 className={`duration-pill ${selectedDuration === d ? 'active' : ''}`}
-                onClick={() => setSelectedDuration(d)}
+                onClick={() => changeDuration(d)}
                 disabled={running}
                 id={`duration-${d}s`}
               >

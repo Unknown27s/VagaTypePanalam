@@ -7,6 +7,7 @@ import { useUIStore } from '@/store/uiStore';
 import type { Language } from '@/db/schema';
 import { useSession, signOut } from 'next-auth/react';
 import { requestCloudSync } from '@/lib/sync';
+import Image from 'next/image';
 import {
   Sun,
   Moon,
@@ -67,7 +68,9 @@ export default function TopHeader() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (session) void requestCloudSync();
@@ -250,7 +253,13 @@ export default function TopHeader() {
                         {/* User card */}
                         <div className="dd-user-card">
                           {session.user?.image ? (
-                            <img src={session.user.image} alt="" className="avatar-img" />
+                            <Image
+                              src={session.user.image}
+                              alt={session.user.name || 'User'}
+                              className="avatar-img"
+                              width={28}
+                              height={28}
+                            />
                           ) : (
                             <div className="avatar-fallback">
                               <UserIcon size={13} />

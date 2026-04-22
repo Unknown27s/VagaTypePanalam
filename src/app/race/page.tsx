@@ -53,7 +53,13 @@ export default function RacePage() {
   const { language } = useUIStore();
   const snapshot = useTypingStore(s => s.snapshot);
   
-  const [raceText] = useState(RACE_TEXTS[Math.floor(Math.random() * RACE_TEXTS.length)]);
+  const [raceText, setRaceText] = useState(RACE_TEXTS[0]);
+  
+  useEffect(() => {
+    const randomText = RACE_TEXTS[Math.floor(Math.random() * RACE_TEXTS.length)];
+    setRaceText(randomText);
+  }, []);
+
   const totalChars = raceText.length;
   
   const [hasStarted, setHasStarted] = useState(false);

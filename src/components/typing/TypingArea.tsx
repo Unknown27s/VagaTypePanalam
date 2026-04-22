@@ -12,6 +12,7 @@
  */
 
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { SessionTracker } from '@/engine/sessionTracker';
 import type { SessionSnapshot } from '@/engine/sessionTracker';
 import type { Language, Session } from '@/db/schema';
@@ -45,6 +46,7 @@ export default function TypingArea({
   targetWpm,
   targetAccuracy,
 }: TypingAreaProps) {
+  const router = useRouter();
   const [snapshot, setSnapshot] = useState<SessionSnapshot>({
     state: 'idle',
     text: '',
@@ -608,7 +610,7 @@ export default function TypingArea({
               {mode === 'lesson' && snapshot.wpm >= (targetWpm ?? 15) && snapshot.accuracy >= (targetAccuracy ?? 0.9) && nextLessonId ? (
                 <button
                   className="btn btn-primary btn-lg"
-                  onClick={() => window.location.href = `/lessons/${nextLessonId}`}
+                  onClick={() => router.push(`/lessons/${nextLessonId}`)}
                   style={{ minWidth: '180px' }}
                 >
                   Next Lesson →
@@ -624,7 +626,7 @@ export default function TypingArea({
               ) : (
                 <button
                   className="btn btn-primary btn-lg"
-                  onClick={() => initSession()}
+                  onClick={() => router.push('/')}
                   style={{ minWidth: '180px' }}
                 >
                   Next Practice →
@@ -635,7 +637,7 @@ export default function TypingArea({
               {mode === 'lesson' && (
                 <button
                   className="btn btn-secondary btn-lg"
-                  onClick={() => initSession()}
+                  onClick={() => nextLessonId ? router.push(`/lessons/${nextLessonId}`) : router.push('/lessons')}
                   style={{ minWidth: '180px' }}
                 >
                   Next Practice →

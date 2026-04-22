@@ -2,6 +2,17 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
+## [0.3.3] - 2026-04-22
+
+### Fixed
+- **Tamil99 Layout**: Added missing `Backspace` key and fixed incorrect row index comments.
+- **Syntax Error**: Fixed a syntax error in `tamil99.ts` where the file ended with a colon instead of a semicolon.
+
+### Improved
+- **Keyboard Data Ergonomics**: Unified the lookup pattern across `qwerty.ts` and `tamil99.ts` by adding `KEY_DATA_BY_KEY` and `KEY_TO_FINGER` maps. This allows components to look up both typeable and modifier key metadata efficiently.
+- **Performance Optimization**: Refactored `getFingerColor` in `qwerty.ts` to use a precomputed map lookup instead of a switch statement, reducing overhead during high-frequency renders.
+- **Code Quality**: Unified map population logic in keyboard data files into a single loop pass.
+
 ## [0.3.2] - 2026-04-20
 
 ### Changed

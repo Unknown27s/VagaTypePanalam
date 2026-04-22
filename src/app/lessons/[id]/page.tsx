@@ -51,7 +51,7 @@ export default function LessonPage() {
   if (!lesson) lesson = TAMIL_LESSONS.find((l) => l.id === lessonId);
   if (!lesson) lesson = TANGLISH_LESSONS.find((l) => l.id === lessonId);
   
-  const currentLessons = lessonId.startsWith('ta-') ? TAMIL_LESSONS : (lessonId.startsWith('tang-') ? TANGLISH_LESSONS : ENGLISH_LESSONS);
+  const currentLessons = lessonId.startsWith('tamil-') ? TAMIL_LESSONS : (lessonId.startsWith('tanglish-') ? TANGLISH_LESSONS : ENGLISH_LESSONS);
   const nextLesson = currentLessons.find(l => l.level === (lesson?.level ?? 0) + 1);
 
   if (!lesson) {
@@ -85,6 +85,8 @@ export default function LessonPage() {
       lesson.targetWpm,
       lesson.targetAccuracy
     );
+    // Notify lessons list to refresh progress
+    window.dispatchEvent(new Event('lesson-progress-updated'));
   };
 
   const isTamilLesson = lesson.id.startsWith('tamil-') || language === 'ta';

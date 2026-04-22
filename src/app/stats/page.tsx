@@ -330,7 +330,10 @@ function StatCard({
 function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
   const [hovered, setHovered] = useState<{ ks: KeyStat; x: number; y: number } | null>(null);
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const W = 600;
   const H = 340;
@@ -698,7 +701,10 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
   } | null>(null);
   const [mounted, setMounted] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const t = setTimeout(() => setMounted(true), 0);
+    return () => clearTimeout(t);
+  }, []);
 
   const weeks = useMemo(() => {
     const today = new Date();

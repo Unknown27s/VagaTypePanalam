@@ -136,7 +136,7 @@ export default function VirtualKeyboard({
 
   // Calculate inline width and heatmap styles for keys
   const getKeyStyle = (keyData: KeyData): React.CSSProperties | undefined => {
-    let style: React.CSSProperties = {};
+    const style: React.CSSProperties = {};
     
     // Width logic
     if (keyData.width && keyData.width !== 1) {

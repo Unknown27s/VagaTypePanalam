@@ -131,7 +131,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
         <div className="auth-footer">
           {isLogin ? (
             <p>
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <button onClick={() => setIsLogin(false)}>Sign Up</button>
             </p>
           ) : (

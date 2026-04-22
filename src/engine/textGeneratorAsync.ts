@@ -11,12 +11,12 @@ import {
   WEAK_KEY_WEIGHT,
   UNPRACTICED_KEY_WEIGHT,
   MASTERED_KEY_WEIGHT,
+  MAX_WEAK_KEYS_FOCUS,
 } from './constants';
 
 // ─────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────
-
 interface WeightedKey {
   char: string;
   weight: number;
@@ -36,14 +36,24 @@ export async function generateAdaptiveTextAsync(
   targetLength: number = DEFAULT_TEXT_LENGTH
 ): Promise<string> {
   const wordBank = await getWordBank(language);
-  const statsMap = new Map(keyStats.map((s) => [s.char, s]));  // cleaner construction
+  const statsMap = new Map(keyStats.map((s) => [s.char, s]));
   const weightedPool = buildWeightedPool(unlockedKeys, statsMap);
 
   // Precompute total weight once — weightedPool never changes during generation
   const totalWeight = weightedPool.reduce((sum, p) => sum + p.weight, 0);
 
+  // FIX 1: Bring weak-digraph boosting in from textGenerator.ts — this async
+  // version was missing it entirely, causing weaker adaptive quality vs sync version.
+  const weakDigraphSet = new Set(
+    keyStats
+      .filter(s => s.char.length > 1 && s.isWeak)
+      .sort((a, b) => a.confidence - b.confidence)
+      .slice(0, MAX_WEAK_KEYS_FOCUS)
+      .map(s => s.char)
+  );
+
   const words: string[] = [];
-  const seen = new Set<string>();   // broader duplicate guard (not just consecutive)
+  const seen = new Set<string>();
   let charCount = 0;
   let attempts = 0;
   const maxAttempts = targetLength * 4;
@@ -51,20 +61,22 @@ export async function generateAdaptiveTextAsync(
   while (charCount < targetLength && attempts < maxAttempts) {
     const targetKey = weightedRandomSelect(weightedPool, totalWeight);
     const candidates = wordBank.get(targetKey);
-    if (!candidates || candidates.length === 0) continue;  // don't burn an attempt
+    if (!candidates || candidates.length === 0) continue;
+    attempts++;
 
-    attempts++;   // only count real selection attempts
+    // FIX 1: Pick word using digraph scoring when weak digraphs exist,
+    // same strategy as the sync generator — keeps both versions consistent.
+    const word = weakDigraphSet.size > 0
+      ? pickWithDigraphBoost(candidates, weakDigraphSet)
+      : pickRandom(candidates);
 
-    const word = pickRandom(candidates);
-    if (seen.has(word)) continue;   // skip already-used words anywhere in the text
-
+    if (seen.has(word)) continue;
     words.push(word);
     seen.add(word);
-    // Accurate space accounting: first word has no leading space
     charCount += word.length + (words.length > 1 ? 1 : 0);
   }
 
-  return words.join(' ');   // .trim() not needed — no leading/trailing spaces added
+  return words.join(' ');
 }
 
 // ─────────────────────────────────────────────
@@ -85,7 +97,6 @@ function buildWeightedPool(
   return unlockedKeys.map((key) => {
     const stat = statsMap.get(key);
     let weight: number;
-
     if (!stat || stat.totalAttempts === 0) {
       weight = UNPRACTICED_KEY_WEIGHT;
     } else if (stat.isWeak) {
@@ -93,9 +104,33 @@ function buildWeightedPool(
     } else {
       weight = MASTERED_KEY_WEIGHT;
     }
-
     return { char: key, weight };
   });
+}
+
+/**
+ * FIX 2: Extracted digraph-boost logic into a named helper instead of
+ * inlining it — makes the while loop body easier to read and the
+ * scoring strategy reusable if needed elsewhere.
+ */
+function pickWithDigraphBoost(candidates: string[], digraphSet: Set<string>): string {
+  let bestWord = pickRandom(candidates);
+  let bestScore = 0;
+
+  for (let i = 0; i < 10; i++) {
+    const candidate = pickRandom(candidates);
+    let score = 0;
+    for (const dg of digraphSet) {
+      if (candidate.includes(dg)) score++;
+    }
+    if (score > bestScore) {
+      bestScore = score;
+      bestWord = candidate;
+    }
+    if (score > 0 && Math.random() > 0.5) break;
+  }
+
+  return bestWord;
 }
 
 /**
@@ -104,7 +139,6 @@ function buildWeightedPool(
  */
 function weightedRandomSelect(pool: WeightedKey[], totalWeight: number): string {
   if (totalWeight === 0) return pool[0]?.char ?? 'a';
-
   let random = Math.random() * totalWeight;
   for (const entry of pool) {
     random -= entry.weight;
