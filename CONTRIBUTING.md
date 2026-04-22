@@ -2,7 +2,7 @@
 
 Thank you for your interest in contributing! This guide will help you get started with developing and contributing to the project.
 
-## 🤖 Read This First
+## Read This First
 
 If you're an AI agent or developer working on this codebase, please read the following docs first:
 
