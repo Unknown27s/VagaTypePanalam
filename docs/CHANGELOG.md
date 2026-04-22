@@ -2,6 +2,27 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
+## [0.3.2] - 2026-04-20
+
+### Changed
+- **Navigation Restructure**: Removed hamburger menu and mobile dropdown. Nav items now display icons only on very small screens (<640px), matching the style of other control icons.
+- **Header Theme Response**: Header now responds to theme toggle (dark/light mode) instead of being hardcoded to dark theme.
+- **License Update**: Changed license from MIT to **GNU General Public License v3.0**.
+
+### Added
+- **CONTRIBUTING.md**: Created contribution guide with development setup, coding conventions, and PR checklist.
+- **Documentation Reference**: Updated to reference AGENTS.md and ARCHITECTURE.md for AI agents and developers.
+
+## [0.3.1] - 2026-04-20
+
+### Improved
+- **Monkeytype-Style Navigation**: Redesigned the top header from icon+text pill-style nav to a clean, minimalist text-only navigation with a gold underline active indicator.
+- **Hybrid Controls**: Moved sound, keyboard visibility, caret settings, and auth into a unified Settings dropdown. Kept language and theme toggle visible on the header.
+- **Reduced Header Height**: Slimmed the header from 80px to 56px for a sleeker, more focused typing experience.
+
+### Fixed
+- **CSS Bug**: Removed orphan `background-clip: text;` rule that sat outside any selector in TopHeader.tsx.
+
 ## [0.3.0] - 2026-04-19
 
 ### Added

@@ -29,6 +29,9 @@ interface TypingAreaProps {
   onComplete?: (session: Session) => void;
   mode?: 'practice' | 'test' | 'lesson';
   forceComplete?: boolean;
+  nextLessonId?: string;
+  targetWpm?: number;
+  targetAccuracy?: number;
 }
 
 export default function TypingArea({
@@ -38,6 +41,9 @@ export default function TypingArea({
   onComplete,
   mode = 'practice',
   forceComplete = false,
+  nextLessonId,
+  targetWpm,
+  targetAccuracy,
 }: TypingAreaProps) {
   const [snapshot, setSnapshot] = useState<SessionSnapshot>({
     state: 'idle',
@@ -598,17 +604,48 @@ export default function TypingArea({
             )}
 
             <div className="results-actions">
-              <button
-                className="btn btn-primary btn-lg"
-                onClick={() => initSession()}
-                id="next-practice-btn"
-              >
-                Next Practice →
-              </button>
+              {/* Primary Action: Advance or Retry */}
+              {mode === 'lesson' && snapshot.wpm >= (targetWpm ?? 15) && snapshot.accuracy >= (targetAccuracy ?? 0.9) && nextLessonId ? (
+                <button
+                  className="btn btn-primary btn-lg"
+                  onClick={() => window.location.href = `/lessons/${nextLessonId}`}
+                  style={{ minWidth: '180px' }}
+                >
+                  Next Lesson →
+                </button>
+              ) : mode === 'lesson' ? (
+                <button
+                  className="btn btn-primary btn-lg"
+                  onClick={() => initSession()}
+                  style={{ minWidth: '180px' }}
+                >
+                  Retry Lesson
+                </button>
+              ) : (
+                <button
+                  className="btn btn-primary btn-lg"
+                  onClick={() => initSession()}
+                  style={{ minWidth: '180px' }}
+                >
+                  Next Practice →
+                </button>
+              )}
+
+              {/* Secondary Actions: Different Text or Same Text */}
+              {mode === 'lesson' && (
+                <button
+                  className="btn btn-secondary btn-lg"
+                  onClick={() => initSession()}
+                  style={{ minWidth: '180px' }}
+                >
+                  Next Practice →
+                </button>
+              )}
+
               <button
                 className="btn btn-secondary btn-lg"
                 onClick={() => trackerRef.current?.reset()}
-                id="retry-btn"
+                style={{ minWidth: '180px' }}
               >
                 Retry Same Text
               </button>

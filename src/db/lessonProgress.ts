@@ -43,9 +43,14 @@ export async function recordLessonAttempt(
   language: Language,
   level: number,
   wpm: number,
-  accuracy: number
+  accuracy: number,
+  targetWpm: number = 15,
+  targetAccuracy: number = 0.9
 ): Promise<LessonProgress> {
   const existing = await getLessonProgress(lessonId);
+
+  // A lesson is "completed" if it meets the target WPM and accuracy once.
+  const isPassedNow = wpm >= targetWpm && accuracy >= targetAccuracy;
 
   const progress: LessonProgress = existing
     ? {
@@ -54,13 +59,13 @@ export async function recordLessonAttempt(
         bestAccuracy: Math.max(existing.bestAccuracy, accuracy),
         attempts: existing.attempts + 1,
         lastAttemptAt: Date.now(),
-        completed: existing.completed || (accuracy >= 0.9 && wpm >= 15),
+        completed: existing.completed || isPassedNow,
       }
     : {
         lessonId,
         language,
         level,
-        completed: accuracy >= 0.9 && wpm >= 15,
+        completed: isPassedNow,
         bestWpm: wpm,
         bestAccuracy: accuracy,
         attempts: 1,
@@ -73,20 +78,21 @@ export async function recordLessonAttempt(
 
 /**
  * Check if a level can be unlocked.
- * Requires: 90% accuracy, 15+ WPM, at least 3 attempts on current level.
+ * A level is unlocked if the previous level's lessons are completed.
  */
 export async function canUnlockNextLevel(
   currentLevel: number,
   language: Language
 ): Promise<boolean> {
+  if (currentLevel <= 0) return true;
+  
   const allProgress = await getLessonProgressByLanguage(language);
   const levelProgress = allProgress.filter((p) => p.level === currentLevel);
 
   if (levelProgress.length === 0) return false;
 
-  return levelProgress.every(
-    (p) => p.bestAccuracy >= 0.9 && p.bestWpm >= 15 && p.attempts >= 3
-  );
+  // Level is passed if EVERY lesson in that level has been completed at least once.
+  return levelProgress.every((p) => p.completed);
 }
 
 /**
