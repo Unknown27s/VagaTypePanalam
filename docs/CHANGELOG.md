@@ -2,6 +2,27 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
+## [0.4.0] - 2026-04-25
+
+### Added
+- **LeetCode-Style Profile Page**: Redesigned `/stats` with a 2-column layout — sticky profile card on the left, stats/badges/activity on the right.
+- **15 SVG Badge Icons**: Admin-defined badge assets in `public/badges/` replacing emoji icons. Dark-theme optimized, 64×64 vector graphics.
+- **5 New Badges**: Tamil Typist (5 Tamil sessions), Word Machine (5,000 chars), Comeback King (7-day gap return), Speed Breaker (75 WPM), Iron Fingers (30-day streak).
+- **Season Challenge System**: Monthly rotating challenges with SVG progress ring. Auto-selects challenge based on current month (speed, accuracy, streak, or sessions targets).
+- **Mastery Donut Chart**: SVG donut showing key confidence distribution (mastered/learning/weak) inspired by LeetCode's solved-count chart.
+- **Profile Card Component**: Sticky left-column card with avatar (GitHub OAuth or placeholder), rank, XP bar, quick stats grid (3×2), and prominent streak display (current + longest ever).
+- **Compact Badge Cards**: Redesigned from ~140px to ~88px cards with SVG icons, mini progress bars for locked badges, and hover tooltips for full details.
+- **Streak Stats Bar**: Replaced "submissions in past year" label with "Longest Streak · Current Streak · Active Days" stats bar above the activity heatmap.
+
+### Changed
+- **Badge Icon Format**: Migrated all badge icons from emoji strings to SVG file paths (`/badges/*.svg`).
+- **Badge Interface**: Removed `custom` flag from `Badge` type — all badges are now admin-defined.
+- **Profile Layout**: Replaced `ProfileHeader` + `ProfileSidebar` top-bar layout with unified 2-column grid (`ProfileCard` + right content area).
+- **Activity Heatmap Colors**: Updated from yellow-green palette to darker green palette matching LeetCode's contribution graph style.
+
+### Improved
+- **Architecture Documentation**: Added sections 7 (Gamification Engine) and 8 (Profile Page Components) to `ARCHITECTURE.md`. Fixed duplicate section numbering.
+
 ## [0.3.3] - 2026-04-22
 
 ### Fixed

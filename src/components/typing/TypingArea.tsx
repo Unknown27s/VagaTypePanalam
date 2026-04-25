@@ -21,6 +21,7 @@ import { useUIStore } from '@/store/uiStore';
 import { formatAccuracy, formatDuration } from '@/engine/statsCalculator';
 import { CARET_SPEED_SLOW, CARET_SPEED_MEDIUM, CARET_SPEED_FAST } from '@/engine/constants';
 import { soundEngine } from '@/engine/soundEngine';
+import { translateToTamil } from '@/data/keyboards/tamilInputMap';
 import '@/styles/typing.css';
 
 interface TypingAreaProps {
@@ -319,8 +320,11 @@ export default function TypingArea({
 
       if (e.key.length !== 1) return;
 
+      // Tamil99 input translation: convert physical QWERTY key to Tamil character
+      const typedChar = language === 'ta' ? (translateToTamil(e.key) ?? e.key) : e.key;
+
       // Unified Error Mode Intercepts
-      if (!isValidKeystroke(e.key)) {
+      if (!isValidKeystroke(typedChar)) {
         e.preventDefault();
         if (soundEnabled) soundEngine.playError();
         return;
@@ -330,7 +334,7 @@ export default function TypingArea({
 
       isProcessingRef.current = true;
       try {
-        const correct = tracker.processKeystroke(e.key);
+        const correct = tracker.processKeystroke(typedChar);
 
         if (!correct) {
           if (soundEnabled) {
@@ -345,7 +349,7 @@ export default function TypingArea({
         isProcessingRef.current = false;
       }
     },
-    [snapshot.isComplete, initSession, soundEnabled, isValidKeystroke]
+    [snapshot.isComplete, initSession, soundEnabled, isValidKeystroke, language]
   );
 
   const handleFocus = useCallback(() => {
@@ -375,7 +379,10 @@ export default function TypingArea({
 
       isProcessingRef.current = true;
       try {
-        for (const char of typed) {
+        for (const rawChar of typed) {
+          // Tamil99 input translation for mobile/IME input
+          const char = language === 'ta' ? (translateToTamil(rawChar) ?? rawChar) : rawChar;
+
           if (!isValidKeystroke(char)) {
             if (soundEnabled) soundEngine.playError();
             continue;
@@ -391,7 +398,7 @@ export default function TypingArea({
         isProcessingRef.current = false;
       }
     },
-    [soundEnabled, isValidKeystroke]
+    [soundEnabled, isValidKeystroke, language]
   );
 
   // Render word-based DOM hierarchy

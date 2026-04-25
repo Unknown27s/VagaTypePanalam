@@ -49,7 +49,7 @@ export default function HomePage() {
           map.set(s.char.toLowerCase(), { accuracy: s.confidence, frequency: s.totalAttempts });
         });
         setHeatmapData(map);
-      } catch (e) {}
+      } catch (e) { }
     }
     loadHeatmap();
   }, [language, instanceKey]); // Reload when finishing custom text session
@@ -70,82 +70,91 @@ export default function HomePage() {
   };
 
   return (
-    <main className="three-col-layout animate-fade-in">
-      {/* ── Left Sidebar ── */}
-      <LeftSidebar language={language} />
+    <>
+      {/* Beta Badge */}
+      <div className="beta-badge-banner">
+        <span className="badge-text">🚀 Beta Testing — VaagaTypePanalam v0.4</span>
+        <a href="https://github.com/Unknown27s/VagaTypePanalam/issues" target="_blank" rel="noopener noreferrer" className="badge-link">
+          Feedback
+        </a>
+      </div>
 
-      {/* ── Center: Typing Interface ── */}
-      <div className="center-column">
-        {/* Custom Text Toolbar */}
-        <div className="custom-toolbar">
-          {activeCustomText ? (
-            <button className="custom-badge" onClick={handleClearCustom} title="Back to adaptive practice">
-              <FileText size={14} />
-              <span>Custom text active</span>
-              <X size={14} />
-            </button>
-          ) : (
-            <button
-              className="custom-toggle-btn"
-              onClick={() => setShowCustomInput((v) => !v)}
-              id="custom-text-toggle"
-            >
-              <FileText size={15} />
-              <span>Practice your own text</span>
-            </button>
+      <main className="three-col-layout animate-fade-in">
+        {/* ── Left Sidebar ── */}
+        <LeftSidebar language={language} />
+
+        {/* ── Center: Typing Interface ── */}
+        <div className="center-column">
+          {/* Custom Text Toolbar */}
+          <div className="custom-toolbar">
+            {activeCustomText ? (
+              <button className="custom-badge" onClick={handleClearCustom} title="Back to adaptive practice">
+                <FileText size={14} />
+                <span>Custom text active</span>
+                <X size={14} />
+              </button>
+            ) : (
+              <button
+                className="custom-toggle-btn"
+                onClick={() => setShowCustomInput((v) => !v)}
+                id="custom-text-toggle"
+              >
+                <FileText size={15} />
+                <span>Practice your own text</span>
+              </button>
+            )}
+          </div>
+
+          {/* Custom Text Input Panel */}
+          {showCustomInput && !activeCustomText && (
+            <div className="custom-panel">
+              <textarea
+                className="custom-textarea"
+                placeholder="Paste or type any text here…"
+                value={customDraft}
+                onChange={(e) => setCustomDraft(e.target.value)}
+                rows={4}
+                autoFocus
+                id="custom-text-input"
+              />
+              <div className="custom-panel-actions">
+                <button
+                  className="btn btn-primary"
+                  onClick={handleSubmitCustomText}
+                  disabled={!customDraft.trim()}
+                  id="custom-text-submit"
+                >
+                  Start Practicing →
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  onClick={() => setShowCustomInput(false)}
+                >
+                  Cancel
+                </button>
+                <span className="char-count">{customDraft.trim().length} chars</span>
+              </div>
+            </div>
+          )}
+
+          <TypingArea
+            key={instanceKey}
+            language={language}
+            mode="practice"
+            customText={activeCustomText}
+          />
+
+          {showKeyboard && (
+            <div className="keyboard-section">
+              <VirtualKeyboard showFingerColors={true} language={language} heatmapData={heatmapData} />
+            </div>
           )}
         </div>
 
-        {/* Custom Text Input Panel */}
-        {showCustomInput && !activeCustomText && (
-          <div className="custom-panel">
-            <textarea
-              className="custom-textarea"
-              placeholder="Paste or type any text here…"
-              value={customDraft}
-              onChange={(e) => setCustomDraft(e.target.value)}
-              rows={4}
-              autoFocus
-              id="custom-text-input"
-            />
-            <div className="custom-panel-actions">
-              <button
-                className="btn btn-primary"
-                onClick={handleSubmitCustomText}
-                disabled={!customDraft.trim()}
-                id="custom-text-submit"
-              >
-                Start Practicing →
-              </button>
-              <button
-                className="btn btn-ghost"
-                onClick={() => setShowCustomInput(false)}
-              >
-                Cancel
-              </button>
-              <span className="char-count">{customDraft.trim().length} chars</span>
-            </div>
-          </div>
-        )}
+        {/* ── Right Sidebar ── */}
+        <RightSidebar />
 
-        <TypingArea
-          key={instanceKey}
-          language={language}
-          mode="practice"
-          customText={activeCustomText}
-        />
-
-        {showKeyboard && (
-          <div className="keyboard-section">
-            <VirtualKeyboard showFingerColors={true} language={language} heatmapData={heatmapData} />
-          </div>
-        )}
-      </div>
-
-      {/* ── Right Sidebar ── */}
-      <RightSidebar />
-
-      <style jsx>{`
+        <style jsx>{`
         .center-column {
           display: flex;
           flex-direction: column;
@@ -248,6 +257,7 @@ export default function HomePage() {
           transform-origin: top center;
         }
       `}</style>
-    </main>
+      </main>
+    </>
   );
 }
