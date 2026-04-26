@@ -10,7 +10,8 @@ A **free, adaptive, offline-first** typing practice web app inspired by [Keybr](
 - **🌐 3 Languages** — English (QWERTY), Tamil (Tamil99 Unicode), and Tanglish (romanized Tamil).
 - **📴 Works Offline** — All data stored in IndexedDB. No account needed. Works without internet.
 - **🎓 30 Progressive Lessons** — Start with two keys (F & J) and build up to full-speed typing with guided finger placement.
-- **🔄 Cloud Synchronization** — Optional GitHub Sign-In to back up your progress and sync across devices.
+- **🔄 Cloud Synchronization** — Sign in with Email/Password or GitHub to back up progress and sync across devices.
+- **🔐 JWT Authentication** — Auth.js (NextAuth v5) with JWT sessions and credentials-based login.
 - **📊 Detailed Stats** — WPM, accuracy, per-key confidence heatmap, and session history.
 - **⌨️ Virtual Keyboard** — Color-coded finger guides, key highlighting, and press feedback.
 - **⚡ Ultra Fast** — Zero polling, event-driven. Under 16ms keystroke-to-screen latency.
@@ -47,6 +48,28 @@ npm start
 ```
 
 Open [http://localhost:3000](http://localhost:3000) to start typing!
+
+### Required Environment Variables
+
+Create a `.env.local` file in the project root and set the following values:
+
+```env
+# Database
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DB_NAME"
+
+# Auth.js / NextAuth
+AUTH_SECRET="your-long-random-secret"
+NEXTAUTH_URL="http://localhost:3000"
+
+# Optional GitHub OAuth
+AUTH_GITHUB_ID=""
+AUTH_GITHUB_SECRET=""
+```
+
+Notes:
+- `AUTH_SECRET` is required for secure JWT signing.
+- Credentials login (email/password) works without GitHub OAuth values.
+- GitHub sign-in is optional and only needed when you want social login.
 
 ## ▲ Deploy On Vercel (Trial)
 
@@ -111,6 +134,14 @@ src/
 - **Cloud Sync Layer**: Optional background syncing to Neon PostgreSQL.
 - IndexedDB stores: user-profile, key-stats, sessions, lesson-progress
 - Service Worker caching planned for Phase 2
+
+### Authentication
+- Auth provider: Auth.js (NextAuth v5)
+- Session strategy: JWT
+- Login methods:
+    - Email/Password (credentials)
+    - GitHub OAuth (optional)
+- Passwords are hashed with `bcryptjs` before storing in database.
 
 ### Adaptive Typing Algorithm
 1. Each keystroke records: character, correct/incorrect, latency (ms)
