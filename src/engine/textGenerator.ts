@@ -41,8 +41,8 @@ function getWordBank(language: Language): Map<string, string[]> {
 /**
  * Weighted random selection from a pool.
  */
-function weightedRandomSelect(pool: WeightedKey[]): string {
-  const totalWeight = pool.reduce((sum, p) => sum + p.weight, 0);
+function weightedRandomSelect(pool: WeightedKey[], totalWeight: number): string {
+  // FIX 1: Accept precomputed totalWeight to avoid recalculating on every call
   if (totalWeight === 0) return pool[0]?.char ?? 'a';
 
   let random = Math.random() * totalWeight;
@@ -84,13 +84,10 @@ export function generateAdaptiveText(
     let weight: number;
 
     if (!stat || stat.totalAttempts === 0) {
-      // Unpracticed key — medium priority
       weight = UNPRACTICED_KEY_WEIGHT;
     } else if (stat.isWeak) {
-      // Weak key — high priority
       weight = WEAK_KEY_WEIGHT;
     } else {
-      // Mastered key — low priority (but still included)
       weight = MASTERED_KEY_WEIGHT;
     }
 
@@ -102,6 +99,9 @@ export function generateAdaptiveText(
     weightedPool.push({ char: 'f', weight: 1 }, { char: 'j', weight: 1 });
   }
 
+  // FIX 1: Precompute total weight once instead of recalculating inside every weightedRandomSelect call
+  const totalWeight = weightedPool.reduce((sum, p) => sum + p.weight, 0);
+
   // Extract weak digraphs for prioritized word selection
   const weakDigraphs = keyStats
     .filter(s => s.char.length > 1 && s.isWeak)
@@ -109,49 +109,53 @@ export function generateAdaptiveText(
     .slice(0, MAX_WEAK_KEYS_FOCUS)
     .map(s => s.char);
 
+  // FIX 2: Build a Set for O(1) digraph lookup instead of O(n) array includes per candidate
+  const weakDigraphSet = new Set(weakDigraphs);
+
   // Generate words
   const words: string[] = [];
   let charCount = 0;
   let attempts = 0;
-  const maxAttempts = targetLength * 3; // Safety valve
+  const maxAttempts = targetLength * 3;
+
+  // FIX 3: Track last word as a variable instead of indexing words array each iteration
+  let lastWord = '';
 
   while (charCount < targetLength && attempts < maxAttempts) {
     attempts++;
 
-    // Pick a target key using weighted random selection
-    const targetKey = weightedRandomSelect(weightedPool);
+    const targetKey = weightedRandomSelect(weightedPool, totalWeight);
 
-    // Get words containing that key
     const candidates = wordBank.get(targetKey);
     if (!candidates || candidates.length === 0) continue;
 
-    // Pick a candidate word. 
-    // If we have weak digraphs, prefer words that contain them.
     let selectedWord = '';
+
     if (weakDigraphs.length > 0) {
-      // Sample 10 random candidates and pick the one with most weak digraphs
       let bestScore = -1;
       for (let i = 0; i < 10; i++) {
         const candidate = candidates[Math.floor(Math.random() * candidates.length)];
         let score = 0;
-        for (const dg of weakDigraphs) {
+        // FIX 2: Use Set lookup instead of array includes
+        for (const dg of weakDigraphSet) {
           if (candidate.includes(dg)) score++;
         }
         if (score > bestScore) {
           bestScore = score;
           selectedWord = candidate;
         }
-        if (score > 0 && Math.random() > 0.5) break; // Optimization: early exit if we found one
+        if (score > 0 && Math.random() > 0.5) break;
       }
     } else {
       selectedWord = candidates[Math.floor(Math.random() * candidates.length)];
     }
 
-    // Avoid repeating the same word consecutively
-    if (words.length > 0 && words[words.length - 1] === selectedWord) continue;
+    // FIX 3: Compare against lastWord variable instead of words[words.length - 1]
+    if (selectedWord === lastWord) continue;
 
     words.push(selectedWord);
-    charCount += selectedWord.length + 1; // +1 for space
+    lastWord = selectedWord;
+    charCount += selectedWord.length + 1;
   }
 
   return words.join(' ').trim();
@@ -170,18 +174,23 @@ export function generateLessonText(
   let charCount = 0;
   let attempts = 0;
 
+  // FIX 3: Same lastWord pattern here too
+  let lastWord = '';
+
   while (charCount < targetLength && attempts < targetLength * 5) {
     attempts++;
 
-    // Pick a random target key from the lesson keys
     const targetKey = targetKeys[Math.floor(Math.random() * targetKeys.length)];
     const candidates = wordBank.get(targetKey);
     if (!candidates || candidates.length === 0) continue;
 
     const word = candidates[Math.floor(Math.random() * candidates.length)];
-    if (words.length > 0 && words[words.length - 1] === word) continue;
+
+    // FIX 3: Use lastWord variable
+    if (word === lastWord) continue;
 
     words.push(word);
+    lastWord = word;
     charCount += word.length + 1;
   }
 

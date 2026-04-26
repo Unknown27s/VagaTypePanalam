@@ -261,6 +261,7 @@ export class SessionTracker {
     }
 
     this.totalKeystrokes++;
+    this.correctChars++; // Count space as a correct character for accurate accuracy calculation
 
     // Record space in key profiler
     const effectiveLatency = latency > IDLE_TIMEOUT_MS ? 0 : latency;

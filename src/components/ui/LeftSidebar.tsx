@@ -28,10 +28,6 @@ export default function LeftSidebar({ language }: LeftSidebarProps) {
   const [criticalKeys, setCriticalKeys] = useState<KeyStat[]>([]);
   const snapshot = useTypingStore((s) => s.snapshot);
 
-  useEffect(() => {
-    loadStats();
-  }, [language, snapshot?.segmentsCompleted]);
-
   async function loadStats() {
     try {
       const startOfDay = new Date();
@@ -66,6 +62,10 @@ export default function LeftSidebar({ language }: LeftSidebarProps) {
       // Ignore IDB SSR errors
     }
   }
+
+  useEffect(() => {
+    loadStats();
+  }, [language, snapshot?.segmentsCompleted]);
 
   const targetWords = 2000;
   const progressPct = Math.min((todayWords / targetWords) * 100, 100);
