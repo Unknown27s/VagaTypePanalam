@@ -12,6 +12,8 @@ import {
   Moon,
   Globe,
   WifiOff,
+  Menu,
+  X,
   Volume2,
   VolumeX,
   ChevronDown,
@@ -66,8 +68,12 @@ export default function TopHeader() {
   const [mounted, setMounted] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setMounted(true), 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     if (session) void requestCloudSync();
@@ -83,6 +89,17 @@ export default function TopHeader() {
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
   }, [settingsOpen]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.mobile-nav-shell')) {
+        setMobileNavOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [mobileNavOpen]);
 
   return (
     <header className="top-header">
@@ -288,6 +305,39 @@ export default function TopHeader() {
                 )}
               </div>
 
+              <div className="mobile-nav-shell">
+                <button
+                  className={`ctrl-btn mobile-nav-toggle ${mobileNavOpen ? 'active' : ''}`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setMobileNavOpen((v) => !v);
+                  }}
+                  aria-label="Toggle navigation menu"
+                  title="Menu"
+                >
+                  {mobileNavOpen ? <X size={15} /> : <Menu size={15} />}
+                </button>
+
+                {mobileNavOpen && (
+                  <div className="mobile-nav-panel">
+                    {NAV_ITEMS.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <Link
+                          key={item.href}
+                          href={item.href}
+                          className={`mobile-nav-item ${pathname === item.href ? 'active' : ''}`}
+                          onClick={() => setMobileNavOpen(false)}
+                        >
+                          <Icon size={16} />
+                          <span>{item.label}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
               <AuthModal isOpen={authModalOpen} onClose={() => setAuthModalOpen(false)} />
             </>
           ) : (
@@ -305,6 +355,11 @@ export default function TopHeader() {
                 <button className="ctrl-btn settings-trigger" aria-label="Open settings">
                   <Settings size={15} />
                   <ChevronDown size={9} />
+                </button>
+              </div>
+              <div className="mobile-nav-shell">
+                <button className="ctrl-btn mobile-nav-toggle" aria-label="Toggle navigation menu">
+                  <Menu size={15} />
                 </button>
               </div>
             </>
@@ -325,29 +380,33 @@ export default function TopHeader() {
           display: flex;
           align-items: center;
 
-          background: var(--bg-header, var(--bg-glass));
+          background:
+            linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0%, transparent 100%),
+            var(--bg-header, var(--bg-glass));
           backdrop-filter: blur(18px) saturate(140%);
           -webkit-backdrop-filter: blur(18px) saturate(140%);
           border-bottom: 1px solid var(--border-subtle);
+          box-shadow: var(--shadow-header);
         }
 
         .header-inner {
-          display: flex;
+          display: grid;
+          grid-template-columns: auto minmax(0, 1fr) auto;
           align-items: center;
-          justify-content: space-between;
           width: 100%;
           max-width: var(--max-width);
           margin: 0 auto;
           padding: 0 var(--space-xl);
-          gap: var(--space-xl);
+          gap: var(--space-lg);
         }
 
         /* ── Header Left ── */
         .header-left {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
           flex-shrink: 0;
+          min-width: 0;
         }
 
         /* ── Logo ── */
@@ -359,11 +418,12 @@ export default function TopHeader() {
         }
 
         .logo-text {
-          font-size: 1.15rem;
-          font-weight: 800;
+          font-size: 1.05rem;
+          font-weight: 700;
           letter-spacing: -0.01em;
           color: var(--text-primary);
           line-height: 1;
+          white-space: nowrap;
         }
 
         /* ── Nav ── */
@@ -378,9 +438,9 @@ export default function TopHeader() {
           display: flex;
           align-items: center;
           gap: 12px;
-          background: rgba(255, 255, 255, 0.04);
+          background: rgba(255, 255, 255, 0.03);
           border: 1px solid var(--border-subtle);
-          border-radius: 12px;
+          border-radius: 999px;
           padding: 6px 10px;
         }
 
@@ -391,12 +451,12 @@ export default function TopHeader() {
           gap: 8px;
           padding: 6px 14px;
           font-size: var(--text-sm);
-          font-weight: 500;
+          font-weight: 600;
           color: var(--text-muted);
           text-decoration: none;
-          letter-spacing: 0.02em;
+          letter-spacing: 0.01em;
           transition: color 0.2s ease, background 0.2s ease;
-          border-radius: 8px;
+          border-radius: 999px;
           white-space: nowrap;
         }
 
@@ -407,17 +467,11 @@ export default function TopHeader() {
 
         .nav-item.active {
           color: var(--color-primary-light);
+          background: rgba(165, 180, 252, 0.11);
         }
 
         .nav-item.active::after {
-          content: '';
-          position: absolute;
-          bottom: 0;
-          left: 12px;
-          right: 12px;
-          height: 2px;
-          background: var(--color-primary-light);
-          border-radius: 2px 2px 0 0;
+          display: none;
         }
 
         .nav-divider {
@@ -433,6 +487,50 @@ export default function TopHeader() {
           align-items: center;
           gap: 4px;
           flex-shrink: 0;
+        }
+
+        .mobile-nav-shell {
+          position: relative;
+          display: none;
+        }
+
+        .mobile-nav-panel {
+          position: absolute;
+          top: calc(100% + 10px);
+          right: 0;
+          width: min(92vw, 280px);
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-default);
+          border-radius: 12px;
+          padding: 6px;
+          box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          z-index: 120;
+          animation: dd-slide 0.14s ease;
+        }
+
+        .mobile-nav-item {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          width: 100%;
+          padding: 10px 10px;
+          border-radius: 8px;
+          color: var(--text-secondary);
+          font-size: var(--text-sm);
+          font-weight: 600;
+        }
+
+        .mobile-nav-item:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .mobile-nav-item.active {
+          background: rgba(165, 180, 252, 0.12);
+          color: var(--color-primary-light);
         }
 
         .ctrl-divider {
@@ -492,10 +590,10 @@ export default function TopHeader() {
           justify-content: center;
           gap: 3px;
           height: 32px;
-          min-width: 32px;
+          min-width: 34px;
           padding: 0 8px;
-          border: none;
-          background: transparent;
+          border: 1px solid transparent;
+          background: rgba(255, 255, 255, 0.01);
           border-radius: 8px;
           color: var(--text-muted);
           cursor: pointer;
@@ -503,6 +601,7 @@ export default function TopHeader() {
         }
 
         .ctrl-btn:hover {
+          border-color: var(--border-subtle);
           background: var(--bg-hover);
           color: var(--text-secondary);
         }
@@ -739,8 +838,47 @@ export default function TopHeader() {
         /* ── Responsive ── */
         @media (max-width: 900px) {
           .header-inner {
+            grid-template-columns: minmax(0, 1fr) auto;
+            grid-template-areas:
+              'left controls'
+              'nav nav';
             padding: 0 var(--space-md);
-            gap: var(--space-sm);
+            gap: 6px var(--space-sm);
+          }
+
+          .header-left {
+            grid-area: left;
+            min-width: 0;
+          }
+
+          .header-controls {
+            grid-area: controls;
+            justify-self: end;
+          }
+
+          .header-nav-wrap {
+            grid-area: nav;
+            justify-content: flex-start;
+            width: 100%;
+          }
+
+          .header-nav {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            justify-content: flex-start;
+            scrollbar-width: none;
+          }
+
+          .header-nav::-webkit-scrollbar {
+            display: none;
+          }
+
+          .logo-text {
+            font-size: 0.98rem;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 42vw;
           }
 
           .status-label { display: none; }
@@ -748,11 +886,51 @@ export default function TopHeader() {
         }
 
         @media (max-width: 640px) {
-          .status-pill { display: none; }
-          .nav-label { display: none; }
-          .nav-divider { display: none; }
-          .header-nav { gap: 4px; padding: 4px 6px; }
-          .nav-item { padding: 6px 8px; }
+          .header-inner {
+            padding: 8px var(--space-sm);
+            gap: 6px;
+          }
+
+          .status-pill,
+          .ctrl-divider { display: none; }
+
+          .logo-text {
+            max-width: 46vw;
+            font-size: 0.92rem;
+          }
+
+          .header-nav-wrap {
+            display: none;
+          }
+
+          .mobile-nav-shell {
+            display: block;
+          }
+
+          .ctrl-btn {
+            min-width: 32px;
+            height: 30px;
+            padding: 0 6px;
+          }
+
+          .settings-dropdown {
+            right: -2px;
+            width: min(92vw, 240px);
+          }
+        }
+
+        @media (max-width: 420px) {
+          .logo-text {
+            max-width: 38vw;
+          }
+
+          .header-controls {
+            gap: 2px;
+          }
+
+          .ctrl-btn {
+            min-width: 30px;
+          }
         }
       `}</style>
     </header>

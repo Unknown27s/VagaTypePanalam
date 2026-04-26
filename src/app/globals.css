@@ -546,6 +546,12 @@ h4 {
   }
 }
 
+@media (max-width: 640px) {
+  :root {
+    --header-height: 64px;
+  }
+}
+
 @media (max-width: 480px) {
   :root {
     --text-4xl: 1.75rem;
