@@ -4,9 +4,13 @@ import Credentials from "next-auth/providers/credentials"
 import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
+import jwt from "jsonwebtoken"
+
+const appAuthSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
+  secret: appAuthSecret,
   session: {
     strategy: "jwt",
   },
@@ -51,7 +55,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
+<<<<<<< HEAD
         token.role = (user as any).role;
+=======
+
+        if (appAuthSecret) {
+          token.apiToken = jwt.sign(
+            {
+              sub: user.id,
+              email: user.email,
+              name: user.name,
+            },
+            appAuthSecret,
+            { expiresIn: "7d" }
+          );
+        }
+>>>>>>> feb915eec3b8832025213175c2b5ba64a03783e4
       }
       return token;
     },
@@ -60,6 +79,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         session.user.id = token.id as string;
         (session.user as any).role = token.role;
       }
+
+      if (typeof token.apiToken === "string") {
+        session.apiToken = token.apiToken;
+      }
+
       return session;
     },
   },

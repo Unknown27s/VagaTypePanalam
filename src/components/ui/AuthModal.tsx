@@ -59,7 +59,7 @@ export default function AuthModal({ isOpen, onClose }: AuthModalProps) {
           onClose();
         }
       }
-    } catch (err) {
+    } catch {
       setError('An unexpected error occurred');
     } finally {
       setLoading(false);
