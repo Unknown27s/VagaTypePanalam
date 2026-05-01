@@ -53,8 +53,11 @@ export function ProfileCard({ stats, profile }: ProfileCardProps) {
       {/* Rank & XP */}
       <div className="rank-section">
         <div className="rank-row">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/badges/${stats.rank.type === 'beginner' ? 'first-steps' : stats.rank.type === 'master' ? 'perfectionist' : 'speed-demon'}.svg`} alt="" width={28} height={28} className="rank-svg" />
+          {(stats.rank as any).svgContent ? (
+            <div className="rank-svg-wrapper" dangerouslySetInnerHTML={{ __html: (stats.rank as any).svgContent }} />
+          ) : (
+            <img src={`/badges/${stats.rank.type === 'beginner' ? 'first-steps' : stats.rank.type === 'master' ? 'perfectionist' : 'speed-demon'}.svg`} alt="" width={28} height={28} className="rank-svg" />
+          )}
           <div>
             <span className="rank-title">{stats.rank.title}</span>
             <span className="rank-xp">{stats.xp.toLocaleString()} XP</span>
@@ -178,6 +181,27 @@ export function ProfileCard({ stats, profile }: ProfileCardProps) {
         .rank-svg {
           border-radius: 50%;
           flex-shrink: 0;
+        }
+
+        .rank-svg-wrapper {
+          width: 28px;
+          height: 28px;
+          flex-shrink: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .rank-svg-wrapper :global(svg) {
+          width: 100%;
+          height: 100%;
+          animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+          0% { transform: translateY(0px); }
+          50% { transform: translateY(-3px); }
+          100% { transform: translateY(0px); }
         }
 
         .rank-title {

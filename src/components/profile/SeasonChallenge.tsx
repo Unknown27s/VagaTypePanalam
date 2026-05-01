@@ -43,14 +43,20 @@ export function SeasonChallenge({ progress }: SeasonChallengeProps) {
             />
           </svg>
           <div className="ring-icon">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={challenge.icon}
-              alt={challenge.title}
-              width={36}
-              height={36}
-              className={`badge-svg ${completed ? '' : 'locked'}`}
-            />
+            {(challenge as any).svgContent ? (
+              <div 
+                className={`badge-svg-raw ${completed ? '' : 'locked'}`} 
+                dangerouslySetInnerHTML={{ __html: (challenge as any).svgContent }} 
+              />
+            ) : (
+              <img
+                src={challenge.icon || '/badges/speed-demon.svg'}
+                alt={challenge.title}
+                width={36}
+                height={36}
+                className={`badge-svg ${completed ? '' : 'locked'}`}
+              />
+            )}
           </div>
         </div>
 
@@ -139,7 +145,20 @@ export function SeasonChallenge({ progress }: SeasonChallengeProps) {
           border-radius: 50%;
         }
 
-        .badge-svg.locked {
+        .badge-svg-raw {
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .badge-svg-raw :global(svg) {
+          width: 100%;
+          height: 100%;
+        }
+
+        .badge-svg.locked, .badge-svg-raw.locked {
           opacity: 0.4;
           filter: grayscale(0.6);
         }

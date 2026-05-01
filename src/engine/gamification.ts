@@ -50,6 +50,7 @@ export interface Badge {
     icon: string; // SVG path in /badges/ folder
     rarity: 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
     category?: 'speed' | 'accuracy' | 'dedication' | 'learning' | 'mastery';
+    quote?: string;
 }
 
 export interface SeasonChallenge {
@@ -143,25 +144,28 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'first-steps',
         title: 'First Steps',
         description: 'Complete your first typing session',
-        icon: '/badges/first-steps.svg',
+        icon: '/badges/NewBages/badge-1.svg',
         rarity: 'common',
         category: 'learning',
+        quote: 'Every journey begins with a single stroke.',
     },
     'speed-demon': {
         id: 'speed-demon',
         title: 'Speed Demon',
         description: 'Reach 50 WPM in a session',
-        icon: '/badges/speed-demon.svg',
+        icon: '/badges/NewBages/badge-2.svg',
         rarity: 'uncommon',
         category: 'speed',
+        quote: 'Speed is the companion of mastery.',
     },
     sharpshooter: {
         id: 'sharpshooter',
         title: 'Sharpshooter',
         description: 'Achieve 100% accuracy in a session',
-        icon: '/badges/sharpshooter.svg',
+        icon: '/badges/NewBages/badge-3.svg',
         rarity: 'uncommon',
         category: 'accuracy',
+        quote: 'Precision over pace, always.',
     },
     'on-fire': {
         id: 'on-fire',
@@ -261,6 +265,30 @@ export const BADGES: Record<BadgeId, Badge> = {
     },
 };
 
+// --- Dynamic Config Override ---
+let dynamicRanks: Rank[] | null = null;
+let dynamicBadges: Badge[] | null = null;
+let dynamicEvents: SeasonChallenge[] | null = null;
+
+export function setGamificationConfig(ranks: any[], badges: any[], events: any[]) {
+    if (ranks && ranks.length > 0) dynamicRanks = ranks;
+    if (badges && badges.length > 0) dynamicBadges = badges;
+    if (events && events.length > 0) dynamicEvents = events;
+}
+
+export function getActiveRanks(): Rank[] {
+    return dynamicRanks || Object.values(RANKS);
+}
+
+export function getActiveBadges(): Badge[] {
+    return dynamicBadges || Object.values(BADGES);
+}
+
+export function getActiveBadge(id: string): Badge | undefined {
+    if (dynamicBadges) return dynamicBadges.find(b => b.id === id || (b as any).badgeId === id);
+    return BADGES[id as BadgeId];
+}
+
 // ─────────────────────────────────────────────
 // Rank & XP Calculation
 // ─────────────────────────────────────────────
@@ -284,13 +312,13 @@ export function calculateTotalXP(sessions: Session[]): number {
  * Get user's current rank based on average WPM.
  */
 export function getRankFromAvgWpm(avgWpm: number): Rank {
-    const rankArray = Object.values(RANKS).sort((a, b) => a.minWpm - b.minWpm);
+    const rankArray = getActiveRanks().sort((a, b) => a.minWpm - b.minWpm);
     for (const rank of rankArray) {
         if (avgWpm >= rank.minWpm && avgWpm < rank.maxWpm) {
             return rank;
         }
     }
-    return RANKS.master;
+    return rankArray[rankArray.length - 1] || RANKS.master;
 }
 
 /**
@@ -419,7 +447,10 @@ export function calculateEarnedBadges(
     const uniqueEarned = [...new Set(earned)];
 
     // Calculate unearned
-    const unearned = allBadgeIds.filter((id) => !uniqueEarned.includes(id));
+    const uniqueEarnedIds = uniqueEarned.map(b => b as string);
+    const unearned = getActiveBadges()
+        .map(b => (b as any).badgeId || b.id)
+        .filter((id) => !uniqueEarnedIds.includes(id)) as BadgeId[];
 
     return { earned: uniqueEarned, unearned };
 }
@@ -630,7 +661,7 @@ export function calculateGamificationStats(
     const currentRank = getRankFromAvgWpm(avgWpm);
 
     // Find next rank
-    const rankArray = Object.values(RANKS).sort((a, b) => a.minWpm - b.minWpm);
+    const rankArray = getActiveRanks().sort((a, b) => a.minWpm - b.minWpm);
     const currentRankIndex = rankArray.findIndex((r) => r.type === currentRank.type);
     const nextRank = currentRankIndex < rankArray.length - 1
         ? rankArray[currentRankIndex + 1]
@@ -698,12 +729,13 @@ export const BADGE_CATEGORIES: Record<BadgeCategory, { label: string; icon: stri
  * Get badge IDs filtered by category.
  */
 export function getBadgesByCategory(category: BadgeCategory): BadgeId[] {
+    const activeBadges = getActiveBadges();
     if (category === 'all') {
-        return Object.keys(BADGES) as BadgeId[];
+        return activeBadges.map(b => (b as any).badgeId || b.id) as BadgeId[];
     }
-    return (Object.entries(BADGES) as [BadgeId, Badge][])
-        .filter(([_, badge]) => badge.category === category)
-        .map(([id]) => id);
+    return activeBadges
+        .filter(badge => badge.category === category)
+        .map(badge => (badge as any).badgeId || badge.id) as BadgeId[];
 }
 
 // ─────────────────────────────────────────────
@@ -766,9 +798,30 @@ export function getCurrentSeasonChallenge(
     const month = now.getMonth();
     const year = now.getFullYear();
 
-    const template = SEASON_CHALLENGES[month];
-    const challenge: SeasonChallenge = { ...template, month, year };
+    let challenge: SeasonChallenge;
     const monthLabel = `${MONTH_NAMES[month]} ${year}`;
+
+    // Try to find a dynamic event for this month/year or just take the first one available if any
+    if (dynamicEvents && dynamicEvents.length > 0) {
+        const dynamicEvent = dynamicEvents[0]; // For now, just take the first one as a custom event
+        challenge = {
+            id: dynamicEvent.id,
+            title: dynamicEvent.title,
+            description: dynamicEvent.description,
+            icon: '', // Handled via svgContent
+            month,
+            year,
+            badgeReward: 'first-steps' as BadgeId, // Default reward
+            criteria: { 
+                type: (dynamicEvent as any).targetType as 'wpm' | 'accuracy' | 'streak' | 'sessions', 
+                target: (dynamicEvent as any).targetValue 
+            },
+            ...({ svgContent: (dynamicEvent as any).svgContent } as any)
+        };
+    } else {
+        const template = SEASON_CHALLENGES[month];
+        challenge = { ...template, month, year };
+    }
 
     // Filter sessions to current month only
     const monthStart = new Date(year, month, 1).getTime();

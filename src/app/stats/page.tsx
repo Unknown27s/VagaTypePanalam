@@ -11,6 +11,7 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useUIStore } from '@/store/uiStore';
+import { useGamificationStore } from '@/store/gamificationStore';
 import { getAllSessions } from '@/db/sessions';
 import { getKeyStatsByLanguage } from '@/db/keyStats';
 import { getProfile } from '@/db/profile';
@@ -41,6 +42,7 @@ import { TAMIL99_LAYOUT } from '@/data/keyboards/tamil99';
 
 export default function ProfilePage() {
   const { language } = useUIStore();
+  const { fetchGamification } = useGamificationStore();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [keyStats, setKeyStats] = useState<KeyStat[]>([]);
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -51,6 +53,7 @@ export default function ProfilePage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      await fetchGamification();
       const [_sessions, _keyStats, _profile] = await Promise.all([
         getAllSessions(),
         getKeyStatsByLanguage(language),
