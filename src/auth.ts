@@ -55,9 +55,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;
-<<<<<<< HEAD
-        token.role = (user as any).role;
-=======
 
         if (appAuthSecret) {
           token.apiToken = jwt.sign(
@@ -70,7 +67,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             { expiresIn: "7d" }
           );
         }
->>>>>>> feb915eec3b8832025213175c2b5ba64a03783e4
       }
       return token;
     },
