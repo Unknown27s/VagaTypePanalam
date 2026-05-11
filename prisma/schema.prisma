@@ -40,6 +40,7 @@ model User {
   image         String?
   password      String?
   role          String       @default("USER")
+  createdAt     DateTime     @default(now())
   accounts      Account[]
   cloudBackup   CloudBackup?
   sessions      Session[]
