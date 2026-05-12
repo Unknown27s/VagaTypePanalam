@@ -171,7 +171,7 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'on-fire',
         title: 'On Fire',
         description: 'Maintain a 7-day typing streak',
-        icon: '/badges/on-fire.svg',
+        icon: '/badges/NewBages/export-2026-05-11 130444.svg',
         rarity: 'rare',
         category: 'dedication',
     },
@@ -179,7 +179,7 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'scholar',
         title: 'Scholar',
         description: 'Complete 10 lessons',
-        icon: '/badges/scholar.svg',
+        icon: '/badges/NewBages/export-2026-05-11 130528.svg',
         rarity: 'uncommon',
         category: 'learning',
     },
@@ -187,7 +187,7 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'night-owl',
         title: 'Night Owl',
         description: 'Practice after 10 PM',
-        icon: '/badges/night-owl.svg',
+        icon: '/badges/NewBages/earlybuild.svg',
         rarity: 'common',
         category: 'dedication',
     },
@@ -195,7 +195,7 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'early-bird',
         title: 'Early Bird',
         description: 'Practice before 7 AM',
-        icon: '/badges/early-bird.svg',
+        icon: '/badges/NewBages/earlystart.svg',
         rarity: 'common',
         category: 'dedication',
     },
@@ -203,7 +203,7 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'century',
         title: 'Century Club',
         description: 'Type 100+ WPM in a session',
-        icon: '/badges/century.svg',
+        icon: '/badges/NewBages/magic.svg',
         rarity: 'epic',
         category: 'speed',
     },
@@ -211,7 +211,7 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'marathon',
         title: 'Marathon Runner',
         description: 'Practice for 60+ minutes total',
-        icon: '/badges/marathon.svg',
+        icon: 'badges/NewBages/strom.svg',
         rarity: 'rare',
         category: 'dedication',
     },
@@ -227,7 +227,7 @@ export const BADGES: Record<BadgeId, Badge> = {
         id: 'tamil-typist',
         title: 'Tamil Typist',
         description: 'Complete 5 Tamil typing sessions',
-        icon: '/badges/tamil-typist.svg',
+        icon: '/badges/NewBages/writer.svg',
         rarity: 'uncommon',
         category: 'learning',
     },
@@ -812,9 +812,9 @@ export function getCurrentSeasonChallenge(
             month,
             year,
             badgeReward: 'first-steps' as BadgeId, // Default reward
-            criteria: { 
-                type: (dynamicEvent as any).targetType as 'wpm' | 'accuracy' | 'streak' | 'sessions', 
-                target: (dynamicEvent as any).targetValue 
+            criteria: {
+                type: (dynamicEvent as any).targetType as 'wpm' | 'accuracy' | 'streak' | 'sessions',
+                target: (dynamicEvent as any).targetValue
             },
             ...({ svgContent: (dynamicEvent as any).svgContent } as any)
         };
