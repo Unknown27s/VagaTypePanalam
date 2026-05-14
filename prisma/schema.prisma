@@ -7,20 +7,19 @@ datasource db {
 }
 
 model Account {
-  id                 String  @id @default(cuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?  @db.Text
-  access_token       String?  @db.Text
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?  @db.Text
-  session_state      String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
 }
@@ -34,15 +33,17 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String       @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?      @unique
   emailVerified DateTime?
   image         String?
   password      String?
+  role          String       @default("USER")
+  createdAt     DateTime     @default(now())
   accounts      Account[]
-  sessions      Session[]
   cloudBackup   CloudBackup?
+  sessions      Session[]
 }
 
 model VerificationToken {
@@ -56,9 +57,47 @@ model VerificationToken {
 model CloudBackup {
   id        String   @id @default(cuid())
   userId    String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stats     Json?    // Serialized keyStats from IndexedDB
-  sessions  Json?    // Serialized session history from IndexedDB
-  profile   Json?    // Serialized user profile from IndexedDB
+  stats     Json?
+  sessions  Json?
+  profile   Json?
   updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Rank {
+  id         String   @id @default(cuid())
+  type       String   @unique
+  title      String
+  minWpm     Int
+  maxWpm     Int
+  svgContent String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Badge {
+  id          String   @id @default(cuid())
+  badgeId     String   @unique
+  title       String
+  description String
+  rarity      String
+  category    String?
+  quote       String?
+  svgContent  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Event {
+  id          String    @id @default(cuid())
+  title       String
+  description String
+  targetType  String
+  targetValue Int
+  svgContent  String?
+  rewardBadge String?
+  activeFrom  DateTime?
+  activeTo    DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 }

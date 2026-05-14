@@ -194,20 +194,18 @@ If you want to change the UI, these are the main files to edit:
 
 ## 🗺 Roadmap
 
-### Phase 1 (Current) ✅
-- [x] Adaptive typing engine
-- [x] 3 language support
-- [x] 30-level lesson system
-- [x] Stats dashboard
-- [x] Virtual keyboard
-- [x] Offline-first with IndexedDB
+The project is currently in **Phase 2**. For the full list of planned features, milestones, and vision, see the [Detailed Roadmap](docs/ROADMAP.md).
 
-### Phase 2 (Planned)
-- [x] Multiplayer typing races (Socket.IO Ready)
-- [x] Server-side sync & cloud backup (Auth.js + Prisma) 
-- [ ] Sound effects (Keybr-style toggle)
-- [ ] Service Worker with Serwist
-- [ ] Additional keyboard layouts (Inscript, Typewriter)
+## 📚 Documentation
+
+Detailed documentation for developers and contributors:
+
+- **[Architecture](docs/ARCHITECTURE.md)** — High-level system design and data flow.
+- **[API Reference](docs/API.md)** — Documentation for backend API routes.
+- **[Full Walkthrough](docs/walkthrough.md)** — Comprehensive guide to the entire codebase.
+- **[Deployment Guide](docs/DEPLOYMENT.md)** — How to deploy to Vercel/Neon.
+- **[Changelog](docs/CHANGELOG.md)** — History of all major changes.
+- **[Checklist](docs/CHECKLIST.md)** — Pre-deployment verification steps.
 
 ## 📄 License
 

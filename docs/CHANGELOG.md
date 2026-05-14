@@ -2,6 +2,24 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
+## [0.5.0] - 2026-05-01
+
+### Added
+- **Dynamic Gamification Engine**: Full migration of gamification data (Ranks, Badges, Events) from static files to a Neon PostgreSQL database.
+- **Admin Central Dashboard**: New internal tools at `/admin` for managing gamification assets with real-time SVG artwork injection and CRUD operations.
+- **Badge Modal View**: Implemented a "Show Big" feature where clicking a badge expands it into a high-fidelity modal with 3D flip animation.
+- **Achievement Quotes**: Added custom motivational quotes to the back of all achievement cards, revealed during the flip interaction.
+- **Premium Asset Refresh**: Updated core badges (`First Steps`, `Speed Demon`, `Sharpshooter`) with custom, premium SVG artwork from the `NewBages` series.
+- **Offline Mode Toggle**: Added `NEXT_PUBLIC_OFFLINE_MODE` environment variable to bypass database syncing, enabling faster local development and offline testing.
+
+### Changed
+- **Badge Data Source**: The application now prioritizes real-time data from the database over hardcoded constants, allowing for instant game balance updates without code redeploys.
+- **Profile UI Interactions**: Replaced simple hover tooltips on badges with the new interactive modal "Big View."
+
+### Fixed
+- **Hydration Warnings**: Resolved empty `src` attribute warnings in `BadgeCard` and `SeasonChallenge` by ensuring fallback icons are always provided.
+- **Next.js 15 Compatibility**: Hardened API routes by adopting `await params` for dynamic segments.
+
 ## [0.4.0] - 2026-04-25
 
 ### Added

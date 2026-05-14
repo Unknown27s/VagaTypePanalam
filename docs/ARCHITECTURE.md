@@ -57,33 +57,17 @@ Located in `src/data`.
 - **Lessons (`lessons/*.ts`)**: Progressive milestone lists mapping specific letters (e.g., `tamil.ts` introduces "அ, ஆ" mapped to "q, w") with target WPMs.
 - **Keyboards (`keyboards/*.ts`)**: Physical mapping arrays that connect `keydown` Event codes to physical UI rendering layout and assigned fingers. 
   - *Pattern Note*: Layout files export `KEY_DATA_BY_KEY` (all keys) and `KEY_TO_FINGER` (typeable keys only) maps for O(1) metadata lookups.
-- **Badge SVG Assets (`public/badges/`)**: 15 admin-defined SVG badge icons (64×64, dark-theme optimized). Referenced by path string in the `BADGES` constant.
+- **Badge SVG Assets**:
+  - *Core Assets (`public/badges/`)*: Pre-bundled premium SVGs.
+  - *Dynamic Assets*: Raw SVG code injected via the database `svgContent` fields.
 
-### 7. Gamification Engine
-Located in `src/engine/gamification.ts`. Fully admin-defined — no user-created badges.
+### 7. Dynamic Gamification Engine
+Located in `src/engine/gamification.ts` and backed by `src/store/gamificationStore.ts`.
 
-- **Ranks**: 6 tiers (Beginner → Master) determined by average WPM. Each has an icon and XP threshold.
-- **Badges**: 15 achievement badges with SVG icons in `public/badges/`:
-  | Badge | Rarity | Criteria |
-  |---|---|---|
-  | First Steps | Common | Complete 1 session |
-  | Speed Demon | Uncommon | 50 WPM |
-  | Sharpshooter | Uncommon | 100% accuracy |
-  | On Fire | Rare | 7-day streak |
-  | Scholar | Uncommon | 10 lessons |
-  | Night Owl | Common | Practice after 10 PM |
-  | Early Bird | Common | Practice before 7 AM |
-  | Century Club | Epic | 100 WPM |
-  | Marathon | Rare | 60 min total |
-  | Perfectionist | Rare | 3 stars on 5 lessons |
-  | Tamil Typist | Uncommon | 5 Tamil sessions |
-  | Word Machine | Rare | 5,000 chars |
-  | Comeback King | Uncommon | Return after 7-day gap |
-  | Speed Breaker | Rare | 75 WPM |
-  | Iron Fingers | Legendary | 30-day streak |
-
-- **Season Challenges**: Monthly rotating challenges (speed, accuracy, streak, or sessions targets). Auto-selected by `getCurrentSeasonChallenge()` based on the current month. Each month maps to a different challenge from the 12-entry `SEASON_CHALLENGES` array.
-- **Badge Categories**: `all`, `speed`, `accuracy`, `dedication`, `learning`, `mastery` — used for filtering in the profile UI.
+- **Hybrid Data Sourcing**: The engine attempts to fetch active gamification data from the Neon PostgreSQL database. If `NEXT_PUBLIC_OFFLINE_MODE` is `true` or the network is unavailable, it falls back to the hardcoded `BADGES`, `RANKS`, and `SEASON_CHALLENGES` constants.
+- **Ranks**: 6 tiers (Beginner → Master) determined by average WPM. Supports dynamic SVG injection.
+- **Badges**: Achievement badges with support for motivational quotes and 3D-flip interactions.
+- **Season Challenges**: Monthly rotating challenges. Dynamic updates via database allow for special event challenges.
 - **XP System**: 1 XP per correct character typed. Used for rank progression display.
 
 ### 8. Profile Page Components
@@ -110,4 +94,14 @@ Located in `src/components/profile/`.
 * **Practice (`/practice`)**: Endless flow. Custom text allowed via toggle. Regenerates standard active weak-key text indefinitely.
 * **Timed Test (`/test`)**: Hard cut-off at 15/30/60/120 seconds. Shows interactive countdown ring and produces a final copyable scorecard.
 * **Lessons (`/lessons`)**: Structured progression map to teach users touch typing (especially for Tamil99 layout). Shows 1 to 3 Star mastery ratings based on Target WPM + Accuracy.
-* **Profile (`/stats`)**: LeetCode-inspired 2-column profile page. Left: sticky profile card. Right: mastery donut + season challenge, compact badge grid, activity heatmap with streak stats, key analytics tabs.
+* **Profile (`/stats`)**: LeetCode-inspired 2-column profile page. Left: sticky profile card. Right: mastery donut + season challenge, compact badge grid, activity heatmap with streak stats, key analytics tabs. Supports "Big View" modals for badges.
+
+---
+
+## 🛠️ 9. Admin Central
+Located in `src/app/admin/page.tsx`.
+
+- **Internal Tools**: Accessible only to users with the `ADMIN` role.
+- **Gamification CRUD**: Allows real-time creation and editing of Ranks, Badges, and Events.
+- **SVG Injector**: Admins can paste raw SVG code directly into the database to update artwork across the platform instantly.
+- **Developer Mode**: Detection for `OFFLINE_MODE` to prevent accidental database mutations during local testing.

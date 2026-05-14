@@ -46,6 +46,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           name: user.name,
           email: user.email,
           image: user.image,
+          role: user.role,
         };
       },
     }),
@@ -72,6 +73,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
+        (session.user as any).role = token.role;
       }
 
       if (typeof token.apiToken === "string") {
