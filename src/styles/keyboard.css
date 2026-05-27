@@ -65,6 +65,8 @@
 /* ── Wide keys ── */
 .key-wide {
   /* width is set inline via style prop */
+  box-sizing: border-box;
+  border: 1px solid var(--border-subtle);
 }
 
 /* ── Modifier keys (Tab, Shift, Ctrl, etc.) ── */
@@ -81,7 +83,8 @@
 .space-key {
   justify-content: center;
   align-items: center;
-  font-size: 0;  /* Hide label text */
+  font-size: 0;
+  /* Hide label text */
 }
 
 /* ── States ── */
@@ -111,12 +114,21 @@
 }
 
 @keyframes kbFlashCorrect {
-  0%   { filter: brightness(1.4); }
-  100% { filter: brightness(1); }
+  0% {
+    filter: brightness(1.4);
+  }
+
+  100% {
+    filter: brightness(1);
+  }
 }
 
 @keyframes kbFlashError {
-  0%   { background: var(--color-error); color: white; }
+  0% {
+    background: var(--color-error);
+    color: white;
+  }
+
   100% {}
 }
 
@@ -142,11 +154,30 @@
    - Index:  Green
    - Thumb:  Muted gray (for space)
    ───────────────────────────────── */
-.key.finger-pinky  { background: var(--key-finger-pinky);  color: rgba(255,255,255,0.95); }
-.key.finger-ring   { background: var(--key-finger-ring);   color: rgba(255,255,255,0.95); }
-.key.finger-middle { background: var(--key-finger-middle); color: rgba(255,255,255,0.95); }
-.key.finger-index  { background: var(--key-finger-index);  color: rgba(255,255,255,0.95); }
-.key.finger-thumb  { background: var(--key-finger-thumb);  color: rgba(255,255,255,0.95); }
+.key.finger-pinky {
+  background: var(--key-finger-pinky);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.key.finger-ring {
+  background: var(--key-finger-ring);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.key.finger-middle {
+  background: var(--key-finger-middle);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.key.finger-index {
+  background: var(--key-finger-index);
+  color: rgba(255, 255, 255, 0.95);
+}
+
+.key.finger-thumb {
+  background: var(--key-finger-thumb);
+  color: rgba(255, 255, 255, 0.95);
+}
 
 /* Shift labels on colored keys need slight opacity boost */
 .key.finger-pinky .key-shift-label,

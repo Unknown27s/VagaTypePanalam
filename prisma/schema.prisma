@@ -101,3 +101,17 @@ model Event {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
+
+model PracticeBook {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  content     String
+  words       String[]
+  isActive    Boolean   @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+

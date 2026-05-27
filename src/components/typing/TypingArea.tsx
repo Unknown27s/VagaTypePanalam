@@ -28,6 +28,7 @@ interface TypingAreaProps {
   language: Language;
   targetKeys?: string[];
   customText?: string;
+  weeklyBookWords?: string[];
   onComplete?: (session: Session) => void;
   mode?: 'practice' | 'test' | 'lesson';
   forceComplete?: boolean;
@@ -40,6 +41,7 @@ export default function TypingArea({
   language,
   targetKeys,
   customText,
+  weeklyBookWords,
   onComplete,
   mode = 'practice',
   forceComplete = false,
@@ -127,9 +129,9 @@ export default function TypingArea({
       },
     });
 
-    await tracker.init(targetKeys, customText);
+    await tracker.init(targetKeys, customText, weeklyBookWords);
     trackerRef.current = tracker;
-  }, [language, targetKeys, customText, mode, updateStore]);
+  }, [language, targetKeys, customText, weeklyBookWords, mode, updateStore]);
 
   // Load historical stats for Idle state display
   useEffect(() => {
