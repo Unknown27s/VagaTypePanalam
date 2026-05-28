@@ -15,18 +15,23 @@ import { getKeyStatsByLanguage } from '@/db/keyStats';
 import { getProfile } from '@/db/profile';
 import { useTypingStore } from '@/store/typingStore';
 import type { Language, KeyStat } from '@/db/schema';
-import { Flame, Zap } from 'lucide-react';
+import { Flame, Zap, Shield } from 'lucide-react';
+import { useSession } from 'next-auth/react';
+import Link from 'next/link';
+
 
 interface LeftSidebarProps {
   language: Language;
 }
 
 export default function LeftSidebar({ language }: LeftSidebarProps) {
+  const { data: session } = useSession();
   const [todayWords, setTodayWords] = useState(0);
   const [streak, setStreak] = useState(0);
   const [peakSpeed, setPeakSpeed] = useState(0);
   const [criticalKeys, setCriticalKeys] = useState<KeyStat[]>([]);
   const snapshot = useTypingStore((s) => s.snapshot);
+
 
   async function loadStats() {
     try {
@@ -139,6 +144,17 @@ export default function LeftSidebar({ language }: LeftSidebarProps) {
           )}
         </div>
       </div>
+
+      {/* ── Admin Control Center Quick Link ── */}
+      {session?.user && (session.user as any).role === 'ADMIN' && (
+        <div className="sidebar-card admin-quick-access">
+          <h3 className="card-label">Admin Controls</h3>
+          <Link href="/admin" className="btn btn-primary admin-btn">
+            <Shield size={16} />
+            <span>Admin Dashboard</span>
+          </Link>
+        </div>
+      )}
 
       <style jsx>{`
         .left-sidebar {
@@ -314,6 +330,21 @@ export default function LeftSidebar({ language }: LeftSidebarProps) {
 
         .key-bar-fill.low {
           background: var(--color-error);
+        }
+
+        .admin-quick-access {
+          border: 1px dashed var(--color-primary);
+          background: linear-gradient(135deg, var(--bg-surface) 0%, var(--bg-hover) 100%);
+          box-shadow: var(--shadow-sm);
+        }
+        
+        .admin-btn {
+          width: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--space-sm);
+          margin-top: var(--space-sm);
         }
       `}</style>
     </aside>

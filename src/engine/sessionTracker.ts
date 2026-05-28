@@ -97,6 +97,7 @@ export class SessionTracker {
   // Target keys (for lesson mode)
   private targetKeys: string[] = [];
   private customText: string | undefined;
+  private weeklyBookWords: string[] | undefined;
 
   // Timing
   private startTime: number = 0;
@@ -133,13 +134,14 @@ export class SessionTracker {
   /**
    * Initialize a new session with generated text.
    */
-  async init(targetKeys?: string[], customText?: string): Promise<string> {
+  async init(targetKeys?: string[], customText?: string, weeklyBookWords?: string[]): Promise<string> {
     // Load existing key stats
     const stats = await getKeyStatsByLanguage(this.language);
     this.keyProfiler.loadFromStats(stats);
 
     this.targetKeys = targetKeys ?? [];
     this.customText = customText;
+    this.weeklyBookWords = weeklyBookWords;
 
     // Generate or use provided text
     this.text = await this.generateNextText();
@@ -158,6 +160,18 @@ export class SessionTracker {
    * Generate the next chunk of text.
    */
   private async generateNextText(length: number = PRACTICE_SEGMENT_LENGTH): Promise<string> {
+    if (this.weeklyBookWords && this.weeklyBookWords.length > 0) {
+      const selected: string[] = [];
+      let currentLength = 0;
+      while (currentLength < length) {
+        const word = this.weeklyBookWords[Math.floor(Math.random() * this.weeklyBookWords.length)];
+        if (word) {
+          selected.push(word);
+          currentLength += word.length + 1;
+        }
+      }
+      return selected.join(' ');
+    }
     if (this.customText) {
       return this.customText;
     }

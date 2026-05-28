@@ -23,6 +23,7 @@ import {
   LogIn,
   Cloud,
   Settings,
+  Shield,
   Eye,
   EyeOff,
   Keyboard,
@@ -134,6 +135,16 @@ export default function TopHeader() {
                 </React.Fragment>
               );
             })}
+
+            {session?.user && (session.user as any).role === 'ADMIN' && (
+              <>
+                <span className="nav-divider" />
+                <Link href="/admin" className={`nav-item ${pathname === '/admin' ? 'active' : ''}`} title="Admin Dashboard">
+                  <Shield size={16} className="nav-icon" />
+                  <span className="nav-label">Admin</span>
+                </Link>
+              </>
+            )}
           </div>
         </div>
 
@@ -163,7 +174,7 @@ export default function TopHeader() {
                   {LANGUAGE_MAP[language]}
                 </span>
                 <ChevronDown size={9} style={{ opacity: 0.7 }} />
-                
+
                 <select
                   className="lang-select"
                   value={language}

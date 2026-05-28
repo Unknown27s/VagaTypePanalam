@@ -2,6 +2,20 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
+## [0.6.1] - 2026-05-27
+
+### Added
+- **Client-Side EPUB/TXT Parser & Interactive Chapter Selector**: Implemented browser-based `.epub` ZIP structure unpacking using JSZip. Developed an interactive preview checklist that parses titles and word lengths for each chapter file. Created a custom ignore heuristic matching keywords (toc, cover, copyright, etc.) to automatically deselect preamble pages before final book compilation.
+- **TypeScript Type-Safety Engine**: Created a centralized type definition file `src/types/admin.ts` wrapping all user profiles, IndexedDB telemetry sync models, system aggregates, and dynamic CRUD form states.
+- **Admin Dev View Bypass**: Added `NEXT_PUBLIC_ADMIN_DEV_VIEW` variable to the environment configs, enabling instant development bypass of Neon DB role check requirements for local UI testing.
+
+### Fixed
+- **Next-Auth Role Typing**: Augmented the `next-auth` module session structures in `next-auth.d.ts` to include the user `role` field.
+- **Concurrent Render Safe Guards**: Optional-chained unauthenticated sessions to prevent direct null access crashes on `/admin` during initial hydration.
+- **Form Data Type Conflicts**: Cast union forms dynamically to ensure 100% clean compilation under `npx tsc` checks.
+
+## [0.6.0] - 2026-05-27
+
 ## [0.5.0] - 2026-05-01
 
 ### Added

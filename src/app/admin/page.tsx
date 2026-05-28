@@ -3,26 +3,119 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
-import { Users, Award, Star, Calendar, Plus, Trash2, Edit3, X, Check, RefreshCw } from 'lucide-react';
+import {
+  Users, Award, Star, Calendar, Plus, Trash2, Edit3, X,
+  Check, RefreshCw, BookOpen, Activity, Flame, Zap,
+  Eye, ShieldAlert, CheckCircle, Upload
+} from 'lucide-react';
 import { useGamificationStore } from '@/store/gamificationStore';
-import { Rank, Badge, Event } from '@prisma/client';
-
-type Tab = 'overview' | 'ranks' | 'badges' | 'events';
+import { parseEpub, EpubChapter } from '@/lib/epubParser';
+import type { PracticeBook } from '@prisma/client';
+import type {
+  AdminTab,
+  AdminUser,
+  SystemAggregates,
+  BookFormData,
+  BadgeFormData,
+  EventFormData,
+  CloudBackupSession,
+} from '@/types/admin';
 
 export default function AdminDashboard() {
   const isOffline = process.env.NEXT_PUBLIC_OFFLINE_MODE === 'true';
+  const isDevView = process.env.NEXT_PUBLIC_ADMIN_DEV_VIEW === 'true';
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>('overview');
-  const { ranks, badges, events, fetchGamification, loading } = useGamificationStore();
-  const [users, setUsers] = useState<any[]>([]);
+
+  // Navigation & Data Tabs
+  const [activeTab, setActiveTab] = useState<AdminTab>('overview');
+  const { badges, events, fetchGamification, loading } = useGamificationStore();
+
+  // Custom states
+  const [users, setUsers] = useState<AdminUser[]>([]);
   const [userLoading, setUserLoading] = useState(false);
+  const [books, setBooks] = useState<PracticeBook[]>([]);
+  const [booksLoading, setBooksLoading] = useState(false);
+
+  // Inspector Modal
+  const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
+
+  // Form states — union type, each tab narrows it
+  const [editingItem, setEditingItem] = useState<BookFormData | BadgeFormData | EventFormData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // EPUB & TXT File upload helper states
+  const [parsedEpub, setParsedEpub] = useState<{ title: string; chapters: EpubChapter[] } | null>(null);
+  const [selectedChapters, setSelectedChapters] = useState<Record<string, boolean>>({});
+  const [isParsingFile, setIsParsingFile] = useState(false);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileError(null);
+    setIsParsingFile(true);
+    setParsedEpub(null);
+
+    try {
+      if (file.name.endsWith('.epub')) {
+        const parsed = await parseEpub(file);
+        setParsedEpub(parsed);
+
+        // Initialize checked chapters using parser's pre-check heuristics
+        const initialSelected: Record<string, boolean> = {};
+        parsed.chapters.forEach(ch => {
+          initialSelected[ch.id] = ch.isPreChecked;
+        });
+        setSelectedChapters(initialSelected);
+
+        // Pre-fill Title field in Form
+        if (editingItem && activeTab === 'books') {
+          const currentBook = editingItem as BookFormData;
+          setEditingItem({
+            ...currentBook,
+            title: parsed.title
+          });
+        }
+      } else if (file.name.endsWith('.txt')) {
+        const text = await file.text();
+        const title = file.name.replace(/\.[^/.]+$/, '');
+        if (editingItem && activeTab === 'books') {
+          const currentBook = editingItem as BookFormData;
+          setEditingItem({
+            ...currentBook,
+            title,
+            content: text
+          });
+        }
+      } else {
+        setFileError('Unsupported file type. Please upload a .epub or .txt file.');
+      }
+    } catch (err: any) {
+      console.error('File parsing error:', err);
+      setFileError(`Failed to parse book file: ${err.message || 'Unknown error'}`);
+    } finally {
+      setIsParsingFile(false);
+      // Reset input value so same file can be uploaded again if needed
+      e.target.value = '';
+    }
+  };
+
+  // Authorization: dev bypass OR real admin role check
+  const isAdmin = isDevView || (session?.user?.role === 'ADMIN');
 
   useEffect(() => {
     if (activeTab === 'overview') {
       fetchUsers();
+    } else if (activeTab === 'books') {
+      fetchBooks();
     }
   }, [activeTab]);
+
+  useEffect(() => {
+    fetchGamification();
+  }, [fetchGamification]);
 
   const fetchUsers = async () => {
     setUserLoading(true);
@@ -33,893 +126,2339 @@ export default function AdminDashboard() {
         setUsers(data);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Fetch users error:', err);
     } finally {
       setUserLoading(false);
     }
   };
 
-  useEffect(() => {
-    if (status === 'unauthenticated' || (session?.user as any)?.role !== 'ADMIN') {
-      // router.push('/'); // Uncomment to protect route client-side
+  const fetchBooks = async () => {
+    setBooksLoading(true);
+    try {
+      const res = await fetch('/api/admin/books');
+      if (res.ok) {
+        const data = await res.json();
+        setBooks(data);
+      }
+    } catch (err) {
+      console.error('Fetch books error:', err);
+    } finally {
+      setBooksLoading(false);
     }
-  }, [session, status, router]);
+  };
 
-  useEffect(() => {
-    fetchGamification();
-  }, [fetchGamification]);
-
-  // Form states
-  const [editingItem, setEditingItem] = useState<any>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const handleSave = async (e: React.FormEvent, type: Tab) => {
+  // Generic Save for Gamification / Books
+  const handleSave = async (e: React.FormEvent, type: AdminTab) => {
     e.preventDefault();
     setIsSubmitting(true);
-    const method = editingItem.id ? 'PUT' : 'POST';
+
+    const isBook = type === 'books';
+    const endpoint = isBook ? '/api/admin/books' : `/api/admin/gamification/${type}`;
+    const method = editingItem && 'id' in editingItem && editingItem.id ? 'PUT' : 'POST';
 
     try {
-      const res = await fetch(`/api/admin/gamification/${type}`, {
+      const res = await fetch(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(editingItem),
       });
       if (res.ok) {
         setEditingItem(null);
-        await fetchGamification();
+        if (isBook) {
+          await fetchBooks();
+        } else {
+          await fetchGamification();
+        }
       } else {
-        alert('Failed to save');
+        const errData = await res.json();
+        alert(`Failed to save: ${errData.error || 'Unknown error'}`);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Save error:', err);
+      alert('Network error saving details');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleDelete = async (id: string, type: Tab) => {
-    if (!confirm('Are you sure?')) return;
+  const handleDelete = async (id: string, type: AdminTab) => {
+    if (!confirm('Are you sure you want to delete this item? This action is permanent.')) return;
+
+    const isBook = type === 'books';
+    const endpoint = isBook ? `/api/admin/books?id=${id}` : `/api/admin/gamification/${type}?id=${id}`;
+
     try {
-      const res = await fetch(`/api/admin/gamification/${type}?id=${id}`, { method: 'DELETE' });
-      if (res.ok) await fetchGamification();
+      const res = await fetch(endpoint, { method: 'DELETE' });
+      if (res.ok) {
+        if (isBook) {
+          await fetchBooks();
+        } else {
+          await fetchGamification();
+        }
+      } else {
+        alert('Failed to delete');
+      }
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+  };
+
+  const handleSetBookActive = async (id: string) => {
+    try {
+      const res = await fetch('/api/admin/books', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, isActive: true }),
+      });
+      if (res.ok) {
+        await fetchBooks();
+      } else {
+        alert('Failed to make book active');
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
-  if (loading || status === 'loading') return <div className="p-8 text-center">Loading...</div>;
+  // Helper Calculations for Overview Tab
+  const systemAggregates = () => {
+    let totalSessions = 0;
+    let wpmSum = 0;
+    let usersWithStats = 0;
+
+    users.forEach(u => {
+      const profile = u.cloudBackup?.profile;
+      if (profile) {
+        totalSessions += profile.totalSessions ?? 0;
+        if (profile.bestWpm > 0) {
+          // Approximate speed average from best Wpm or session logs
+          wpmSum += profile.bestWpm;
+          usersWithStats++;
+        }
+      }
+    });
+
+    const averageWpm = usersWithStats > 0 ? Math.round(wpmSum / usersWithStats) : 0;
+
+    return {
+      totalSessions,
+      averageWpm,
+      totalBooks: books.length || 0,
+    };
+  };
+
+  const stats = systemAggregates();
+
+  if (status === 'loading' || loading) {
+    return (
+      <div className="loading-container">
+        <RefreshCw size={24} className="animate-spin" />
+        <span>Syncing admin credentials...</span>
+      </div>
+    );
+  }
+
+  // Strictly protect route client-side (unauthorized screen if not an admin)
+  if (!isAdmin) {
+    return (
+      <main className="unauthorized-shell">
+        <div className="error-panel">
+          <ShieldAlert size={48} className="error-icon" />
+          <h2>Access Denied</h2>
+          <p>You do not have administrative privileges to access Admin Central.</p>
+          <button className="btn btn-primary" onClick={() => router.push('/')}>
+            Back to Practice
+          </button>
+        </div>
+      </main>
+    );
+  }
 
   return (
-    <div className="admin-container">
-      <div className="glass-panel">
-        <header className="admin-header">
-          <div className="header-top">
-            <div className="brand">
-              <div className="brand-icon">⚡</div>
+    <main className="admin-page-shell animate-fade-in">
+      <div className="admin-glass-container">
+
+        {/* ── Dashboard Header ── */}
+        <header className="admin-dashboard-header">
+          <div className="header-brand-box">
+            <div className="brand-badge">⚡</div>
+            <div className="brand-texts">
               <h1>Admin Central</h1>
-            </div>
-            <div className="admin-user">
-              {session?.user?.image && <img src={session.user.image} alt="" className="admin-avatar" />}
-              <span>{session?.user?.name}</span>
+              <p>System configuration, typist metrics, and gamification controls</p>
             </div>
           </div>
 
-          <nav className="tabs">
-            <button className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')}>
-              <Users size={18} /> Overview
-            </button>
-            <button className={activeTab === 'ranks' ? 'active' : ''} onClick={() => setActiveTab('ranks')}>
-              <Star size={18} /> Ranks
-            </button>
-            <button className={activeTab === 'badges' ? 'active' : ''} onClick={() => setActiveTab('badges')}>
-              <Award size={18} /> Badges
-            </button>
-            <button className={activeTab === 'events' ? 'active' : ''} onClick={() => setActiveTab('events')}>
-              <Calendar size={18} /> Events
-            </button>
-          </nav>
+          <div className="admin-session-badge">
+            {session?.user?.image ? (
+              <img src={session.user.image} alt="" className="admin-session-avatar" />
+            ) : (
+              <div className="admin-session-fallback">{session?.user?.name?.charAt(0)}</div>
+            )}
+            <div className="badge-details">
+              <span className="badge-name">{session?.user?.name}</span>
+              <span className="badge-role">System Admin</span>
+            </div>
+          </div>
         </header>
 
-        <main className="admin-main">
+        {/* ── Navigation Tabs ── */}
+        <nav className="admin-nav-tabs">
+          <button className={activeTab === 'overview' ? 'active' : ''} onClick={() => setActiveTab('overview')}>
+            <Users size={16} />
+            <span>Overview</span>
+          </button>
+          <button className={activeTab === 'books' ? 'active' : ''} onClick={() => setActiveTab('books')}>
+            <BookOpen size={16} />
+            <span>Weekly Books</span>
+          </button>
+          {/* Ranks tab removed */}
+          <button className={activeTab === 'badges' ? 'active' : ''} onClick={() => setActiveTab('badges')}>
+            <Award size={16} />
+            <span>Badges</span>
+          </button>
+          <button className={activeTab === 'events' ? 'active' : ''} onClick={() => setActiveTab('events')}>
+            <Calendar size={16} />
+            <span>Events</span>
+          </button>
+        </nav>
+
+        {/* ── Main Dashboard Body ── */}
+        <div className="admin-body-area">
           {isOffline && (
-            <div className="offline-warning">
-              <RefreshCw size={16} /> <strong>Offline Mode Active:</strong> External data syncing is disabled via environment variables.
+            <div className="offline-alert-box">
+              <ShieldAlert size={16} />
+              <span><strong>Offline Simulation Mode:</strong> Local mock synchronization is active. Changes won't hit live production database.</span>
             </div>
           )}
-          {/* OVERVIEW */}
+
+          {/* ════════════ OVERVIEW TAB ════════════ */}
           {activeTab === 'overview' && (
-            <section className="fade-in">
-              <div className="stats-cards">
-                <div className="stat-card">
-                  <div className="stat-icon"><Users /></div>
-                  <div className="stat-info">
-                    <span className="stat-label">Total Users</span>
-                    <span className="stat-value">{users.length}</span>
+            <div className="fade-in tab-section">
+              <div className="admin-metrics-grid">
+                <div className="metric-card-glass">
+                  <div className="m-icon purple"><Users size={20} /></div>
+                  <div className="m-info">
+                    <span className="m-label">Registered Typists</span>
+                    <span className="m-value">{users.length}</span>
                   </div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-icon"><Star /></div>
-                  <div className="stat-info">
-                    <span className="stat-label">Ranks</span>
-                    <span className="stat-value">{ranks.length}</span>
+                <div className="metric-card-glass">
+                  <div className="m-icon green"><Activity size={20} /></div>
+                  <div className="m-info">
+                    <span className="m-label">System-wide Sessions</span>
+                    <span className="m-value">{stats.totalSessions}</span>
                   </div>
                 </div>
-                <div className="stat-card">
-                  <div className="stat-icon"><Award /></div>
-                  <div className="stat-info">
-                    <span className="stat-label">Badges</span>
-                    <span className="stat-value">{badges.length}</span>
+                <div className="metric-card-glass">
+                  <div className="m-icon orange"><Zap size={20} /></div>
+                  <div className="m-info">
+                    <span className="m-label">Average Typist Speed</span>
+                    <span className="m-value">{stats.averageWpm} <small>WPM</small></span>
+                  </div>
+                </div>
+                <div className="metric-card-glass">
+                  <div className="m-icon blue"><BookOpen size={20} /></div>
+                  <div className="m-info">
+                    <span className="m-label">Weekly Practice Books</span>
+                    <span className="m-value">{stats.totalBooks}</span>
                   </div>
                 </div>
               </div>
 
-              <div className="users-table-container">
-                <div className="flex justify-between items-center mb-6">
+              {/* Typists Table */}
+              <div className="table-surface-card">
+                <div className="table-card-header">
                   <h2>Active Typists</h2>
-                  <button className="btn-refresh" onClick={fetchUsers}>
-                    <RefreshCw size={16} /> Refresh
+                  <button className="btn btn-secondary btn-icon" onClick={fetchUsers}>
+                    <RefreshCw size={14} className={userLoading ? 'animate-spin' : ''} />
+                    <span>Refresh</span>
                   </button>
                 </div>
-                {userLoading ? <p>Loading users...</p> : (
-                  <table className="users-table">
-                    <thead>
-                      <tr>
-                        <th>User</th>
-                        <th>Email</th>
-                        <th>Role</th>
-                        <th>Joined</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {users.map(u => (
-                        <tr key={u.id}>
-                          <td>
-                            <div className="user-cell">
-                              {u.image ? <img src={u.image} alt="" /> : <div className="user-avatar-placeholder">{u.name?.charAt(0)}</div>}
-                              <span>{u.name}</span>
-                            </div>
-                          </td>
-                          <td>{u.email}</td>
-                          <td><span className={`role-badge ${u.role.toLowerCase()}`}>{u.role}</span></td>
-                          <td>{new Date(u.createdAt).toLocaleDateString()}</td>
+
+                {userLoading ? (
+                  <div className="spinner-shell"><RefreshCw className="animate-spin" /> Loading typists...</div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="admin-data-table">
+                      <thead>
+                        <tr>
+                          <th>Typist</th>
+                          <th>Email Address</th>
+                          <th>Role</th>
+                          <th>Total Practice</th>
+                          <th>Best WPM</th>
+                          <th>Streak</th>
+                          <th className="text-right">Actions</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {users.map(u => {
+                          const hasBackup = !!u.cloudBackup;
+                          const profile = u.cloudBackup?.profile;
+
+                          return (
+                            <tr key={u.id}>
+                              <td>
+                                <div className="user-profile-cell">
+                                  {u.image ? (
+                                    <img src={u.image} alt="" className="table-avatar" />
+                                  ) : (
+                                    <div className="table-avatar-placeholder">{u.name?.charAt(0)}</div>
+                                  )}
+                                  <div className="user-name-wrapper">
+                                    <span className="user-main-name">{u.name || 'Anonymous Typist'}</span>
+                                    <span className="user-join-date">Joined {new Date(u.createdAt).toLocaleDateString()}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td><span className="user-email">{u.email}</span></td>
+                              <td>
+                                <span className={`table-role-badge ${u.role.toLowerCase()}`}>{u.role}</span>
+                              </td>
+                              <td>
+                                {hasBackup && profile ? (
+                                  <span className="profile-stat-count">
+                                    <strong>{profile.totalSessions ?? 0}</strong> sessions
+                                  </span>
+                                ) : (
+                                  <span className="stat-missing">—</span>
+                                )}
+                              </td>
+                              <td>
+                                {hasBackup && profile?.bestWpm ? (
+                                  <span className="profile-speed-tag">
+                                    <Zap size={12} />
+                                    {profile.bestWpm} WPM
+                                  </span>
+                                ) : (
+                                  <span className="stat-missing">—</span>
+                                )}
+                              </td>
+                              <td>
+                                {hasBackup && profile && (profile.currentStreak ?? 0) > 0 ? (
+                                  <span className="profile-streak-tag">
+                                    <Flame size={12} />
+                                    {profile.currentStreak} Days
+                                  </span>
+                                ) : (
+                                  <span className="stat-missing">—</span>
+                                )}
+                              </td>
+                              <td className="text-right">
+                                <button
+                                  className="btn btn-secondary btn-sm"
+                                  onClick={() => setSelectedUser(u)}
+                                  disabled={!hasBackup}
+                                  title={hasBackup ? 'Inspect typing telemetry' : 'No telemetry synced yet'}
+                                >
+                                  <Eye size={12} />
+                                  <span>Inspect</span>
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </div>
-            </section>
+            </div>
           )}
 
-          {/* RANKS */}
-          {activeTab === 'ranks' && (
-            <section className="fade-in">
-              <div className="section-head">
-                <h2>System Ranks</h2>
-                <button className="btn-primary" onClick={() => setEditingItem({ type: '', title: '', minWpm: 0, maxWpm: 0, svgContent: '' })}>
-                  <Plus size={18} /> Add Rank
+          {/* ════════════ WEEKLY BOOKS TAB ════════════ */}
+          {activeTab === 'books' && (
+            <div className="fade-in tab-section">
+              <div className="section-header-row">
+                <div className="section-title-wrap">
+                  <h2>Practice Books & Word Pools</h2>
+                  <p>Upload raw literature or customized word lists to generate weekly typing practices.</p>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setEditingItem({ title: '', description: '', content: '', isActive: false })}
+                >
+                  <Plus size={16} />
+                  <span>Import New Book</span>
                 </button>
               </div>
 
-              {editingItem && activeTab === 'ranks' && (
-                <div className="modal-overlay">
-                  <form onSubmit={(e) => handleSave(e, 'ranks')} className="edit-form modal-content">
-                    <h3>{editingItem.id ? 'Edit Rank' : 'New Rank'}</h3>
-                    <div className="form-grid">
-                      <div className="form-group">
-                        <label>Internal ID</label>
-                        <input placeholder="beginner" value={editingItem.type} onChange={e => setEditingItem({ ...editingItem, type: e.target.value })} required />
+              {editingItem && activeTab === 'books' && (() => {
+                const bookItem = editingItem as BookFormData;
+                return (
+                  <div className="modal-overlay">
+                    <form onSubmit={(e) => handleSave(e, 'books')} className="admin-modal-form modal-content animate-fade-in">
+                      <div className="modal-header">
+                        <h3>{bookItem.id ? 'Edit Practice Book' : 'Import Practice Book'}</h3>
+                        <button type="button" className="close-modal-btn" onClick={() => { setEditingItem(null); setParsedEpub(null); setSelectedChapters({}); setFileError(null); }}><X size={18} /></button>
                       </div>
-                      <div className="form-group">
-                        <label>Display Title</label>
-                        <input placeholder="Beginner" value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} required />
-                      </div>
-                      <div className="form-group">
-                        <label>Min WPM</label>
-                        <input type="number" value={editingItem.minWpm} onChange={e => setEditingItem({ ...editingItem, minWpm: parseInt(e.target.value) })} required />
-                      </div>
-                      <div className="form-group">
-                        <label>Max WPM</label>
-                        <input type="number" value={editingItem.maxWpm} onChange={e => setEditingItem({ ...editingItem, maxWpm: parseInt(e.target.value) })} required />
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>SVG Artwork (Raw Code)</label>
-                      <textarea placeholder="<svg>...</svg>" value={editingItem.svgContent || ''} onChange={e => setEditingItem({ ...editingItem, svgContent: e.target.value })} rows={6} />
-                    </div>
-                    <div className="form-actions">
-                      <button type="submit" className="btn-save" disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : <><Check size={18} /> Save Rank</>}
-                      </button>
-                      <button type="button" className="btn-cancel" onClick={() => setEditingItem(null)}><X size={18} /> Cancel</button>
-                    </div>
-                  </form>
-                </div>
-              )}
 
-              <div className="items-grid">
-                {ranks.map(r => (
-                  <div key={r.id} className="item-card glass-card">
-                    <div className="card-top">
-                      <div className="item-icon" dangerouslySetInnerHTML={{ __html: r.svgContent || '🌱' }} />
-                      <div className="card-actions">
-                        <button className="icon-btn" onClick={() => setEditingItem(r)}><Edit3 size={16} /></button>
-                        <button className="icon-btn danger" onClick={() => handleDelete(r.id, 'ranks')}><Trash2 size={16} /></button>
-                      </div>
-                    </div>
-                    <div className="item-info">
-                      <h3>{r.title}</h3>
-                      <span className="item-type">{r.type}</span>
-                      <div className="range-indicator">
-                        <div className="range-bar">
-                          <div className="range-fill" style={{ width: `${Math.min(100, (r.minWpm / 100) * 100)}%` }} />
+                      <div className="modal-body">
+                        <div className="form-group-block">
+                          <label>Book / Word-List Title</label>
+                          <input
+                            placeholder="e.g. Thirukkural, Alice in Wonderland"
+                            value={bookItem.title}
+                            onChange={e => setEditingItem({ ...bookItem, title: e.target.value })}
+                            required
+                          />
                         </div>
-                        <span className="range-text">{r.minWpm} - {r.maxWpm} WPM</span>
+
+                        <div className="form-group-block">
+                          <label>Short Description (Optional)</label>
+                          <input
+                            placeholder="e.g. Tamil vocabulary practice, English classic literature"
+                            value={bookItem.description || ''}
+                            onChange={e => setEditingItem({ ...bookItem, description: e.target.value })}
+                          />
+                        </div>
+
+                        <div className="form-double-grid">
+                          <div className="form-group-block">
+                            <label>Active From</label>
+                            <input
+                              type="date"
+                              value={bookItem.startDate ? new Date(bookItem.startDate).toISOString().split('T')[0] : ''}
+                              onChange={e => setEditingItem({ ...bookItem, startDate: e.target.value || null })}
+                            />
+                          </div>
+                          <div className="form-group-block">
+                            <label>Active Until</label>
+                            <input
+                              type="date"
+                              value={bookItem.endDate ? new Date(bookItem.endDate).toISOString().split('T')[0] : ''}
+                              onChange={e => setEditingItem({ ...bookItem, endDate: e.target.value || null })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-group-block checkbox-block">
+                          <input
+                            type="checkbox"
+                            id="book-is-active"
+                            checked={!!bookItem.isActive}
+                            onChange={e => setEditingItem({ ...bookItem, isActive: e.target.checked })}
+                          />
+                          <label htmlFor="book-is-active">Make this the Active Book of the Week immediately</label>
+                        </div>
+
+                        {/* File Upload Zone */}
+                        <div className="form-group-block">
+                          <label>Or Upload Book File (.epub, .txt)</label>
+                          <div className="file-upload-zone">
+                            {isParsingFile ? (
+                              <div className="spinner-shell" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                <RefreshCw className="animate-spin" size={24} />
+                                <span className="upload-title">Parsing file contents...</span>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="upload-icon-wrap">
+                                  <Upload size={24} />
+                                </div>
+                                <span className="upload-title">Click or drag book file here</span>
+                                <span className="upload-subtitle">Supports EPUB and TXT files</span>
+                                <input
+                                  type="file"
+                                  className="file-upload-input"
+                                  accept=".epub,.txt"
+                                  onChange={handleFileUpload}
+                                />
+                              </>
+                            )}
+                          </div>
+                          {fileError && (
+                            <div className="upload-error-banner animate-fade-in">
+                              <ShieldAlert size={14} />
+                              <span>{fileError}</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {parsedEpub ? (
+                          <div className="epub-chapter-selector-card animate-fade-in">
+                            <div className="selector-header">
+                              <h4>Select Chapters to Import</h4>
+                              <div className="selector-actions">
+                                <button
+                                  type="button"
+                                  className="text-action-btn"
+                                  onClick={() => {
+                                    const allChecked: Record<string, boolean> = {};
+                                    parsedEpub.chapters.forEach(ch => {
+                                      allChecked[ch.id] = true;
+                                    });
+                                    setSelectedChapters(allChecked);
+                                  }}
+                                >
+                                  Select All
+                                </button>
+                                <button
+                                  type="button"
+                                  className="text-action-btn"
+                                  onClick={() => {
+                                    const noneChecked: Record<string, boolean> = {};
+                                    parsedEpub.chapters.forEach(ch => {
+                                      noneChecked[ch.id] = false;
+                                    });
+                                    setSelectedChapters(noneChecked);
+                                  }}
+                                >
+                                  Clear All
+                                </button>
+                              </div>
+                            </div>
+
+                            <div className="chapters-scroll-area">
+                              {parsedEpub.chapters.map(ch => {
+                                const isChecked = !!selectedChapters[ch.id];
+                                return (
+                                  <div key={ch.id} className={`chapter-row ${isChecked ? 'is-checked' : ''}`}>
+                                    <label className="chapter-check-label">
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        onChange={() => {
+                                          setSelectedChapters(prev => ({
+                                            ...prev,
+                                            [ch.id]: !prev[ch.id]
+                                          }));
+                                        }}
+                                      />
+                                      <span className="chapter-title-text">{ch.title}</span>
+                                      {!ch.isPreChecked && (
+                                        <span className="chapter-meta-tag">Preamble</span>
+                                      )}
+                                    </label>
+                                    <span className="chapter-char-count">{ch.characterCount.toLocaleString()} chars</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+
+                            <div className="chapters-summary-bar">
+                              <span>
+                                Selected: <strong>{
+                                  parsedEpub.chapters.filter(ch => selectedChapters[ch.id]).length
+                                }</strong> / {parsedEpub.chapters.length} chapters
+                              </span>
+                              <span>
+                                Est. Characters: <strong>{
+                                  parsedEpub.chapters
+                                    .filter(ch => selectedChapters[ch.id])
+                                    .reduce((acc, ch) => acc + ch.characterCount, 0)
+                                    .toLocaleString()
+                                }</strong>
+                              </span>
+                            </div>
+
+                            <div className="chapters-apply-row">
+                              <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                onClick={() => {
+                                  const text = parsedEpub.chapters
+                                    .filter(ch => selectedChapters[ch.id])
+                                    .map(ch => ch.content)
+                                    .join('\n\n');
+
+                                  setEditingItem({
+                                    ...bookItem,
+                                    content: text
+                                  });
+                                  setParsedEpub(null); // Return to plain content editor
+                                }}
+                              >
+                                Apply Selection
+                              </button>
+                              <button
+                                type="button"
+                                className="btn btn-ghost btn-sm"
+                                onClick={() => setParsedEpub(null)}
+                              >
+                                Cancel Import
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="form-group-block">
+                            <label>Raw Content (Paste entire book chapters or word pool here)</label>
+                            <textarea
+                              placeholder="Type or paste words here. Punctuation will be sanitized, and all unique words extracted automatically."
+                              value={bookItem.content}
+                              onChange={e => setEditingItem({ ...bookItem, content: e.target.value })}
+                              rows={8}
+                              required
+                            />
+                          </div>
+                        )}
                       </div>
-                    </div>
+
+                      <div className="modal-actions-row">
+                        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                          {isSubmitting ? 'Processing & Tokenizing...' : <><Check size={16} /> Save Book</>}
+                        </button>
+                        <button type="button" className="btn btn-ghost" onClick={() => { setEditingItem(null); setParsedEpub(null); setSelectedChapters({}); setFileError(null); }}>Cancel</button>
+                      </div>
+                    </form>
                   </div>
-                ))}
-              </div>
-            </section>
+                );
+              })()}
+              {booksLoading ? (
+                <div className="spinner-shell"><RefreshCw className="animate-spin" /> Loading word databases...</div>
+              ) : (
+                <div className="admin-list-container">
+                  {books.length === 0 ? (
+                    <div className="empty-section-alert">
+                      <BookOpen size={36} />
+                      <p>No custom books uploaded yet. Click "Import New Book" at the top right to start.</p>
+                    </div>
+                  ) : (
+                    <div className="books-grid">
+                      {books.map(b => (
+                        <div key={b.id} className={`book-card-glass ${b.isActive ? 'active-border' : ''}`}>
+                          <div className="book-card-header">
+                            <div className="book-titles">
+                              <div className="title-row">
+                                <h3>{b.title}</h3>
+                                {b.isActive && <span className="active-tag"><CheckCircle size={10} /> Active</span>}
+                              </div>
+                              {b.description && <p className="book-desc">{b.description}</p>}
+                            </div>
+                            <div className="book-actions">
+                              <button className="icon-btn-secondary" onClick={() => setEditingItem(b)} title="Edit Book"><Edit3 size={14} /></button>
+                              <button className="icon-btn-danger" onClick={() => handleDelete(b.id, 'books')} title="Delete Book"><Trash2 size={14} /></button>
+                            </div>
+                          </div>
+
+                          <div className="book-stats-row">
+                            <div className="b-stat">
+                              <span className="b-stat-label">Unique Words</span>
+                              <span className="b-stat-val">{(b.words as string[]).length}</span>
+                            </div>
+                            <div className="b-stat">
+                              <span className="b-stat-label">File Size</span>
+                              <span className="b-stat-val">{Math.round(b.content.length / 1024)} KB</span>
+                            </div>
+                            <div className="b-stat">
+                              <span className="b-stat-label">Schedule</span>
+                              <span className="b-stat-val date-val">
+                                {b.startDate ? new Date(b.startDate).toLocaleDateString() : 'Immediate'} - {b.endDate ? new Date(b.endDate).toLocaleDateString() : 'Forever'}
+                              </span>
+                            </div>
+                          </div>
+
+                          {!b.isActive && (
+                            <button className="btn btn-secondary btn-full btn-active-book" onClick={() => handleSetBookActive(b.id)}>
+                              Set as Book of the Week
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
           )}
 
-          {/* BADGES */}
+          {/* Ranks UI removed */}
+
+          {/* ════════════ BADGES TAB ════════════ */}
           {activeTab === 'badges' && (
-            <section className="fade-in">
-              <div className="section-head">
-                <h2>Achievements</h2>
-                <button className="btn-primary" onClick={() => setEditingItem({ badgeId: '', title: '', description: '', rarity: 'common', category: 'speed', svgContent: '' })}>
-                  <Plus size={18} /> Create Badge
+            <div className="fade-in tab-section">
+              <div className="section-header-row">
+                <div className="section-title-wrap">
+                  <h2>Achievement Badges</h2>
+                  <p>Create and edit achievements earned by completing specific milestones (speed, dedication, streaks).</p>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setEditingItem({ badgeId: '', title: '', description: '', rarity: 'common', category: 'speed', svgContent: '' })}
+                >
+                  <Plus size={16} />
+                  <span>Create Badge</span>
                 </button>
               </div>
 
-              {editingItem && activeTab === 'badges' && (
-                <div className="modal-overlay">
-                  <form onSubmit={(e) => handleSave(e, 'badges')} className="edit-form modal-content">
-                    <h3>{editingItem.id ? 'Edit Badge' : 'New Badge'}</h3>
-                    <div className="form-grid">
-                      <div className="form-group">
-                        <label>Internal ID</label>
-                        <input placeholder="speed-demon" value={editingItem.badgeId} onChange={e => setEditingItem({ ...editingItem, badgeId: e.target.value })} required />
+              {editingItem && activeTab === 'badges' && (() => {
+                const badgeItem = editingItem as BadgeFormData;
+                return (
+                  <div className="modal-overlay">
+                    <form onSubmit={(e) => handleSave(e, 'badges')} className="admin-modal-form modal-content animate-fade-in">
+                      <div className="modal-header">
+                        <h3>{badgeItem.id ? 'Edit Achievement Badge' : 'New Achievement Badge'}</h3>
+                        <button type="button" className="close-modal-btn" onClick={() => setEditingItem(null)}><X size={18} /></button>
                       </div>
-                      <div className="form-group">
-                        <label>Badge Title</label>
-                        <input placeholder="Speed Demon" value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} required />
-                      </div>
-                      <div className="form-group">
-                        <label>Rarity</label>
-                        <select value={editingItem.rarity} onChange={e => setEditingItem({ ...editingItem, rarity: e.target.value })}>
-                          <option value="common">Common</option>
-                          <option value="uncommon">Uncommon</option>
-                          <option value="rare">Rare</option>
-                          <option value="epic">Epic</option>
-                          <option value="legendary">Legendary</option>
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label>Category</label>
-                        <select value={editingItem.category} onChange={e => setEditingItem({ ...editingItem, category: e.target.value })}>
-                          <option value="speed">Speed</option>
-                          <option value="accuracy">Accuracy</option>
-                          <option value="dedication">Dedication</option>
-                          <option value="learning">Learning</option>
-                          <option value="mastery">Mastery</option>
-                        </select>
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>Description</label>
-                      <input placeholder="Reach 50 WPM" value={editingItem.description} onChange={e => setEditingItem({ ...editingItem, description: e.target.value })} required />
-                    </div>
-                    <div className="form-group">
-                      <label>Motivation Quote</label>
-                      <input placeholder="Speed is mastery..." value={editingItem.quote || ''} onChange={e => setEditingItem({ ...editingItem, quote: e.target.value })} />
-                    </div>
-                    <div className="form-group">
-                      <label>SVG Artwork</label>
-                      <textarea placeholder="<svg>...</svg>" value={editingItem.svgContent || ''} onChange={e => setEditingItem({ ...editingItem, svgContent: e.target.value })} rows={6} />
-                    </div>
-                    <div className="form-actions">
-                      <button type="submit" className="btn-save" disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : <><Check size={18} /> Save Badge</>}
-                      </button>
-                      <button type="button" className="btn-cancel" onClick={() => setEditingItem(null)}><X size={18} /> Cancel</button>
-                    </div>
-                  </form>
-                </div>
-              )}
 
-              <div className="items-grid">
+                      <div className="modal-body">
+                        <div className="form-double-grid">
+                          <div className="form-group-block">
+                            <label>Internal ID</label>
+                            <input placeholder="speed-demon" value={badgeItem.badgeId} onChange={e => setEditingItem({ ...badgeItem, badgeId: e.target.value })} required />
+                          </div>
+                          <div className="form-group-block">
+                            <label>Display Title</label>
+                            <input placeholder="Speed Demon" value={badgeItem.title} onChange={e => setEditingItem({ ...badgeItem, title: e.target.value })} required />
+                          </div>
+                        </div>
+
+                        <div className="form-double-grid">
+                          <div className="form-group-block">
+                            <label>Rarity Tier</label>
+                            <select value={badgeItem.rarity} onChange={e => setEditingItem({ ...badgeItem, rarity: e.target.value })}>
+                              <option value="common">Common</option>
+                              <option value="uncommon">Uncommon</option>
+                              <option value="rare">Rare</option>
+                              <option value="epic">Epic</option>
+                              <option value="legendary">Legendary</option>
+                            </select>
+                          </div>
+                          <div className="form-group-block">
+                            <label>Objective Category</label>
+                            <select value={badgeItem.category || ''} onChange={e => setEditingItem({ ...badgeItem, category: e.target.value })}>
+                              <option value="speed">Speed</option>
+                              <option value="accuracy">Accuracy</option>
+                              <option value="dedication">Dedication</option>
+                              <option value="learning">Learning</option>
+                              <option value="mastery">Mastery</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="form-group-block">
+                          <label>Description of Criteria</label>
+                          <input placeholder="Type at 50 WPM or higher in a single session" value={badgeItem.description} onChange={e => setEditingItem({ ...badgeItem, description: e.target.value })} required />
+                        </div>
+
+                        <div className="form-group-block">
+                          <label>Flavor Quote (Optional)</label>
+                          <input placeholder="Speed is the companion of mastery..." value={badgeItem.quote || ''} onChange={e => setEditingItem({ ...badgeItem, quote: e.target.value })} />
+                        </div>
+
+                        <div className="form-group-block">
+                          <label>Badge SVG Vector Art</label>
+                          <textarea placeholder="Paste <svg> code here" value={badgeItem.svgContent || ''} onChange={e => setEditingItem({ ...badgeItem, svgContent: e.target.value })} rows={5} />
+                        </div>
+                      </div>
+
+                      <div className="modal-actions-row">
+                        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                          {isSubmitting ? 'Saving Badge...' : <><Check size={16} /> Save Badge</>}
+                        </button>
+                        <button type="button" className="btn btn-ghost" onClick={() => setEditingItem(null)}>Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                );
+              })()}
+
+              <div className="badges-grid-admin">
                 {badges.map(b => (
-                  <div key={b.id} className="item-card glass-card badge-card-admin">
-                    <div className="card-top">
-                      <div className="item-icon" dangerouslySetInnerHTML={{ __html: b.svgContent || '🏅' }} />
-                      <div className={`rarity-tag ${b.rarity}`}>{b.rarity}</div>
+                  <div key={b.id} className="badge-card-admin-glass">
+                    <div className="badge-card-header">
+                      <div className="badge-vector" dangerouslySetInnerHTML={{ __html: b.svgContent || '🏅' }} />
+                      <span className={`badge-rarity-badge ${b.rarity}`}>{b.rarity}</span>
                     </div>
-                    <div className="item-info">
+                    <div className="badge-card-body">
                       <h3>{b.title}</h3>
-                      <p>{b.description}</p>
-                      <div className="card-actions">
-                        <button className="icon-btn" onClick={() => setEditingItem(b)}><Edit3 size={16} /></button>
-                        <button className="icon-btn danger" onClick={() => handleDelete(b.id, 'badges')}><Trash2 size={16} /></button>
+                      <p className="badge-desc">{b.description}</p>
+                      {b.quote && <p className="badge-quote">"{b.quote}"</p>}
+                    </div>
+                    <div className="badge-card-footer">
+                      <span className="badge-category-tag">{b.category}</span>
+                      <div className="badge-actions">
+                        <button className="icon-btn-secondary" onClick={() => setEditingItem(b)}><Edit3 size={12} /></button>
+                        <button className="icon-btn-danger" onClick={() => handleDelete(b.id, 'badges')}><Trash2 size={12} /></button>
                       </div>
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
+            </div>
           )}
 
-          {/* EVENTS */}
+          {/* ════════════ EVENTS TAB ════════════ */}
           {activeTab === 'events' && (
-            <section className="fade-in">
-              <div className="section-head">
-                <h2>Season Challenges</h2>
-                <button className="btn-primary" onClick={() => setEditingItem({ title: '', description: '', targetType: 'wpm', targetValue: 0, svgContent: '' })}>
-                  <Plus size={18} /> New Challenge
+            <div className="fade-in tab-section">
+              <div className="section-header-row">
+                <div className="section-title-wrap">
+                  <h2>Season Challenges & Events</h2>
+                  <p>Schedule seasonal events, time-boxed typing targets, and assign reward badges directly.</p>
+                </div>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => setEditingItem({ title: '', description: '', targetType: 'wpm', targetValue: 0, rewardBadge: badges[0]?.badgeId || '', activeFrom: null, activeTo: null, svgContent: '' })}
+                >
+                  <Plus size={16} />
+                  <span>Launch Event</span>
                 </button>
               </div>
 
-              {editingItem && activeTab === 'events' && (
-                <div className="modal-overlay">
-                  <form onSubmit={(e) => handleSave(e, 'events')} className="edit-form modal-content">
-                    <h3>{editingItem.id ? 'Edit Challenge' : 'New Challenge'}</h3>
-                    <div className="form-grid">
-                      <div className="form-group">
-                        <label>Challenge Title</label>
-                        <input placeholder="Holiday Sprint" value={editingItem.title} onChange={e => setEditingItem({ ...editingItem, title: e.target.value })} required />
+              {editingItem && activeTab === 'events' && (() => {
+                const eventItem = editingItem as EventFormData;
+                return (
+                  <div className="modal-overlay">
+                    <form onSubmit={(e) => handleSave(e, 'events')} className="admin-modal-form modal-content animate-fade-in">
+                      <div className="modal-header">
+                        <h3>{eventItem.id ? 'Edit Season Challenge' : 'New Season Challenge'}</h3>
+                        <button type="button" className="close-modal-btn" onClick={() => setEditingItem(null)}><X size={18} /></button>
                       </div>
-                      <div className="form-group">
-                        <label>Metric</label>
-                        <select value={editingItem.targetType} onChange={e => setEditingItem({ ...editingItem, targetType: e.target.value })}>
-                          <option value="wpm">WPM</option>
-                          <option value="accuracy">Accuracy</option>
-                          <option value="streak">Streak</option>
-                          <option value="sessions">Sessions</option>
-                        </select>
-                      </div>
-                      <div className="form-group">
-                        <label>Target Value</label>
-                        <input type="number" value={editingItem.targetValue} onChange={e => setEditingItem({ ...editingItem, targetValue: parseInt(e.target.value) })} required />
-                      </div>
-                    </div>
-                    <div className="form-group">
-                      <label>Description</label>
-                      <input placeholder="Complete 20 sessions this month" value={editingItem.description} onChange={e => setEditingItem({ ...editingItem, description: e.target.value })} required />
-                    </div>
-                    <div className="form-group">
-                      <label>SVG Artwork</label>
-                      <textarea placeholder="<svg>...</svg>" value={editingItem.svgContent || ''} onChange={e => setEditingItem({ ...editingItem, svgContent: e.target.value })} rows={6} />
-                    </div>
-                    <div className="form-actions">
-                      <button type="submit" className="btn-save" disabled={isSubmitting}>
-                        {isSubmitting ? 'Saving...' : <><Check size={18} /> Launch Challenge</>}
-                      </button>
-                      <button type="button" className="btn-cancel" onClick={() => setEditingItem(null)}><X size={18} /> Cancel</button>
-                    </div>
-                  </form>
-                </div>
-              )}
 
-              <div className="items-list">
+                      <div className="modal-body">
+                        <div className="form-double-grid">
+                          <div className="form-group-block">
+                            <label>Challenge Event Title</label>
+                            <input placeholder="Summer Sprint 2026" value={eventItem.title} onChange={e => setEditingItem({ ...eventItem, title: e.target.value })} required />
+                          </div>
+                          <div className="form-group-block">
+                            <label>Reward Achievement Badge</label>
+                            <select value={eventItem.rewardBadge || ''} onChange={e => setEditingItem({ ...eventItem, rewardBadge: e.target.value })}>
+                              <option value="">No Badge Reward</option>
+                              {badges.map(b => (
+                                <option key={b.badgeId} value={b.badgeId}>{b.title}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="form-double-grid">
+                          <div className="form-group-block">
+                            <label>Target Criteria Metric</label>
+                            <select value={eventItem.targetType} onChange={e => setEditingItem({ ...eventItem, targetType: e.target.value })}>
+                              <option value="wpm">WPM (Speed)</option>
+                              <option value="accuracy">Accuracy (Precision)</option>
+                              <option value="streak">Streak Days (Dedication)</option>
+                              <option value="sessions">Practiced Sessions (Volume)</option>
+                            </select>
+                          </div>
+                          <div className="form-group-block">
+                            <label>Goal Target Value</label>
+                            <input type="number" placeholder="e.g. 70" value={eventItem.targetValue} onChange={e => setEditingItem({ ...eventItem, targetValue: parseInt(e.target.value) })} required />
+                          </div>
+                        </div>
+
+                        <div className="form-double-grid">
+                          <div className="form-group-block">
+                            <label>Challenge Active From</label>
+                            <input
+                              type="date"
+                              value={eventItem.activeFrom ? new Date(eventItem.activeFrom).toISOString().split('T')[0] : ''}
+                              onChange={e => setEditingItem({ ...eventItem, activeFrom: e.target.value || null })}
+                            />
+                          </div>
+                          <div className="form-group-block">
+                            <label>Challenge Active To</label>
+                            <input
+                              type="date"
+                              value={eventItem.activeTo ? new Date(eventItem.activeTo).toISOString().split('T')[0] : ''}
+                              onChange={e => setEditingItem({ ...eventItem, activeTo: e.target.value || null })}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="form-group-block">
+                          <label>Description of challenge instructions</label>
+                          <input placeholder="Reach 75 WPM at least once this month to earn the Speed Breaker badge" value={eventItem.description} onChange={e => setEditingItem({ ...eventItem, description: e.target.value })} required />
+                        </div>
+
+                        <div className="form-group-block">
+                          <label>Challenge SVG artwork</label>
+                          <textarea placeholder="Paste SVG element raw code here" value={eventItem.svgContent || ''} onChange={e => setEditingItem({ ...eventItem, svgContent: e.target.value })} rows={4} />
+                        </div>
+                      </div>
+
+                      <div className="modal-actions-row">
+                        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
+                          {isSubmitting ? 'Launching challenge...' : <><Check size={16} /> Launch Event</>}
+                        </button>
+                        <button type="button" className="btn btn-ghost" onClick={() => setEditingItem(null)}>Cancel</button>
+                      </div>
+                    </form>
+                  </div>
+                );
+              })()}
+
+              <div className="events-list-admin">
                 {events.map(ev => (
-                  <div key={ev.id} className="event-item glass-card">
-                    <div className="event-icon" dangerouslySetInnerHTML={{ __html: ev.svgContent || '📅' }} />
-                    <div className="event-info">
-                      <h3>{ev.title}</h3>
-                      <p>{ev.description}</p>
-                      <div className="event-target">
-                        <strong>Goal:</strong> {ev.targetValue} {ev.targetType.toUpperCase()}
+                  <div key={ev.id} className="event-item-glass-card">
+                    <div className="event-visual" dangerouslySetInnerHTML={{ __html: ev.svgContent || '📅' }} />
+                    <div className="event-info-wrapper">
+                      <div className="event-title-row">
+                        <h3>{ev.title}</h3>
+                        <div className="event-schedule-tag">
+                          {ev.activeFrom ? new Date(ev.activeFrom).toLocaleDateString() : 'Immediate'} - {ev.activeTo ? new Date(ev.activeTo).toLocaleDateString() : 'Endless'}
+                        </div>
+                      </div>
+                      <p className="event-desc">{ev.description}</p>
+                      <div className="event-target-badges">
+                        <span className="target-pill">Target: {ev.targetValue} {ev.targetType.toUpperCase()}</span>
+                        {ev.rewardBadge && (
+                          <span className="reward-pill">Reward: {ev.rewardBadge}</span>
+                        )}
                       </div>
                     </div>
-                    <div className="item-actions">
-                      <button className="icon-btn" onClick={() => setEditingItem(ev)}><Edit3 size={16} /></button>
-                      <button className="icon-btn danger" onClick={() => handleDelete(ev.id, 'events')}><Trash2 size={16} /></button>
+                    <div className="event-actions">
+                      <button className="icon-btn-secondary" onClick={() => setEditingItem(ev)}><Edit3 size={14} /></button>
+                      <button className="icon-btn-danger" onClick={() => handleDelete(ev.id, 'events')}><Trash2 size={14} /></button>
                     </div>
                   </div>
                 ))}
               </div>
-            </section>
+            </div>
           )}
-        </main>
+        </div>
       </div>
 
+      {/* ════════════ INPECTOR PROFILE MODAL ════════════ */}
+      {selectedUser && (
+        <div className="modal-overlay" onClick={() => setSelectedUser(null)}>
+          <div className="inspector-modal modal-content animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="user-details-title">
+                {selectedUser.image ? (
+                  <img src={selectedUser.image} alt="" className="modal-header-avatar" />
+                ) : (
+                  <div className="modal-header-avatar-fallback">{selectedUser.name?.charAt(0)}</div>
+                )}
+                <div className="user-header-text">
+                  <h3>{selectedUser.name || 'Anonymous Typist'}</h3>
+                  <p>{selectedUser.email}</p>
+                </div>
+              </div>
+              <button type="button" className="close-modal-btn" onClick={() => setSelectedUser(null)}><X size={18} /></button>
+            </div>
+
+            <div className="modal-body user-profile-telemetry">
+              {/* Telemetry Summary Cards */}
+              <div className="telemetry-grid">
+                <div className="t-card">
+                  <span className="t-label">LEVEL</span>
+                  <span className="t-val">{selectedUser.cloudBackup?.profile?.currentLevel ?? 1}</span>
+                </div>
+                <div className="t-card">
+                  <span className="t-label">BEST SPEED</span>
+                  <span className="t-val speed">{selectedUser.cloudBackup?.profile?.bestWpm ?? 0} <small>WPM</small></span>
+                </div>
+                <div className="t-card">
+                  <span className="t-label">STREAK</span>
+                  <span className="t-val streak">{selectedUser.cloudBackup?.profile?.currentStreak ?? 0} <small>Days</small></span>
+                </div>
+                <div className="t-card">
+                  <span className="t-label">TOTAL TIME</span>
+                  <span className="t-val">
+                    {Math.round((selectedUser.cloudBackup?.profile?.totalTimeMs ?? 0) / 60000)} <small>min</small>
+                  </span>
+                </div>
+              </div>
+
+              {/* Heatmap / Activity View */}
+              {selectedUser.cloudBackup?.profile?.dailyActivity && (
+                <div className="telemetry-activity-section">
+                  <h4>Daily Practice Heatmap (minutes)</h4>
+                  <div className="heatmap-block">
+                    {Object.entries(selectedUser.cloudBackup?.profile?.dailyActivity ?? {}).slice(-20).map(([day, timeMs]) => (
+                      <div key={day} className="heatmap-node" title={`${day}: ${Math.round((timeMs as number) / 60000)} minutes`}>
+                        <span className="node-date">{day.substring(5)}</span>
+                        <div className="node-box" style={{
+                          opacity: Math.max(0.15, Math.min(1, ((timeMs as number) / 60000) / 30)),
+                          background: 'var(--color-primary)'
+                        }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Sync Sessions Log */}
+              {selectedUser.cloudBackup?.sessions && selectedUser.cloudBackup.sessions.length > 0 && (
+                <div className="telemetry-sessions-log">
+                  <h4>Recent Completed Sessions</h4>
+                  <div className="telemetry-log-table-shell">
+                    <table className="telemetry-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Language</th>
+                          <th>Practice Mode</th>
+                          <th>WPM</th>
+                          <th>Accuracy</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedUser.cloudBackup.sessions.slice(-5).reverse().map((s: any, idx: number) => (
+                          <tr key={s.id || idx}>
+                            <td>{new Date(s.startedAt).toLocaleDateString()}</td>
+                            <td><span className="lang-tag">{s.language}</span></td>
+                            <td><span className="mode-tag">{s.mode}</span></td>
+                            <td className="wpm-val">{Math.round(s.wpm)}</td>
+                            <td className="acc-val">{Math.round(s.accuracy * 100)}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="modal-footer">
+              <button className="btn btn-secondary btn-full" onClick={() => setSelectedUser(null)}>
+                Dismiss Inspector
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style jsx>{`
-        .admin-container {
-          min-height: 100vh;
-          background: radial-gradient(circle at top left, #1a1a2e, #16213e);
-          color: #e9ecef;
-          padding: 2rem;
-          font-family: 'Inter', sans-serif;
+        /* ═══════════════════════════════════════════
+           VangaTypePanalam — Admin Dashboard (Standardized Styling)
+           ═══════════════════════════════════════════ */
+
+        .admin-page-shell {
+          width: 100%;
+          max-width: var(--max-width);
+          margin: 0 auto;
+          padding: var(--space-xl) var(--space-lg);
         }
 
-        .glass-panel {
-          background: rgba(255, 255, 255, 0.03);
-          backdrop-filter: blur(20px);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          border-radius: 24px;
-          max-width: 1200px;
-          margin: 0 auto;
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        .admin-glass-container {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-2xl);
+          box-shadow: var(--shadow-lg);
           overflow: hidden;
         }
 
-        .admin-header {
-          padding: 2rem 2.5rem 0;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        .loading-container {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: var(--space-md);
+          min-height: 400px;
+          color: var(--text-muted);
+          font-size: var(--text-sm);
         }
 
-        .header-top {
+        /* ── Header ── */
+        .admin-dashboard-header {
           display: flex;
+          align-items: center;
           justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
+          padding: var(--space-xl) var(--space-xl) 0;
+          margin-bottom: var(--space-xl);
+          flex-wrap: wrap;
+          gap: var(--space-lg);
         }
 
-        .brand {
+        .header-brand-box {
           display: flex;
           align-items: center;
-          gap: 1rem;
+          gap: var(--space-md);
         }
 
-        .brand-icon {
-          width: 40px;
-          height: 40px;
-          background: linear-gradient(135deg, #4facfe, #00f2fe);
-          border-radius: 12px;
+        .brand-badge {
+          width: 44px;
+          height: 44px;
+          background: linear-gradient(135deg, var(--color-primary), var(--color-accent));
+          border-radius: var(--radius-lg);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.2rem;
+          font-size: 1.4rem;
           color: white;
-          box-shadow: 0 0 20px rgba(79, 172, 254, 0.4);
+          box-shadow: 0 0 20px var(--color-primary-glow);
+          flex-shrink: 0;
         }
 
-        .brand h1 {
-          font-size: 1.5rem;
+        .brand-texts h1 {
+          font-size: var(--text-2xl);
           font-weight: 800;
+          color: var(--text-primary);
+          line-height: 1.1;
           margin: 0;
           letter-spacing: -0.02em;
         }
 
-        .admin-user {
+        .brand-texts p {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          margin: 4px 0 0;
+        }
+
+        .admin-session-badge {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          background: rgba(255, 255, 255, 0.05);
-          padding: 0.5rem 1rem;
-          border-radius: 100px;
-          font-size: 0.9rem;
-          font-weight: 600;
+          gap: var(--space-sm);
+          background: var(--bg-hover);
+          border: 1px solid var(--border-subtle);
+          padding: 6px 14px;
+          border-radius: var(--radius-full);
         }
 
-        .admin-avatar {
-          width: 32px;
-          height: 32px;
+        .admin-session-avatar {
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          border: 2px solid #4facfe;
+          border: 1.5px solid var(--color-primary-light);
         }
 
-        .tabs {
+        .admin-session-fallback {
+          width: 28px;
+          height: 28px;
+          border-radius: 50%;
+          background: var(--bg-overlay);
+          color: var(--text-secondary);
           display: flex;
-          gap: 0.5rem;
-          margin-bottom: -1px;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: var(--text-sm);
         }
 
-        .tabs button {
-          padding: 0.75rem 1.5rem;
+        .badge-details {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .badge-name {
+          font-size: var(--text-xs);
+          font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1;
+        }
+
+        .badge-role {
+          font-size: 9px;
+          color: var(--color-primary-light);
+          font-weight: 600;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          margin-top: 2px;
+        }
+
+        /* ── Tabs Navigation ── */
+        .admin-nav-tabs {
+          display: flex;
+          gap: var(--space-xs);
+          padding: 0 var(--space-xl);
+          border-bottom: 1px solid var(--border-subtle);
+          overflow-x: auto;
+        }
+
+        .admin-nav-tabs button {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+          padding: 10px 18px;
+          font-size: var(--text-sm);
+          font-weight: 600;
+          color: var(--text-muted);
           background: transparent;
           border: none;
-          color: rgba(255, 255, 255, 0.5);
-          font-weight: 600;
-          font-size: 0.95rem;
           cursor: pointer;
-          display: flex;
-          align-items: center;
-          gap: 0.5rem;
           transition: all 0.2s ease;
           border-bottom: 2px solid transparent;
+          white-space: nowrap;
         }
 
-        .tabs button:hover {
-          color: rgba(255, 255, 255, 0.8);
+        .admin-nav-tabs button:hover {
+          color: var(--text-primary);
         }
 
-        .tabs button.active {
-          color: #4facfe;
-          border-bottom-color: #4facfe;
+        .admin-nav-tabs button.active {
+          color: var(--color-primary-light);
+          border-bottom-color: var(--color-primary);
         }
 
-        .admin-main {
-          padding: 2.5rem;
-          min-height: 600px;
+        /* ── Body Area ── */
+        .admin-body-area {
+          padding: var(--space-xl);
+          min-height: 500px;
         }
 
-        .offline-warning {
-          background: rgba(251, 191, 36, 0.1);
-          color: #fbbf24;
-          padding: 1rem;
-          border-radius: 12px;
-          border: 1px solid rgba(251, 191, 36, 0.2);
-          margin-bottom: 2rem;
+        .offline-alert-box {
           display: flex;
           align-items: center;
-          gap: 0.75rem;
-          font-size: 0.9rem;
+          gap: var(--space-sm);
+          background: rgba(239, 68, 68, 0.08);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          color: var(--color-error);
+          padding: var(--space-md) var(--space-lg);
+          border-radius: var(--radius-lg);
+          font-size: var(--text-sm);
+          margin-bottom: var(--space-xl);
         }
 
-        /* Stats Cards */
-        .stats-cards {
+        /* ── Metrics Cards ── */
+        .admin-metrics-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-          gap: 1.5rem;
-          margin-bottom: 3rem;
+          grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+          gap: var(--space-lg);
+          margin-bottom: var(--space-xl);
         }
 
-        .stat-card {
-          background: rgba(255, 255, 255, 0.04);
-          padding: 1.5rem;
-          border-radius: 16px;
+        .metric-card-glass {
+          background: var(--bg-hover);
+          border: 1px solid var(--border-subtle);
+          padding: var(--space-lg);
+          border-radius: var(--radius-xl);
           display: flex;
           align-items: center;
-          gap: 1.25rem;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          gap: var(--space-md);
         }
 
-        .stat-icon {
-          width: 52px;
-          height: 52px;
-          background: rgba(79, 172, 254, 0.1);
-          border-radius: 12px;
+        .m-icon {
+          width: 44px;
+          height: 44px;
+          border-radius: var(--radius-md);
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 1.5rem;
-          color: #4facfe;
         }
 
-        .stat-label {
-          display: block;
-          font-size: 0.85rem;
-          color: rgba(255, 255, 255, 0.5);
-          margin-bottom: 0.25rem;
+        .m-icon.purple { background: rgba(139, 92, 246, 0.1); color: #8b5cf6; }
+        .m-icon.green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
+        .m-icon.orange { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .m-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+
+        .m-info {
+          display: flex;
+          flex-direction: column;
         }
 
-        .stat-value {
-          font-size: 1.75rem;
+        .m-label {
+          font-size: 10px;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-muted);
+          font-weight: 700;
+        }
+
+        .m-value {
+          font-size: var(--text-xl);
           font-weight: 800;
+          color: var(--text-primary);
+          margin-top: 2px;
+          line-height: 1.1;
         }
 
-        /* Tables */
-        .users-table-container {
-          background: rgba(255, 255, 255, 0.02);
-          border-radius: 16px;
-          padding: 1.5rem;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+        .m-value small {
+          font-size: var(--text-xs);
+          font-weight: 500;
+          color: var(--text-muted);
         }
 
-        .users-table {
+        /* ── Tables ── */
+        .table-surface-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-xl);
+          padding: var(--space-lg);
+        }
+
+        .table-card-header {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-bottom: var(--space-lg);
+        }
+
+        .table-card-header h2 {
+          font-size: var(--text-lg);
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .admin-data-table {
           width: 100%;
           border-collapse: collapse;
-          font-size: 0.9rem;
+          font-size: var(--text-sm);
         }
 
-        .users-table th {
+        .admin-data-table th {
           text-align: left;
-          padding: 1rem;
-          color: rgba(255, 255, 255, 0.4);
-          font-weight: 500;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .users-table td {
-          padding: 1.25rem 1rem;
-          border-bottom: 1px solid rgba(255, 255, 255, 0.03);
-        }
-
-        .user-cell {
-          display: flex;
-          align-items: center;
-          gap: 0.75rem;
-        }
-
-        .user-cell img {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-        }
-
-        .role-badge {
-          padding: 0.25rem 0.75rem;
-          border-radius: 100px;
-          font-size: 0.75rem;
+          padding: var(--space-md);
+          color: var(--text-muted);
           font-weight: 700;
-          text-transform: uppercase;
-        }
-
-        .role-badge.admin { background: rgba(79, 172, 254, 0.2); color: #4facfe; }
-        .role-badge.user { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.6); }
-
-        /* Grids & Cards */
-        .section-head {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          margin-bottom: 2rem;
-        }
-
-        .items-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-          gap: 1.5rem;
-        }
-
-        .glass-card {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.06);
-          border-radius: 20px;
-          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .glass-card:hover {
-          background: rgba(255, 255, 255, 0.05);
-          transform: translateY(-5px);
-          border-color: rgba(79, 172, 254, 0.3);
-        }
-
-        .item-card {
-          padding: 1.5rem;
-        }
-
-        .card-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          margin-bottom: 1.5rem;
-        }
-
-        .item-icon {
-          width: 64px;
-          height: 64px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 16px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 2rem;
-        }
-
-        .item-icon :global(svg) {
-          width: 48px;
-          height: 48px;
-        }
-
-        .card-actions {
-          display: flex;
-          gap: 0.5rem;
-        }
-
-        .icon-btn {
-          width: 36px;
-          height: 36px;
-          border-radius: 10px;
-          background: rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.05);
-          color: rgba(255, 255, 255, 0.6);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: pointer;
-          transition: all 0.2s;
-        }
-
-        .icon-btn:hover {
-          background: rgba(255, 255, 255, 0.1);
-          color: white;
-        }
-
-        .icon-btn.danger:hover {
-          background: rgba(239, 68, 68, 0.2);
-          color: #ef4444;
-          border-color: rgba(239, 68, 68, 0.3);
-        }
-
-        .item-info h3 {
-          margin: 0 0 0.5rem 0;
-          font-size: 1.25rem;
-        }
-
-        .item-type {
-          font-size: 0.8rem;
-          color: #4facfe;
-          font-weight: 700;
+          border-bottom: 1px solid var(--border-subtle);
+          font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 0.05em;
         }
 
-        .range-indicator {
-          margin-top: 1.25rem;
+        .admin-data-table td {
+          padding: var(--space-md);
+          border-bottom: 1px solid var(--border-subtle);
+          color: var(--text-secondary);
         }
 
-        .range-bar {
-          height: 6px;
-          background: rgba(255, 255, 255, 0.05);
-          border-radius: 100px;
-          margin-bottom: 0.5rem;
+        .user-profile-cell {
+          display: flex;
+          align-items: center;
+          gap: var(--space-md);
+        }
+
+        .table-avatar {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          object-fit: cover;
+          border: 1px solid var(--border-subtle);
+        }
+
+        .table-avatar-placeholder {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: var(--bg-hover);
+          color: var(--text-secondary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: var(--text-sm);
+          border: 1px solid var(--border-subtle);
+        }
+
+        .user-name-wrapper {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .user-main-name {
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+
+        .user-join-date {
+          font-size: 10px;
+          color: var(--text-muted);
+          margin-top: 2px;
+        }
+
+        .user-email {
+          font-family: var(--font-mono);
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+        }
+
+        .table-role-badge {
+          padding: 2px 8px;
+          font-size: 10px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          border-radius: var(--radius-sm);
+          width: fit-content;
+        }
+
+        .table-role-badge.admin {
+          background: rgba(165, 180, 252, 0.15);
+          color: var(--color-primary-light);
+          border: 1px solid rgba(165, 180, 252, 0.25);
+        }
+
+        .table-role-badge.user {
+          background: var(--bg-hover);
+          color: var(--text-muted);
+          border: 1px solid var(--border-subtle);
+        }
+
+        .profile-stat-count strong {
+          color: var(--text-primary);
+        }
+
+        .profile-speed-tag {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-weight: 700;
+          color: var(--color-primary-light);
+        }
+
+        .profile-streak-tag {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-weight: 700;
+          color: var(--color-accent);
+        }
+
+        .stat-missing {
+          color: var(--text-muted);
+          font-size: var(--text-xs);
+        }
+
+        .spinner-shell {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: var(--space-sm);
+          padding: var(--space-xl) 0;
+          color: var(--text-muted);
+        }
+
+        /* ── Section Title Row ── */
+        .section-header-row {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          margin-bottom: var(--space-xl);
+          flex-wrap: wrap;
+          gap: var(--space-md);
+        }
+
+        .section-title-wrap h2 {
+          font-size: var(--text-xl);
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .section-title-wrap p {
+          font-size: var(--text-sm);
+          color: var(--text-muted);
+          margin: 4px 0 0;
+        }
+
+        /* ── Books Grid ── */
+        .books-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+          gap: var(--space-lg);
+        }
+
+        .book-card-glass {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-xl);
+          padding: var(--space-lg);
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-lg);
+          transition: all 0.2s ease;
+        }
+
+        .book-card-glass.active-border {
+          border-color: var(--color-primary);
+          box-shadow: 0 0 12px var(--color-primary-glow);
+        }
+
+        .book-card-header {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: var(--space-sm);
+        }
+
+        .book-titles {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+
+        .title-row {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+        }
+
+        .title-row h3 {
+          font-size: var(--text-md);
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .active-tag {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          font-size: 8px;
+          font-weight: 800;
+          background: rgba(16, 185, 129, 0.15);
+          color: #10b981;
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .book-desc {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          margin: 0;
+          line-height: 1.3;
+        }
+
+        .book-stats-row {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--space-md);
+          background: var(--bg-hover);
+          padding: var(--space-md);
+          border-radius: var(--radius-lg);
+          border: 1px solid var(--border-subtle);
+        }
+
+        .b-stat {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .b-stat:nth-child(3) {
+          grid-column: span 2;
+          border-top: 1px solid var(--border-subtle);
+          padding-top: var(--space-sm);
+          margin-top: 2px;
+        }
+
+        .b-stat-label {
+          font-size: 8px;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          color: var(--text-muted);
+          font-weight: 700;
+        }
+
+        .b-stat-val {
+          font-size: var(--text-sm);
+          font-weight: 700;
+          color: var(--text-secondary);
+        }
+
+        .b-stat-val.date-val {
+          font-family: var(--font-mono);
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+        }
+
+        .btn-full {
+          width: 100%;
+        }
+
+        .btn-active-book {
+          margin-top: auto;
+        }
+
+        /* Ranks CSS removed */
+
+        .wpm-track {
+          width: 100%;
+          height: 5px;
+          background: var(--bg-hover);
+          border-radius: var(--radius-full);
           overflow: hidden;
+          margin-bottom: 6px;
         }
 
-        .range-fill {
+        .wpm-fill {
           height: 100%;
-          background: linear-gradient(90deg, #4facfe, #00f2fe);
-          border-radius: 100px;
+          background: linear-gradient(90deg, var(--color-primary), var(--color-accent));
         }
 
-        .range-text {
-          font-size: 0.75rem;
-          color: rgba(255, 255, 255, 0.4);
-          font-family: 'JetBrains Mono', monospace;
+        .wpm-values {
+          display: flex;
+          justify-content: space-between;
+          font-size: 10px;
+          font-family: var(--font-mono);
+          color: var(--text-muted);
         }
 
-        /* Forms & Modals */
+        /* ── Badges Grid ── */
+        .badges-grid-admin {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+          gap: var(--space-lg);
+        }
+
+        .badge-card-admin-glass {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-xl);
+          padding: var(--space-lg);
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-md);
+          transition: transform 0.2s;
+        }
+
+        .badge-card-admin-glass:hover {
+          transform: translateY(-4px);
+        }
+
+        .badge-vector {
+          width: 52px;
+          height: 52px;
+          background: var(--bg-hover);
+          border-radius: var(--radius-lg);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.8rem;
+          border: 1px solid var(--border-subtle);
+        }
+
+        .badge-vector :global(svg) {
+          width: 36px;
+          height: 36px;
+        }
+
+        .badge-rarity-badge {
+          padding: 2px 8px;
+          font-size: 9px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          border-radius: var(--radius-sm);
+        }
+
+        .badge-rarity-badge.common { background: rgba(148, 163, 184, 0.1); color: #94a3b8; }
+        .badge-rarity-badge.uncommon { background: rgba(52, 211, 153, 0.1); color: #34d399; }
+        .badge-rarity-badge.rare { background: rgba(96, 165, 250, 0.1); color: #60a5fa; }
+        .badge-rarity-badge.epic { background: rgba(192, 132, 252, 0.1); color: #c084fc; }
+        .badge-rarity-badge.legendary { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }
+
+        .badge-card-body h3 {
+          font-size: var(--text-md);
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .badge-desc {
+          font-size: var(--text-sm);
+          color: var(--text-secondary);
+          margin: 4px 0 0;
+          line-height: 1.3;
+        }
+
+        .badge-quote {
+          font-size: var(--text-xs);
+          font-style: italic;
+          color: var(--text-muted);
+          margin: var(--space-sm) 0 0;
+          border-left: 2px solid var(--border-subtle);
+          padding-left: var(--space-sm);
+        }
+
+        .badge-card-footer {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: auto;
+          padding-top: var(--space-md);
+          border-top: 1px solid var(--border-subtle);
+        }
+
+        .badge-category-tag {
+          font-size: 9px;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+          color: var(--color-primary-light);
+          font-weight: 700;
+        }
+
+        /* ── Events List ── */
+        .events-list-admin, .admin-list-container {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-md);
+        }
+
+        .event-item-glass-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-xl);
+          padding: var(--space-lg);
+          display: flex;
+          align-items: center;
+          gap: var(--space-lg);
+          transition: border-color 0.2s;
+        }
+
+        .event-item-glass-card:hover {
+          border-color: var(--color-primary-glow);
+        }
+
+        .event-visual {
+          width: 56px;
+          height: 56px;
+          background: var(--bg-hover);
+          border-radius: var(--radius-lg);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 1.8rem;
+          border: 1px solid var(--border-subtle);
+          flex-shrink: 0;
+        }
+
+        .event-visual :global(svg) {
+          width: 36px;
+          height: 36px;
+        }
+
+        .event-info-wrapper {
+          flex: 1;
+        }
+
+        .event-title-row {
+          display: flex;
+          align-items: center;
+          gap: var(--space-md);
+          flex-wrap: wrap;
+        }
+
+        .event-title-row h3 {
+          font-size: var(--text-md);
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .event-schedule-tag {
+          font-family: var(--font-mono);
+          font-size: 10px;
+          color: var(--text-muted);
+          border: 1px solid var(--border-subtle);
+          background: var(--bg-hover);
+          padding: 2px 8px;
+          border-radius: var(--radius-sm);
+        }
+
+        .event-desc {
+          font-size: var(--text-sm);
+          color: var(--text-secondary);
+          margin: var(--space-xs) 0 var(--space-sm);
+        }
+
+        .event-target-badges {
+          display: flex;
+          gap: var(--space-sm);
+          flex-wrap: wrap;
+        }
+
+        .target-pill, .reward-pill {
+          font-size: 9px;
+          font-weight: 800;
+          padding: 2px 8px;
+          border-radius: var(--radius-sm);
+          text-transform: uppercase;
+        }
+
+        .target-pill {
+          background: rgba(165, 180, 252, 0.1);
+          color: var(--color-primary-light);
+          border: 1px solid rgba(165, 180, 252, 0.2);
+        }
+
+        .reward-pill {
+          background: rgba(244, 63, 94, 0.1);
+          color: var(--color-accent);
+          border: 1px solid rgba(244, 63, 94, 0.2);
+        }
+
+        /* ── Modals & Forms ── */
         .modal-overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.8);
+          background: rgba(0, 0, 0, 0.7);
           backdrop-filter: blur(8px);
           display: flex;
           align-items: center;
           justify-content: center;
-          z-index: 1000;
-          padding: 2rem;
+          z-index: 1100;
+          padding: var(--space-xl);
+          animation: fade-in 0.2s ease-out;
         }
 
         .modal-content {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-2xl);
+          box-shadow: var(--shadow-xl);
+          overflow: hidden;
           width: 100%;
           max-width: 600px;
-          background: #1a1a2e;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 24px;
-          padding: 2.5rem;
-          box-shadow: 0 50px 100px rgba(0, 0, 0, 0.5);
-        }
-
-        .modal-content h3 {
-          margin-top: 0;
-          margin-bottom: 2rem;
-          font-size: 1.5rem;
-        }
-
-        .form-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 1.5rem;
-        }
-
-        .form-group {
           display: flex;
           flex-direction: column;
-          gap: 0.5rem;
-          margin-bottom: 1.5rem;
         }
 
-        .form-group label {
-          font-size: 0.8rem;
-          font-weight: 600;
-          color: rgba(255, 255, 255, 0.4);
-        }
-
-        .form-group input, .form-group select, .form-group textarea {
-          background: rgba(255, 255, 255, 0.03);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          border-radius: 12px;
-          padding: 0.85rem;
-          color: white;
-          font-family: inherit;
-          transition: all 0.2s;
-        }
-
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
-          outline: none;
-          border-color: #4facfe;
-          background: rgba(255, 255, 255, 0.06);
-        }
-
-        .form-actions {
-          display: flex;
-          gap: 1rem;
-          margin-top: 1rem;
-        }
-
-        .btn-primary, .btn-save {
-          background: linear-gradient(135deg, #4facfe, #00f2fe);
-          color: white;
-          border: none;
-          padding: 0.85rem 1.5rem;
-          border-radius: 12px;
-          font-weight: 700;
-          cursor: pointer;
+        .modal-header {
           display: flex;
           align-items: center;
-          gap: 0.5rem;
-          box-shadow: 0 10px 20px rgba(79, 172, 254, 0.2);
+          justify-content: space-between;
+          padding: var(--space-lg) var(--space-xl);
+          border-bottom: 1px solid var(--border-subtle);
         }
 
-        .btn-cancel {
-          background: rgba(255, 255, 255, 0.05);
-          color: rgba(255, 255, 255, 0.6);
-          border: none;
-          padding: 0.85rem 1.5rem;
-          border-radius: 12px;
-          font-weight: 700;
-          cursor: pointer;
-        }
-
-        /* Animations */
-        .fade-in {
-          animation: fadeIn 0.4s ease-out;
-        }
-
-        @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-
-        .rarity-tag {
-          padding: 0.2rem 0.6rem;
-          border-radius: 6px;
-          font-size: 0.65rem;
+        .modal-header h3 {
+          font-size: var(--text-lg);
           font-weight: 800;
-          text-transform: uppercase;
+          color: var(--text-primary);
+          margin: 0;
         }
 
-        .rarity-tag.common { background: rgba(148, 163, 184, 0.1); color: #94a3b8; }
-        .rarity-tag.uncommon { background: rgba(52, 211, 153, 0.1); color: #34d399; }
-        .rarity-tag.rare { background: rgba(96, 165, 250, 0.1); color: #60a5fa; }
-        .rarity-tag.epic { background: rgba(192, 132, 252, 0.1); color: #c084fc; }
-        .rarity-tag.legendary { background: rgba(251, 191, 36, 0.1); color: #fbbf24; }
-
-        .badge-card-admin p {
-          font-size: 0.85rem;
-          color: rgba(255, 255, 255, 0.5);
-          line-height: 1.5;
-          margin: 1rem 0;
-        }
-
-        .event-item {
-          display: flex;
-          align-items: center;
-          gap: 2rem;
-          padding: 1.5rem 2rem;
-          margin-bottom: 1rem;
-        }
-
-        .event-icon {
-          width: 80px;
-          height: 80px;
-          background: rgba(255, 255, 255, 0.04);
-          border-radius: 20px;
+        .close-modal-btn {
+          background: transparent;
+          border: none;
+          color: var(--text-muted);
+          cursor: pointer;
+          transition: color 0.15s;
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 2.5rem;
+        }
+
+        .close-modal-btn:hover {
+          color: var(--text-primary);
+        }
+
+        .modal-body {
+          padding: var(--space-xl);
+          max-height: 70vh;
+          overflow-y: auto;
+        }
+
+        .admin-modal-form {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .form-group-block {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          margin-bottom: var(--space-md);
+        }
+
+        .form-group-block.checkbox-block {
+          flex-direction: row;
+          align-items: center;
+          gap: var(--space-sm);
+          padding: var(--space-sm) 0;
+        }
+
+        .form-group-block.checkbox-block input {
+          width: auto;
+          cursor: pointer;
+        }
+
+        .form-group-block.checkbox-block label {
+          font-size: var(--text-sm);
+          font-weight: 600;
+          color: var(--text-secondary);
+          cursor: pointer;
+        }
+
+        .form-group-block label {
+          font-size: var(--text-xs);
+          font-weight: 700;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .form-group-block input, .form-group-block select, .form-group-block textarea {
+          background: var(--bg-hover);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-md);
+          padding: 10px 14px;
+          color: var(--text-primary);
+          font-family: inherit;
+          font-size: var(--text-sm);
+          transition: border-color 0.15s;
+          outline: none;
+        }
+
+        .form-group-block input:focus, .form-group-block select:focus, .form-group-block textarea:focus {
+          border-color: var(--color-primary);
+        }
+
+        .form-double-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: var(--space-md);
+        }
+
+        .modal-actions-row {
+          display: flex;
+          justify-content: flex-end;
+          gap: var(--space-sm);
+          padding: var(--space-lg) var(--space-xl);
+          border-top: 1px solid var(--border-subtle);
+          background: var(--bg-hover);
+        }
+
+        /* ── Profile Inspector Modal ── */
+        .inspector-modal {
+          max-width: 680px;
+        }
+
+        .user-details-title {
+          display: flex;
+          align-items: center;
+          gap: var(--space-md);
+        }
+
+        .modal-header-avatar {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          border: 1.5px solid var(--color-primary-light);
+        }
+
+        .modal-header-avatar-fallback {
+          width: 40px;
+          height: 40px;
+          border-radius: 50%;
+          background: var(--bg-hover);
+          border: 1px solid var(--border-subtle);
+          color: var(--text-secondary);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-weight: 700;
+          font-size: var(--text-lg);
+        }
+
+        .user-header-text h3 {
+          font-size: var(--text-md);
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .user-header-text p {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          margin: 2px 0 0;
+          font-family: var(--font-mono);
+        }
+
+        .user-profile-telemetry {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-xl);
+        }
+
+        .telemetry-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: var(--space-md);
+        }
+
+        .t-card {
+          background: var(--bg-hover);
+          border: 1px solid var(--border-subtle);
+          padding: var(--space-md);
+          border-radius: var(--radius-lg);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+        }
+
+        .t-label {
+          font-size: 8px;
+          font-weight: 700;
+          color: var(--text-muted);
+          letter-spacing: 0.05em;
+        }
+
+        .t-val {
+          font-size: var(--text-md);
+          font-weight: 800;
+          color: var(--text-primary);
+          margin-top: 4px;
+        }
+
+        .t-val.speed { color: var(--color-primary-light); }
+        .t-val.streak { color: var(--color-accent); }
+
+        .t-val small {
+          font-size: 9px;
+          font-weight: 500;
+          color: var(--text-muted);
+        }
+
+        .telemetry-activity-section h4, .telemetry-sessions-log h4 {
+          font-size: var(--text-sm);
+          font-weight: 700;
+          color: var(--text-secondary);
+          margin: 0 0 var(--space-md) 0;
+          text-transform: uppercase;
+          letter-spacing: 0.03em;
+        }
+
+        .heatmap-block {
+          display: flex;
+          gap: 6px;
+          overflow-x: auto;
+          padding-bottom: 6px;
+        }
+
+        .heatmap-node {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 4px;
           flex-shrink: 0;
         }
 
-        .event-info {
-          flex: 1;
+        .node-date {
+          font-size: 8px;
+          font-family: var(--font-mono);
+          color: var(--text-muted);
         }
 
-        .event-target {
-          display: inline-block;
-          margin-top: 0.75rem;
-          background: rgba(79, 172, 254, 0.1);
-          color: #4facfe;
-          padding: 0.25rem 0.75rem;
-          border-radius: 100px;
-          font-size: 0.8rem;
+        .node-box {
+          width: 22px;
+          height: 22px;
+          border-radius: 4px;
+          border: 1px solid var(--border-subtle);
+        }
+
+        .telemetry-log-table-shell {
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-lg);
+          overflow: hidden;
+        }
+
+        .telemetry-table {
+          width: 100%;
+          border-collapse: collapse;
+          font-size: var(--text-xs);
+        }
+
+        .telemetry-table th {
+          text-align: left;
+          padding: 8px var(--space-md);
+          background: var(--bg-hover);
+          color: var(--text-muted);
+          border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .telemetry-table td {
+          padding: 10px var(--space-md);
+          border-bottom: 1px solid var(--border-subtle);
+          color: var(--text-secondary);
+        }
+
+        .telemetry-table tr:last-child td {
+          border-bottom: none;
+        }
+
+        .lang-tag, .mode-tag {
+          font-size: 8px;
+          font-weight: 800;
+          text-transform: uppercase;
+          background: var(--bg-hover);
+          padding: 2px 6px;
+          border-radius: 3px;
+          border: 1px solid var(--border-subtle);
+        }
+
+        .wpm-val {
+          font-weight: 700;
+          color: var(--color-primary-light);
+        }
+
+        .acc-val {
+          font-weight: 700;
+          color: var(--color-success);
+        }
+
+        .modal-footer {
+          padding: var(--space-lg) var(--space-xl);
+          border-top: 1px solid var(--border-subtle);
+          background: var(--bg-hover);
+        }
+
+        /* ── Unauthorized Screen ── */
+        .unauthorized-shell {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          min-height: 80vh;
+          padding: var(--space-xl);
+        }
+
+        .error-panel {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          padding: var(--space-2xl);
+          border-radius: var(--radius-2xl);
+          box-shadow: var(--shadow-lg);
+          max-width: 440px;
+          text-align: center;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: var(--space-md);
+        }
+
+        .error-icon {
+          color: var(--color-error);
+        }
+
+        .error-panel h2 {
+          font-size: var(--text-xl);
+          font-weight: 800;
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .error-panel p {
+          font-size: var(--text-sm);
+          color: var(--text-muted);
+          margin: 0 0 var(--space-md) 0;
+          line-height: 1.5;
+        }
+
+        /* ── Button Helpers ── */
+        .icon-btn-secondary, .icon-btn-danger {
+          width: 30px;
+          height: 30px;
+          border-radius: var(--radius-md);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.15s;
+          background: transparent;
+        }
+
+        .icon-btn-secondary {
+          border: 1px solid var(--border-subtle);
+          color: var(--text-secondary);
+        }
+
+        .icon-btn-secondary:hover {
+          background: var(--bg-hover);
+          color: var(--text-primary);
+        }
+
+        .icon-btn-danger {
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          color: var(--color-error);
+        }
+
+        .icon-btn-danger:hover {
+          background: rgba(239, 68, 68, 0.1);
+          border-color: rgba(239, 68, 68, 0.3);
+        }
+
+        .empty-section-alert {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: var(--space-md);
+          padding: var(--space-2xl) var(--space-lg);
+          text-align: center;
+          background: var(--bg-surface);
+          border: 1.5px dashed var(--border-subtle);
+          border-radius: var(--radius-xl);
+          color: var(--text-muted);
+          font-size: var(--text-sm);
+        }
+
+        /* ── File Upload CSS Styles ── */
+        .file-upload-zone {
+          border: 2.5px dashed var(--border-subtle);
+          background: rgba(255, 255, 255, 0.01);
+          border-radius: var(--radius-xl);
+          padding: var(--space-xl);
+          text-align: center;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: var(--space-xs);
+          color: var(--text-muted);
+          position: relative;
+        }
+
+        .file-upload-zone:hover {
+          border-color: var(--color-primary-light);
+          background: rgba(255, 255, 255, 0.03);
+          color: var(--text-primary);
+        }
+
+        .file-upload-input {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          opacity: 0;
+          cursor: pointer;
+        }
+
+        .upload-icon-wrap {
+          color: var(--color-primary-light);
+          margin-bottom: var(--space-xs);
+        }
+
+        .upload-title {
+          font-weight: 600;
+          font-size: var(--text-sm);
+          color: var(--text-primary);
+        }
+
+        .upload-subtitle {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+        }
+
+        .upload-error-banner {
+          margin-top: var(--space-sm);
+          padding: var(--space-sm) var(--space-md);
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.2);
+          border-radius: var(--radius-md);
+          color: var(--color-error);
+          font-size: var(--text-xs);
+          display: flex;
+          align-items: center;
+          gap: var(--space-xs);
+        }
+
+        /* ── EPUB Chapter Selector Layout ── */
+        .epub-chapter-selector-card {
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-xl);
+          background: rgba(255, 255, 255, 0.01);
+          padding: var(--space-md) var(--space-lg);
+          margin-top: var(--space-md);
+        }
+
+        .selector-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: var(--space-md);
+          padding-bottom: var(--space-sm);
+          border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .selector-header h4 {
+          font-weight: 700;
+          font-size: var(--text-sm);
+          color: var(--text-primary);
+          margin: 0;
+        }
+
+        .selector-actions {
+          display: flex;
+          gap: var(--space-sm);
+        }
+
+        .text-action-btn {
+          background: transparent;
+          border: none;
+          color: var(--color-primary-light);
+          font-size: var(--text-xs);
+          font-weight: 600;
+          cursor: pointer;
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+        }
+
+        .text-action-btn:hover {
+          background: var(--bg-hover);
+        }
+
+        .chapters-scroll-area {
+          max-height: 240px;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-xs);
+          padding-right: var(--space-xs);
+        }
+
+        .chapter-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: var(--space-xs) var(--space-sm);
+          border-radius: var(--radius-md);
+          background: transparent;
+          border: 1px solid transparent;
+          transition: all 0.15s ease;
+        }
+
+        .chapter-row:hover {
+          background: var(--bg-hover);
+          border-color: var(--border-subtle);
+        }
+
+        .chapter-row.is-checked {
+          background: rgba(255, 255, 255, 0.02);
+        }
+
+        .chapter-check-label {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+          cursor: pointer;
+          flex: 1;
+          user-select: none;
+        }
+
+        .chapter-title-text {
+          font-size: var(--text-xs);
+          color: var(--text-primary);
+          font-weight: 500;
+        }
+
+        .chapter-meta-tag {
+          font-size: 9px;
+          color: var(--text-muted);
+          background: var(--bg-hover);
+          padding: 1px 5px;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--border-subtle);
+        }
+
+        .chapter-char-count {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          font-variant-numeric: tabular-nums;
+        }
+
+        .chapters-summary-bar {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: var(--space-md);
+          padding-top: var(--space-sm);
+          border-top: 1px solid var(--border-subtle);
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+        }
+
+        .chapters-summary-bar strong {
+          color: var(--color-primary-light);
+        }
+
+        .chapters-apply-row {
+          display: flex;
+          justify-content: flex-end;
+          gap: var(--space-sm);
+          margin-top: var(--space-md);
         }
       `}</style>
-    </div>
+    </main>
   );
 }

@@ -70,20 +70,65 @@ Fetches dynamic game configuration (Ranks, Badges, Events) from the database.
 ## 4. Admin Tools
 Restricted routes for managing global application state.
 
-### `POST /api/admin/badges`
+### POST /api/admin/badges
 Create or update a badge definition.
 - **Auth**: Required (Admin role)
 - **Payload**: `{ id, title, description, icon, rarity, category, quote }`
 
-### `POST /api/admin/inject-svg`
+### POST /api/admin/inject-svg
 Inject raw SVG code for a badge or rank icon.
 - **Auth**: Required (Admin role)
 - **Payload**: `{ targetId, svgContent }`
 
+### GET /api/admin/users
+Fetches a list of all typist accounts along with their synchronized cloud telemetry backups (profiles and active typing logs).
+- **Auth**: Required (Admin role)
+- **Response**: List of user objects with nested `cloudBackup` profiles and sessions.
+
+### GET /api/admin/books
+List all custom imported practice books.
+- **Auth**: Required (Admin role)
+- **Response**: Array of PracticeBook models.
+
+### POST /api/admin/books
+Upload and automatically tokenize (strip special characters, keep clean words) a new weekly book.
+- **Auth**: Required (Admin role)
+- **Payload**: `{ title, description, content, isActive, startDate, endDate }`
+- **Response**: `200 OK` with imported book details and tokenized unique words count.
+
+### PUT /api/admin/books
+Update practice book configurations or manually activate a book.
+- **Auth**: Required (Admin role)
+- **Payload**: `{ id, isActive, title, description, content, startDate, endDate }`
+
+### DELETE /api/admin/books
+Permanently remove a practice book from the system.
+- **Auth**: Required (Admin role)
+- **Query Param**: `id`
+
 ---
 
-## 5. Proxy Utilities
-Helpers for external resources.
+## 5. Public Rotating Content
 
-### `GET /api/proxy/image`
+### GET /api/practice-book/active
+Fetches the currently active rotating book of the week for user training (offline-first cached).
+- **Auth**: Optional
+- **Response**:
+  ```json
+  {
+    "success": true,
+    "book": {
+      "id": "...",
+      "title": "...",
+      "description": "...",
+      "words": ["word1", "word2", "word3"]
+    }
+  }
+  ```
+
+---
+
+## 6. Proxy Utilities
+
+### GET /api/proxy/image
 Proxies external images to avoid CORS issues or for caching purposes.

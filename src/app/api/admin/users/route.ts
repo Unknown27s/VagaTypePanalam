@@ -24,6 +24,13 @@ export async function GET() {
         image: true,
         role: true,
         createdAt: true,
+        cloudBackup: {
+          select: {
+            profile: true,
+            sessions: true,
+            updatedAt: true,
+          }
+        }
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -34,3 +41,4 @@ export async function GET() {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+
