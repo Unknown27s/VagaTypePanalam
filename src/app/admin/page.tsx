@@ -16,7 +16,6 @@ import type {
   AdminUser,
   SystemAggregates,
   BookFormData,
-  RankFormData,
   BadgeFormData,
   EventFormData,
   CloudBackupSession,
@@ -30,7 +29,7 @@ export default function AdminDashboard() {
 
   // Navigation & Data Tabs
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
-  const { ranks, badges, events, fetchGamification, loading } = useGamificationStore();
+  const { badges, events, fetchGamification, loading } = useGamificationStore();
 
   // Custom states
   const [users, setUsers] = useState<AdminUser[]>([]);
@@ -42,7 +41,7 @@ export default function AdminDashboard() {
   const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
 
   // Form states — union type, each tab narrows it
-  const [editingItem, setEditingItem] = useState<BookFormData | RankFormData | BadgeFormData | EventFormData | null>(null);
+  const [editingItem, setEditingItem] = useState<BookFormData | BadgeFormData | EventFormData | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // EPUB & TXT File upload helper states
@@ -63,7 +62,7 @@ export default function AdminDashboard() {
       if (file.name.endsWith('.epub')) {
         const parsed = await parseEpub(file);
         setParsedEpub(parsed);
-        
+
         // Initialize checked chapters using parser's pre-check heuristics
         const initialSelected: Record<string, boolean> = {};
         parsed.chapters.forEach(ch => {
@@ -312,10 +311,7 @@ export default function AdminDashboard() {
             <BookOpen size={16} />
             <span>Weekly Books</span>
           </button>
-          <button className={activeTab === 'ranks' ? 'active' : ''} onClick={() => setActiveTab('ranks')}>
-            <Star size={16} />
-            <span>Ranks</span>
-          </button>
+          {/* Ranks tab removed */}
           <button className={activeTab === 'badges' ? 'active' : ''} onClick={() => setActiveTab('badges')}>
             <Award size={16} />
             <span>Badges</span>
@@ -665,7 +661,7 @@ export default function AdminDashboard() {
                                     .filter(ch => selectedChapters[ch.id])
                                     .map(ch => ch.content)
                                     .join('\n\n');
-                                  
+
                                   setEditingItem({
                                     ...bookItem,
                                     content: text
@@ -766,101 +762,7 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {/* ════════════ RANKS TAB ════════════ */}
-          {activeTab === 'ranks' && (
-            <div className="fade-in tab-section">
-              <div className="section-header-row">
-                <div className="section-title-wrap">
-                  <h2>System Ranks</h2>
-                  <p>Define global touch-typing titles earned by typists depending on their average speeds.</p>
-                </div>
-                <button
-                  className="btn btn-primary"
-                  onClick={() => setEditingItem({ type: '', title: '', minWpm: 0, maxWpm: 0, svgContent: '' })}
-                >
-                  <Plus size={16} />
-                  <span>Add New Rank</span>
-                </button>
-              </div>
-
-              {editingItem && activeTab === 'ranks' && (() => {
-                const rankItem = editingItem as RankFormData;
-                return (
-                  <div className="modal-overlay">
-                    <form onSubmit={(e) => handleSave(e, 'ranks')} className="admin-modal-form modal-content animate-fade-in">
-                      <div className="modal-header">
-                        <h3>{rankItem.id ? 'Edit Rank Title' : 'Create System Rank'}</h3>
-                        <button type="button" className="close-modal-btn" onClick={() => setEditingItem(null)}><X size={18} /></button>
-                      </div>
-
-                      <div className="modal-body">
-                        <div className="form-double-grid">
-                          <div className="form-group-block">
-                            <label>Internal Key</label>
-                            <input placeholder="beginner" value={rankItem.type} onChange={e => setEditingItem({ ...rankItem, type: e.target.value })} required />
-                          </div>
-                          <div className="form-group-block">
-                            <label>Display Title</label>
-                            <input placeholder="Beginner" value={rankItem.title} onChange={e => setEditingItem({ ...rankItem, title: e.target.value })} required />
-                          </div>
-                        </div>
-
-                        <div className="form-double-grid">
-                          <div className="form-group-block">
-                            <label>Minimum WPM Threshold</label>
-                            <input type="number" value={rankItem.minWpm} onChange={e => setEditingItem({ ...rankItem, minWpm: parseInt(e.target.value) })} required />
-                          </div>
-                          <div className="form-group-block">
-                            <label>Maximum WPM Threshold</label>
-                            <input type="number" value={rankItem.maxWpm} onChange={e => setEditingItem({ ...rankItem, maxWpm: parseInt(e.target.value) })} required />
-                          </div>
-                        </div>
-
-                        <div className="form-group-block">
-                          <label>Rank SVG/Visual representation</label>
-                          <textarea placeholder="e.g. 🌱 or raw SVG code <svg>...</svg>" value={rankItem.svgContent || ''} onChange={e => setEditingItem({ ...rankItem, svgContent: e.target.value })} rows={6} />
-                        </div>
-                      </div>
-
-                      <div className="modal-actions-row">
-                        <button type="submit" className="btn btn-primary" disabled={isSubmitting}>
-                          {isSubmitting ? 'Saving Rank...' : <><Check size={16} /> Save Rank</>}
-                        </button>
-                        <button type="button" className="btn btn-ghost" onClick={() => setEditingItem(null)}>Cancel</button>
-                      </div>
-                    </form>
-                  </div>
-                );
-              })()}
-
-              <div className="ranks-grid">
-                {ranks.map(r => (
-                  <div key={r.id} className="rank-card-glass">
-                    <div className="rank-card-header">
-                      <div className="rank-visual" dangerouslySetInnerHTML={{ __html: r.svgContent || '🌱' }} />
-                      <div className="rank-card-actions">
-                        <button className="icon-btn-secondary" onClick={() => setEditingItem(r)}><Edit3 size={12} /></button>
-                        <button className="icon-btn-danger" onClick={() => handleDelete(r.id, 'ranks')}><Trash2 size={12} /></button>
-                      </div>
-                    </div>
-                    <div className="rank-card-body">
-                      <h3>{r.title}</h3>
-                      <span className="rank-key-sub">{r.type}</span>
-                      <div className="wpm-range-block">
-                        <div className="wpm-track">
-                          <div className="wpm-fill" style={{ width: `${Math.min(100, (r.minWpm / 110) * 100)}%` }} />
-                        </div>
-                        <div className="wpm-values">
-                          <span>{r.minWpm} WPM</span>
-                          <span>{r.maxWpm === 9999 ? '∞' : `${r.maxWpm} WPM`}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+          {/* Ranks UI removed */}
 
           {/* ════════════ BADGES TAB ════════════ */}
           {activeTab === 'badges' && (
@@ -1745,74 +1647,7 @@ export default function AdminDashboard() {
           margin-top: auto;
         }
 
-        /* ── Ranks Grid ── */
-        .ranks-grid {
-          display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-          gap: var(--space-lg);
-        }
-
-        .rank-card-glass {
-          background: var(--bg-surface);
-          border: 1px solid var(--border-subtle);
-          border-radius: var(--radius-xl);
-          padding: var(--space-lg);
-          display: flex;
-          flex-direction: column;
-          gap: var(--space-md);
-          transition: transform 0.2s;
-        }
-
-        .rank-card-glass:hover {
-          transform: translateY(-4px);
-        }
-
-        .rank-card-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-        }
-
-        .rank-visual {
-          width: 48px;
-          height: 48px;
-          background: var(--bg-hover);
-          border-radius: var(--radius-md);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 1.6rem;
-          border: 1px solid var(--border-subtle);
-        }
-
-        .rank-visual :global(svg) {
-          width: 32px;
-          height: 32px;
-        }
-
-        .rank-card-actions, .badge-actions, .event-actions, .book-actions {
-          display: flex;
-          gap: var(--space-xs);
-        }
-
-        .rank-card-body h3 {
-          font-size: var(--text-md);
-          font-weight: 700;
-          color: var(--text-primary);
-          margin: 0;
-        }
-
-        .rank-key-sub {
-          font-family: var(--font-mono);
-          font-size: 10px;
-          color: var(--color-primary-light);
-          font-weight: 600;
-          text-transform: uppercase;
-        }
-
-        .wpm-range-block {
-          margin-top: var(--space-md);
-        }
+        /* Ranks CSS removed */
 
         .wpm-track {
           width: 100%;
