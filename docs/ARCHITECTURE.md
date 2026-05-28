@@ -102,6 +102,7 @@ Located in `src/components/profile/`.
 Located in `src/app/admin/page.tsx`.
 
 - **Internal Tools**: Accessible only to users with the `ADMIN` role.
+- **Route Guard**: Access is enforced server-side in `src/app/admin/layout.tsx` via Auth.js; non-admins are redirected.
 - **Gamification CRUD**: Allows real-time creation and editing of Ranks, Badges, and Events.
 - **SVG Injector**: Admins can paste raw SVG code directly into the database to update artwork across the platform instantly.
 - **Developer Mode**: Detection for `OFFLINE_MODE` to prevent accidental database mutations during local testing.
