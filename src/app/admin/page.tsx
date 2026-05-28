@@ -259,7 +259,7 @@ export default function AdminDashboard() {
   }
 
   // Strictly protect route client-side (unauthorized screen if not an admin)
-  if (isAdmin) {
+  if (!isAdmin) {
     return (
       <main className="unauthorized-shell">
         <div className="error-panel">

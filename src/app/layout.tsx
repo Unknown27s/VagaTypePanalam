@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import TopHeader from "@/components/ui/TopHeader";
 import Footer from "@/components/ui/Footer";
 import { AuthProvider } from "@/components/providers/AuthProvider";
+import { Analytics } from "@vercel/analytics/react";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -57,6 +58,7 @@ export default function RootLayout({
             </div>
             <Footer />
           </div>
+          <Analytics />
         </AuthProvider>
       </body>
     </html>
