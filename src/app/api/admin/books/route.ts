@@ -9,14 +9,16 @@ export const dynamic = 'force-dynamic';
 function tokenizeWords(text: string): string[] {
   if (!text) return [];
   const cleaned = text
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"''""-•]/g, ' ')
-    .replace(/\s+/g, ' ');
+    .replace(/[.,!?;:—–]/g, ' ')  // Basic punctuation only
+    .replace(/["""'']/g, ' ')      // Quotes
+    .replace(/[\n\r]/g, ' ')       // Newlines
+    .replace(/\s+/g, ' ');         // Multiple spaces to single
 
   const tokens = cleaned.toLowerCase().split(' ');
 
   const uniqueWords = Array.from(new Set(tokens))
     .map(w => w.trim())
-    .filter(w => w.length >= 2 && !/^\d+$/.test(w));
+    .filter(w => w.length >= 1);   // Keep all non-empty words
 
   return uniqueWords;
 }
