@@ -1,19 +1,12 @@
-import { NextResponse } from 'next/server';
-import { auth } from '@/auth';
+import { NextRequest, NextResponse } from 'next/server';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth, createErrorResponse } from '@/lib/adminAuth';
 
 export const dynamic = 'force-dynamic';
 
-async function checkAdmin() {
-  const session = await auth();
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
-    return false;
-  }
-  return true;
-}
-
-export async function GET() {
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
   try {
     const users = await prisma.user.findMany({
@@ -29,16 +22,15 @@ export async function GET() {
             profile: true,
             sessions: true,
             updatedAt: true,
-          }
-        }
+          },
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
     return NextResponse.json(users);
   } catch (error: any) {
-    console.error('Fetch users error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createErrorResponse('Failed to fetch users', 500, error.message);
   }
 }
 

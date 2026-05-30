@@ -98,6 +98,7 @@ export class SessionTracker {
   private targetKeys: string[] = [];
   private customText: string | undefined;
   private weeklyBookWords: string[] | undefined;
+  private bookPositionIndex: number = 0; // Tracks current position in the book for sequential reading
 
   // Timing
   private startTime: number = 0;
@@ -111,10 +112,13 @@ export class SessionTracker {
   private onComplete?: (session: Session) => void;
   private onSegmentComplete?: (segmentNumber: number) => void;
 
-  constructor(language: Language, mode: SessionMode = 'practice', level: number = 1) {
+  private bookId?: string;
+
+  constructor(language: Language, mode: SessionMode = 'practice', level: number = 1, bookId?: string) {
     this.language = language;
     this.mode = mode;
     this.level = level;
+    this.bookId = bookId;
     this.keyProfiler = new KeyProfiler(language);
   }
 
@@ -134,7 +138,7 @@ export class SessionTracker {
   /**
    * Initialize a new session with generated text.
    */
-  async init(targetKeys?: string[], customText?: string, weeklyBookWords?: string[]): Promise<string> {
+  async init(targetKeys?: string[], customText?: string, weeklyBookWords?: string[], bookId?: string): Promise<string> {
     // Load existing key stats
     const stats = await getKeyStatsByLanguage(this.language);
     this.keyProfiler.loadFromStats(stats);
@@ -143,9 +147,28 @@ export class SessionTracker {
     this.customText = customText;
     this.weeklyBookWords = weeklyBookWords;
 
+    // Load book position from database if practicing a book
+    if (this.weeklyBookWords && this.weeklyBookWords.length > 0 && bookId) {
+      try {
+        const res = await fetch(`/api/reading-progress?bookId=${bookId}`);
+        if (res.ok) {
+          const data = await res.json();
+          this.bookPositionIndex = data.position || 0;
+          console.log(`📖 Loaded reading position from database: ${this.bookPositionIndex}`);
+        }
+      } catch (err) {
+        console.error('Failed to load reading position from database:', err);
+        // Fallback to localStorage
+        const savedPosition = localStorage.getItem('vanga-book-position');
+        this.bookPositionIndex = savedPosition ? parseInt(savedPosition, 10) : 0;
+      }
+    }
+
     // Generate or use provided text
     this.text = await this.generateNextText();
     this.words = this.text.split(' ');
+
+    console.log(`📝 Session initialized - Text length: ${this.text.length}, Words: ${this.words.length}`);
 
     // Reset state
     this.sessionId = generateSessionId();
@@ -163,13 +186,22 @@ export class SessionTracker {
     if (this.weeklyBookWords && this.weeklyBookWords.length > 0) {
       const selected: string[] = [];
       let currentLength = 0;
-      while (currentLength < length) {
-        const word = this.weeklyBookWords[Math.floor(Math.random() * this.weeklyBookWords.length)];
+
+      // Sequential reading from book position
+      while (currentLength < length && this.bookPositionIndex < this.weeklyBookWords.length) {
+        const word = this.weeklyBookWords[this.bookPositionIndex];
         if (word) {
           selected.push(word);
           currentLength += word.length + 1;
+          this.bookPositionIndex++;
         }
       }
+
+      // If reached end of book, wrap around to beginning
+      if (this.bookPositionIndex >= this.weeklyBookWords.length) {
+        this.bookPositionIndex = 0;
+      }
+
       return selected.join(' ');
     }
     if (this.customText) {
@@ -522,6 +554,31 @@ export class SessionTracker {
       // Save the completed session silently (fire-and-forget)
       this.saveSegmentAsync();
 
+      // Save book reading position to database or localStorage
+      if (this.weeklyBookWords && this.weeklyBookWords.length > 0) {
+        if (this.bookId) {
+          // Save to database
+          try {
+            await fetch('/api/reading-progress', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                bookId: this.bookId,
+                position: this.bookPositionIndex,
+              }),
+            });
+            console.log(`💾 Reading position saved to database: ${this.bookPositionIndex}`);
+          } catch (err) {
+            console.error('Failed to save reading position to database:', err);
+            // Fallback to localStorage
+            localStorage.setItem('vanga-book-position', this.bookPositionIndex.toString());
+          }
+        } else {
+          // Fallback to localStorage if no bookId
+          localStorage.setItem('vanga-book-position', this.bookPositionIndex.toString());
+        }
+      }
+
       // Preserve cumulative session states across restarts
       const savedStartTime = this.startTime;
       const savedLastKeystrokeTime = this.lastKeystrokeTime;
@@ -552,12 +609,12 @@ export class SessionTracker {
       this.allLatencies = savedAllLatencies;
       this.segmentsCompleted = savedSegments;
       this.totalWordsTyped = savedTotalWords;
-      
+
       this.segmentStartCorrectChars = savedCorrectChars;
       this.segmentStartTime = performance.now();
       this.wordStartTime = performance.now();
       this.lastKeystrokeTime = performance.now();
-      
+
       this._state = savedStartTime > 0 ? 'typing' : 'ready';
       this.emitSnapshot();
 
