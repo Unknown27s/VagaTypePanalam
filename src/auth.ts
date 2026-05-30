@@ -13,6 +13,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   secret: appAuthSecret,
   session: {
     strategy: "jwt",
+    maxAge: 24 * 60 * 60, // 1 day
   },
   providers: [
     GitHub({
@@ -65,7 +66,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
               name: user.name,
             },
             appAuthSecret,
-            { expiresIn: "7d" }
+            { expiresIn: "1d" }
           );
         }
       }

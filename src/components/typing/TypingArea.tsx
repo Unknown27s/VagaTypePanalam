@@ -29,6 +29,7 @@ interface TypingAreaProps {
   targetKeys?: string[];
   customText?: string;
   weeklyBookWords?: string[];
+  bookId?: string;
   onComplete?: (session: Session) => void;
   mode?: 'practice' | 'test' | 'lesson';
   forceComplete?: boolean;
@@ -42,6 +43,7 @@ export default function TypingArea({
   targetKeys,
   customText,
   weeklyBookWords,
+  bookId,
   onComplete,
   mode = 'practice',
   forceComplete = false,
@@ -112,7 +114,7 @@ export default function TypingArea({
       await trackerRef.current.destroy();
     }
 
-    const tracker = new SessionTracker(language, mode);
+    const tracker = new SessionTracker(language, mode, undefined, bookId);
     tracker.setCallbacks({
       onStateChange: (snap) => {
         setSnapshot(snap);
@@ -129,9 +131,9 @@ export default function TypingArea({
       },
     });
 
-    await tracker.init(targetKeys, customText, weeklyBookWords);
+    await tracker.init(targetKeys, customText, weeklyBookWords, bookId);
     trackerRef.current = tracker;
-  }, [language, targetKeys, customText, weeklyBookWords, mode, updateStore]);
+  }, [language, targetKeys, customText, weeklyBookWords, bookId, mode, updateStore]);
 
   // Load historical stats for Idle state display
   useEffect(() => {

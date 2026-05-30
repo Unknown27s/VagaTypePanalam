@@ -1,37 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
+import { compressContent, decompressContent } from '@/lib/compression';
+import { requireAdminAuth, createErrorResponse } from '@/lib/adminAuth';
+import { validateTextInput, validateFileSize } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
-async function checkAdmin() {
-  const session = await auth();
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
-    return false;
-  }
-  return true;
-}
-
-// Tokenize and clean raw book text into an array of clean words
 function tokenizeWords(text: string): string[] {
   if (!text) return [];
-  // Remove punctuation, special characters, keeping Tamil letters (\u0B80-\u0BFF) and alphanumeric
   const cleaned = text
-    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"'’“”-•]/g, ' ')
+    .replace(/[.,\/#!$%\^&\*;:{}=\-_`~()?"''""-•]/g, ' ')
     .replace(/\s+/g, ' ');
-  
+
   const tokens = cleaned.toLowerCase().split(' ');
-  
-  // Deduplicate and filter out single characters or purely numbers
+
   const uniqueWords = Array.from(new Set(tokens))
     .map(w => w.trim())
     .filter(w => w.length >= 2 && !/^\d+$/.test(w));
-    
+
   return uniqueWords;
 }
 
-export async function GET() {
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(req: NextRequest) {
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
   try {
     const books = await prisma.practiceBook.findMany({
@@ -39,24 +31,69 @@ export async function GET() {
     });
     return NextResponse.json(books);
   } catch (error: any) {
-    console.error('Fetch books error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createErrorResponse('Failed to fetch books', 500, error.message);
   }
 }
 
 export async function POST(req: NextRequest) {
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
   try {
     const { title, description, content, startDate, endDate, isActive } = await req.json();
 
-    if (!title || !content) {
-      return NextResponse.json({ error: 'Title and content are required' }, { status: 400 });
+    // Validate inputs
+    const titleValidation = validateTextInput(title, { minLength: 1, maxLength: 500 });
+    if (!titleValidation.valid) {
+      return NextResponse.json({ error: titleValidation.error }, { status: 400 });
     }
 
+    const contentValidation = validateTextInput(content, { minLength: 10 });
+    if (!contentValidation.valid) {
+      return NextResponse.json({ error: contentValidation.error }, { status: 400 });
+    }
+
+    const fileSizeValidation = validateFileSize(Buffer.byteLength(content, 'utf-8'));
+    if (!fileSizeValidation.valid) {
+      return NextResponse.json({ error: fileSizeValidation.error }, { status: 400 });
+    }
+
+    // Extract words for searching
     const words = tokenizeWords(content);
 
-    // If making this active, deactivate all others
+    // Compress content
+    console.log(`📚 Uploading book: "${title}"`);
+    console.log(`   Content preview: ${content.substring(0, 100)}...`);
+    console.log(`   Original size: ${Buffer.byteLength(content, 'utf-8')} bytes`);
+    console.log(`   Total words (unique): ${words.length}`);
+
+    const compressionResult = await compressContent(content);
+    console.log(`   Compression ratio: ${(compressionResult.compressionRatio * 100).toFixed(2)}%`);
+    console.log(`   Content hash: ${compressionResult.contentHash}`);
+
+    // Decompression test - verify compression works
+    let decompressedContent = '';
+    if (compressionResult.compressed) {
+      try {
+        decompressedContent = await decompressContent(compressionResult.compressed);
+        const isValid = decompressedContent === content;
+        console.log(`   ✅ Decompression test: ${isValid ? 'PASSED' : 'FAILED'}`);
+
+        if (!isValid) {
+          console.error('   ❌ Decompressed content does not match original!');
+          return NextResponse.json({
+            error: 'Compression/Decompression test failed. Content may be corrupted.'
+          }, { status: 500 });
+        }
+      } catch (decompressErr: any) {
+        console.error('   ❌ Decompression error:', decompressErr.message);
+        return NextResponse.json({
+          error: `Decompression failed: ${decompressErr.message}`
+        }, { status: 500 });
+      }
+    }
+
+    // Deactivate other books if this one is being set as active
     if (isActive) {
       await prisma.practiceBook.updateMany({
         where: { isActive: true },
@@ -64,27 +101,42 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const book = await prisma.practiceBook.create({
-      data: {
-        title,
-        description,
-        content,
-        words,
-        isActive: !!isActive,
-        startDate: startDate ? new Date(startDate) : null,
-        endDate: endDate ? new Date(endDate) : null,
-      },
-    });
+    // Prepare book data - always set one field to null
+    const bookData: any = {
+      title,
+      description: description || null,
+      words,
+      isActive: !!isActive,
+      startDate: startDate ? new Date(startDate) : null,
+      endDate: endDate ? new Date(endDate) : null,
+      originalSize: compressionResult.originalSize,
+      compressionRatio: compressionResult.compressionRatio,
+      contentHash: compressionResult.contentHash,
+    };
 
+    if (compressionResult.compressed) {
+      bookData.compressedContent = compressionResult.compressed;
+      bookData.content = null; // Explicitly set to null when compressed
+    } else {
+      bookData.content = content;
+      bookData.compressedContent = null; // Explicitly set to null when not compressed
+    }
+
+    // Create the book
+    const book = await prisma.practiceBook.create({ data: bookData });
+
+    console.log(`   ✅ Book created: ${book.id}`);
     return NextResponse.json(book);
+
   } catch (error: any) {
-    console.error('Create book error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('❌ Book upload error:', error);
+    return createErrorResponse('Failed to create book', 500, error.message);
   }
 }
 
 export async function PUT(req: NextRequest) {
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
   try {
     const { id, title, description, content, startDate, endDate, isActive } = await req.json();
@@ -94,25 +146,79 @@ export async function PUT(req: NextRequest) {
     }
 
     const updateData: any = {};
-    if (title !== undefined) updateData.title = title;
-    if (description !== undefined) updateData.description = description;
-    if (content !== undefined) {
-      updateData.content = content;
-      updateData.words = tokenizeWords(content);
+
+    if (title !== undefined) {
+      const validation = validateTextInput(title, { minLength: 1, maxLength: 500 });
+      if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
+      updateData.title = title;
     }
+
+    if (description !== undefined) updateData.description = description;
+
+    if (content !== undefined) {
+      const validation = validateTextInput(content, { minLength: 10 });
+      if (!validation.valid) return NextResponse.json({ error: validation.error }, { status: 400 });
+
+      const fileSizeValidation = validateFileSize(Buffer.byteLength(content, 'utf-8'));
+      if (!fileSizeValidation.valid) return NextResponse.json({ error: fileSizeValidation.error }, { status: 400 });
+
+      console.log(`📚 Updating book: ${id}`);
+      console.log(`   New content size: ${Buffer.byteLength(content, 'utf-8')} bytes`);
+
+      updateData.words = tokenizeWords(content);
+      const compressionResult = await compressContent(content);
+
+      console.log(`   Compression ratio: ${(compressionResult.compressionRatio * 100).toFixed(2)}%`);
+      console.log(`   Content hash: ${compressionResult.contentHash}`);
+
+      // Decompression test
+      if (compressionResult.compressed) {
+        try {
+          const decompressedContent = await decompressContent(compressionResult.compressed);
+          const isValid = decompressedContent === content;
+          console.log(`   ✅ Decompression test: ${isValid ? 'PASSED' : 'FAILED'}`);
+
+          if (!isValid) {
+            return NextResponse.json({
+              error: 'Compression/Decompression test failed. Content may be corrupted.'
+            }, { status: 500 });
+          }
+        } catch (decompressErr: any) {
+          console.error('   ❌ Decompression error:', decompressErr.message);
+          return NextResponse.json({
+            error: `Decompression failed: ${decompressErr.message}`
+          }, { status: 500 });
+        }
+      }
+
+      updateData.originalSize = compressionResult.originalSize;
+      updateData.compressionRatio = compressionResult.compressionRatio;
+      updateData.contentHash = compressionResult.contentHash;
+
+      if (compressionResult.compressed) {
+        updateData.compressedContent = compressionResult.compressed;
+        updateData.content = null; // Explicitly set to null
+      } else {
+        updateData.content = content;
+        updateData.compressedContent = null; // Explicitly set to null
+      }
+    }
+
     if (startDate !== undefined) updateData.startDate = startDate ? new Date(startDate) : null;
     if (endDate !== undefined) updateData.endDate = endDate ? new Date(endDate) : null;
-    if (isActive !== undefined) updateData.isActive = !!isActive;
 
-    // If marking as active, deactivate all others
-    if (isActive) {
-      await prisma.practiceBook.updateMany({
-        where: {
-          isActive: true,
-          NOT: { id },
-        },
-        data: { isActive: false },
-      });
+    if (isActive !== undefined) {
+      updateData.isActive = !!isActive;
+
+      if (isActive) {
+        await prisma.practiceBook.updateMany({
+          where: {
+            isActive: true,
+            NOT: { id },
+          },
+          data: { isActive: false },
+        });
+      }
     }
 
     const book = await prisma.practiceBook.update({
@@ -120,15 +226,18 @@ export async function PUT(req: NextRequest) {
       data: updateData,
     });
 
+    console.log(`   ✅ Book updated: ${id}`);
     return NextResponse.json(book);
+
   } catch (error: any) {
-    console.error('Update book error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('❌ Book update error:', error);
+    return createErrorResponse('Failed to update book', 500, error.message);
   }
 }
 
 export async function DELETE(req: NextRequest) {
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -138,13 +247,17 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Book ID is required' }, { status: 400 });
     }
 
+    console.log(`🗑️  Deleting book: ${id}`);
+
     await prisma.practiceBook.delete({
       where: { id },
     });
 
+    console.log(`   ✅ Book deleted: ${id}`);
     return NextResponse.json({ success: true });
+
   } catch (error: any) {
-    console.error('Delete book error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    console.error('❌ Book delete error:', error);
+    return createErrorResponse('Failed to delete book', 500, error.message);
   }
 }

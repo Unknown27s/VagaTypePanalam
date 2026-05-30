@@ -70,11 +70,15 @@ export interface BookFormData {
   id?: string;
   title: string;
   description?: string | null;
-  content: string;
+  content?: string | null;
   words?: string[];
   isActive: boolean;
   startDate?: string | Date | null;
   endDate?: string | Date | null;
+  compressedContent?: string | null;
+  originalSize?: number | null;
+  compressionRatio?: number | null;
+  contentHash?: string | null;
 }
 
 export interface RankFormData {

@@ -1,5 +1,5 @@
 import { auth } from "@/auth";
-import { redirect } from "next/navigation";
+import Unauthorized from "./unauthorized";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export default async function AdminLayout({
     const isAdmin = isDevView || session?.user?.role === "ADMIN";
 
     if (!isAdmin) {
-        redirect("/");
+        return <Unauthorized />;
     }
 
     return <>{children}</>;

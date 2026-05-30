@@ -1,24 +1,57 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@/auth';
 import prisma from '@/lib/prisma';
+import { requireAdminAuth, createErrorResponse } from '@/lib/adminAuth';
+import { sanitizeSVG } from '@/lib/validation';
 
 export const dynamic = 'force-dynamic';
 
-async function checkAdmin() {
-  const session = await auth();
-  if (!session?.user || (session.user as any).role !== 'ADMIN') {
-    return false;
+export async function GET(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
+
+  try {
+    const { type } = await params;
+    let result;
+
+    switch (type) {
+      case 'badges':
+        result = await prisma.badge.findMany({
+          orderBy: { createdAt: 'desc' },
+        });
+        break;
+      case 'events':
+        result = await prisma.event.findMany({
+          orderBy: { activeFrom: 'desc' },
+        });
+        break;
+      case 'ranks':
+        result = await prisma.rank.findMany({
+          orderBy: { type: 'asc' },
+        });
+        break;
+      default:
+        return NextResponse.json({ error: 'Invalid type' }, { status: 400 });
+    }
+
+    return NextResponse.json(result);
+  } catch (error: any) {
+    return createErrorResponse('Failed to fetch gamification', 500, error.message);
   }
-  return true;
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
-  const { type } = await params;
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { type } = await params;
 
   try {
     const data = await req.json();
+
+    if (data.svgContent) {
+      data.svgContent = sanitizeSVG(data.svgContent);
+    }
+
     let result;
 
     switch (type) {
@@ -37,19 +70,23 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ typ
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Create error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createErrorResponse('Failed to create gamification item', 500, error.message);
   }
 }
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
-  const { type } = await params;
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { type } = await params;
 
   try {
     const { id, ...data } = await req.json();
     if (!id) return NextResponse.json({ error: 'ID is required' }, { status: 400 });
+
+    if (data.svgContent) {
+      data.svgContent = sanitizeSVG(data.svgContent);
+    }
 
     let result;
     switch (type) {
@@ -68,15 +105,15 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ type
 
     return NextResponse.json(result);
   } catch (error: any) {
-    console.error('Update error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createErrorResponse('Failed to update gamification item', 500, error.message);
   }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ type: string }> }) {
-  const { type } = await params;
+  const authError = await requireAdminAuth(req);
+  if (authError) return authError;
 
-  if (!(await checkAdmin())) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  const { type } = await params;
 
   try {
     const { searchParams } = new URL(req.url);
@@ -99,7 +136,6 @@ export async function DELETE(req: NextRequest, { params }: { params: Promise<{ t
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
-    console.error('Delete error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return createErrorResponse('Failed to delete gamification item', 500, error.message);
   }
 }

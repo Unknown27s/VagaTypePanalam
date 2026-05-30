@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import DOMPurify from 'dompurify';
 import {
   Users, Award, Star, Calendar, Plus, Trash2, Edit3, X,
   Check, RefreshCw, BookOpen, Activity, Flame, Zap,
@@ -231,7 +232,6 @@ export default function AdminDashboard() {
       if (profile) {
         totalSessions += profile.totalSessions ?? 0;
         if (profile.bestWpm > 0) {
-          // Approximate speed average from best Wpm or session logs
           wpmSum += profile.bestWpm;
           usersWithStats++;
         }
@@ -240,10 +240,40 @@ export default function AdminDashboard() {
 
     const averageWpm = usersWithStats > 0 ? Math.round(wpmSum / usersWithStats) : 0;
 
+    // Compression statistics
+    let compressedBooks = 0;
+    let uncompressedBooks = 0;
+    let totalOriginalSize = 0;
+    let totalCompressedSize = 0;
+
+    books.forEach(b => {
+      if (b.compressedContent) {
+        compressedBooks++;
+        totalOriginalSize += b.originalSize ?? 0;
+        totalCompressedSize += Buffer.byteLength(b.compressedContent, 'utf-8');
+      } else if (b.content) {
+        uncompressedBooks++;
+        totalOriginalSize += Buffer.byteLength(b.content, 'utf-8');
+        totalCompressedSize += Buffer.byteLength(b.content, 'utf-8');
+      }
+    });
+
+    const avgCompressionRatio = totalOriginalSize > 0
+      ? Math.round((totalCompressedSize / totalOriginalSize) * 100)
+      : 0;
+
+    const bytesSaved = totalOriginalSize - totalCompressedSize;
+
     return {
       totalSessions,
       averageWpm,
       totalBooks: books.length || 0,
+      compressedBooks,
+      uncompressedBooks,
+      totalOriginalSize,
+      totalCompressedSize,
+      avgCompressionRatio,
+      bytesSaved,
     };
   };
 
@@ -363,7 +393,95 @@ export default function AdminDashboard() {
                     <span className="m-value">{stats.totalBooks}</span>
                   </div>
                 </div>
+                <div className="metric-card-glass">
+                  <div className="m-icon indigo"><Star size={20} /></div>
+                  <div className="m-info">
+                    <span className="m-label">Compressed Books</span>
+                    <span className="m-value">{stats.compressedBooks} <small>of {stats.totalBooks}</small></span>
+                  </div>
+                </div>
+                <div className="metric-card-glass">
+                  <div className="m-icon teal"><Zap size={20} /></div>
+                  <div className="m-info">
+                    <span className="m-label">Storage Saved</span>
+                    <span className="m-value">{Math.round(stats.bytesSaved / 1024 / 1024)} <small>MB</small></span>
+                  </div>
+                </div>
+                <div className="metric-card-glass">
+                  <div className="m-icon cyan"><CheckCircle size={20} /></div>
+                  <div className="m-info">
+                    <span className="m-label">Avg Compression</span>
+                    <span className="m-value">{stats.avgCompressionRatio}%</span>
+                  </div>
+                </div>
               </div>
+
+              {/* Compression Breakdown Card */}
+              {stats.totalBooks > 0 && (
+                <div className="compression-stats-card">
+                  <div className="compression-header">
+                    <h3>📦 Storage & Compression Metrics</h3>
+                    <p>Database optimization and storage savings overview</p>
+                  </div>
+
+                  <div className="compression-grid">
+                    <div className="compression-item">
+                      <span className="comp-label">Total Original Size</span>
+                      <span className="comp-value">{Math.round(stats.totalOriginalSize / 1024 / 1024)} MB</span>
+                      <span className="comp-detail">{stats.totalOriginalSize.toLocaleString()} bytes</span>
+                    </div>
+
+                    <div className="compression-item">
+                      <span className="comp-label">After Compression</span>
+                      <span className="comp-value">{Math.round(stats.totalCompressedSize / 1024 / 1024)} MB</span>
+                      <span className="comp-detail">{stats.totalCompressedSize.toLocaleString()} bytes</span>
+                    </div>
+
+                    <div className="compression-item highlight-green">
+                      <span className="comp-label">Storage Saved</span>
+                      <span className="comp-value">{Math.round(stats.bytesSaved / 1024 / 1024)} MB</span>
+                      <span className="comp-detail">{Math.round((stats.bytesSaved / stats.totalOriginalSize) * 100)}% reduction</span>
+                    </div>
+
+                    <div className="compression-item highlight-blue">
+                      <span className="comp-label">Efficiency</span>
+                      <span className="comp-value">{stats.avgCompressionRatio}%</span>
+                      <span className="comp-detail">Compressed to {stats.avgCompressionRatio}% of original</span>
+                    </div>
+
+                    <div className="compression-item">
+                      <span className="comp-label">Compressed Books</span>
+                      <span className="comp-value">{stats.compressedBooks}</span>
+                      <span className="comp-detail">of {stats.totalBooks} books</span>
+                    </div>
+
+                    <div className="compression-item">
+                      <span className="comp-label">Uncompressed Books</span>
+                      <span className="comp-value">{stats.uncompressedBooks}</span>
+                      <span className="comp-detail">Small books (&lt;100KB)</span>
+                    </div>
+                  </div>
+
+                  <div className="compression-progress-bar">
+                    <div className="progress-label">
+                      <span>Database Compression Status</span>
+                      <span className="progress-percent">{stats.avgCompressionRatio}%</span>
+                    </div>
+                    <div className="progress-track">
+                      <div
+                        className="progress-fill"
+                        style={{
+                          width: `${Math.min(100, Math.max(0, 100 - stats.avgCompressionRatio))}%`,
+                          background: 'linear-gradient(90deg, #10b981, #059669)',
+                        }}
+                      />
+                    </div>
+                    <div className="progress-detail">
+                      Optimal compression achieved through hybrid strategy
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Typists Table */}
               <div className="table-surface-card">
@@ -685,7 +803,7 @@ export default function AdminDashboard() {
                             <label>Raw Content (Paste entire book chapters or word pool here)</label>
                             <textarea
                               placeholder="Type or paste words here. Punctuation will be sanitized, and all unique words extracted automatically."
-                              value={bookItem.content}
+                              value={bookItem.content ?? ''}
                               onChange={e => setEditingItem({ ...bookItem, content: e.target.value })}
                               rows={8}
                               required
@@ -722,6 +840,7 @@ export default function AdminDashboard() {
                               <div className="title-row">
                                 <h3>{b.title}</h3>
                                 {b.isActive && <span className="active-tag"><CheckCircle size={10} /> Active</span>}
+                                {b.compressedContent && <span className="compressed-tag"><Zap size={10} /> Compressed {b.compressionRatio ? `(${Math.round(b.compressionRatio * 100)}%)` : ''}</span>}
                               </div>
                               {b.description && <p className="book-desc">{b.description}</p>}
                             </div>
@@ -738,7 +857,7 @@ export default function AdminDashboard() {
                             </div>
                             <div className="b-stat">
                               <span className="b-stat-label">File Size</span>
-                              <span className="b-stat-val">{Math.round(b.content.length / 1024)} KB</span>
+                              <span className="b-stat-val">{b.originalSize ? Math.round(b.originalSize / 1024) : (b.content ? Math.round(b.content.length / 1024) : 0)} KB</span>
                             </div>
                             <div className="b-stat">
                               <span className="b-stat-label">Schedule</span>
@@ -857,7 +976,7 @@ export default function AdminDashboard() {
                 {badges.map(b => (
                   <div key={b.id} className="badge-card-admin-glass">
                     <div className="badge-card-header">
-                      <div className="badge-vector" dangerouslySetInnerHTML={{ __html: b.svgContent || '🏅' }} />
+                      <div className="badge-vector" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(b.svgContent || '🏅') }} />
                       <span className={`badge-rarity-badge ${b.rarity}`}>{b.rarity}</span>
                     </div>
                     <div className="badge-card-body">
@@ -982,7 +1101,7 @@ export default function AdminDashboard() {
               <div className="events-list-admin">
                 {events.map(ev => (
                   <div key={ev.id} className="event-item-glass-card">
-                    <div className="event-visual" dangerouslySetInnerHTML={{ __html: ev.svgContent || '📅' }} />
+                    <div className="event-visual" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(ev.svgContent || '📅') }} />
                     <div className="event-info-wrapper">
                       <div className="event-title-row">
                         <h3>{ev.title}</h3>
@@ -1323,6 +1442,9 @@ export default function AdminDashboard() {
         .m-icon.green { background: rgba(16, 185, 129, 0.1); color: #10b981; }
         .m-icon.orange { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
         .m-icon.blue { background: rgba(59, 130, 246, 0.1); color: #3b82f6; }
+        .m-icon.indigo { background: rgba(99, 102, 241, 0.1); color: #6366f1; }
+        .m-icon.teal { background: rgba(20, 184, 166, 0.1); color: #14b8a6; }
+        .m-icon.cyan { background: rgba(34, 211, 238, 0.1); color: #22d3ee; }
 
         .m-info {
           display: flex;
@@ -1583,6 +1705,21 @@ export default function AdminDashboard() {
           background: rgba(16, 185, 129, 0.15);
           color: #10b981;
           border: 1px solid rgba(16, 185, 129, 0.3);
+          padding: 2px 6px;
+          border-radius: var(--radius-sm);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
+        .compressed-tag {
+          display: flex;
+          align-items: center;
+          gap: 2px;
+          font-size: 8px;
+          font-weight: 800;
+          background: rgba(59, 130, 246, 0.15);
+          color: #3b82f6;
+          border: 1px solid rgba(59, 130, 246, 0.3);
           padding: 2px 6px;
           border-radius: var(--radius-sm);
           text-transform: uppercase;
@@ -2457,6 +2594,123 @@ export default function AdminDashboard() {
           justify-content: flex-end;
           gap: var(--space-sm);
           margin-top: var(--space-md);
+        }
+
+        /* ── Compression Stats Card ── */
+        .compression-stats-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-xl);
+          padding: var(--space-xl);
+          margin-bottom: var(--space-xl);
+        }
+
+        .compression-header {
+          margin-bottom: var(--space-xl);
+        }
+
+        .compression-header h3 {
+          font-size: var(--text-lg);
+          font-weight: 700;
+          color: var(--text-primary);
+          margin: 0 0 4px 0;
+        }
+
+        .compression-header p {
+          font-size: var(--text-sm);
+          color: var(--text-muted);
+          margin: 0;
+        }
+
+        .compression-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+          gap: var(--space-lg);
+          margin-bottom: var(--space-xl);
+        }
+
+        .compression-item {
+          background: var(--bg-hover);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-lg);
+          padding: var(--space-md);
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .compression-item.highlight-green {
+          background: rgba(16, 185, 129, 0.08);
+          border-color: rgba(16, 185, 129, 0.2);
+        }
+
+        .compression-item.highlight-blue {
+          background: rgba(59, 130, 246, 0.08);
+          border-color: rgba(59, 130, 246, 0.2);
+        }
+
+        .comp-label {
+          font-size: var(--text-xs);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          color: var(--text-muted);
+          font-weight: 700;
+        }
+
+        .comp-value {
+          font-size: var(--text-2xl);
+          font-weight: 800;
+          color: var(--text-primary);
+          line-height: 1;
+        }
+
+        .comp-detail {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          font-family: var(--font-mono);
+        }
+
+        .compression-progress-bar {
+          background: var(--bg-hover);
+          border: 1px solid var(--border-subtle);
+          border-radius: var(--radius-lg);
+          padding: var(--space-md);
+        }
+
+        .progress-label {
+          display: flex;
+          justify-content: space-between;
+          margin-bottom: var(--space-sm);
+          font-size: var(--text-sm);
+          font-weight: 600;
+          color: var(--text-secondary);
+        }
+
+        .progress-percent {
+          color: var(--color-primary-light);
+          font-weight: 700;
+        }
+
+        .progress-track {
+          width: 100%;
+          height: 8px;
+          background: var(--bg-surface);
+          border-radius: var(--radius-full);
+          overflow: hidden;
+          border: 1px solid var(--border-subtle);
+        }
+
+        .progress-fill {
+          height: 100%;
+          border-radius: var(--radius-full);
+          transition: width 0.3s ease;
+        }
+
+        .progress-detail {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          margin-top: var(--space-sm);
+          font-style: italic;
         }
       `}</style>
     </main>

@@ -20,42 +20,49 @@ export interface EpubParsedData {
 function extractCleanText(htmlContent: string): string {
   let text = htmlContent;
 
-  // Remove head, script, and style blocks entirely
+  // Remove head, script, and style blocks entirely (these are non-content)
   text = text.replace(/<head>[\s\S]*?<\/head>/gi, '');
   text = text.replace(/<style[\s\S]*?<\/style>/gi, '');
   text = text.replace(/<script[\s\S]*?<\/script>/gi, '');
 
   // Add structural line breaks for elements to preserve spacing
+  // This keeps paragraph/heading structure which helps readability
   text = text.replace(/<\/p>/gi, '\n');
   text = text.replace(/<\/h[1-6]>/gi, '\n\n');
   text = text.replace(/<br\s*\/?>/gi, '\n');
   text = text.replace(/<\/li>/gi, '\n');
+  text = text.replace(/<\/div>/gi, '\n');
 
-  // Strip all remaining HTML tags
+  // Strip all remaining HTML tags (but keep content)
   text = text.replace(/<[^>]+>/g, '');
 
-  // Decode standard XML/HTML entities
+  // Decode standard XML/HTML entities (preserve special characters)
   text = text
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ')
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&apos;/g, "'")
-    .replace(/&#39;/g, "'")
-    .replace(/&ldquo;/g, '“')
-    .replace(/&rdquo;/g, '”')
-    .replace(/&lsquo;/g, '‘')
-    .replace(/&rsquo;/g, '’')
+    .replace(/&ldquo;/g, '"')
+    .replace(/&rdquo;/g, '"')
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rsquo;/g, "'")
     .replace(/&mdash;/g, '—')
-    .replace(/&ndash;/g, '–');
+    .replace(/&ndash;/g, '–')
+    .replace(/&hellip;/g, '...')
+    .replace(/&bull;/g, '*')
+    .replace(/&#\d+;/g, ' ');
 
-  // Clean up excess white space
+  // Clean up excess white space (but preserve some paragraph structure)
   text = text.replace(/[ \t]+/g, ' ');
-  // Restrict to max 2 consecutive blank lines
   text = text.replace(/\n\s*\n\s*\n+/g, '\n\n');
 
-  return text.trim();
+  // Final cleanup: remove leading/trailing whitespace
+  text = text.trim();
+
+  return text;
 }
 
 /**
@@ -98,7 +105,7 @@ export async function parseEpub(file: File): Promise<EpubParsedData> {
 
       // Parse spine items which dictate the exact reading sequence of the book
       const spineMatches = [...opfContent.matchAll(/<itemref\s+[^>]*idref="([^"]+)"/gi)];
-      
+
       let count = 1;
       for (const spine of spineMatches) {
         const idref = spine[1];
@@ -107,7 +114,7 @@ export async function parseEpub(file: File): Promise<EpubParsedData> {
           // Resolve standard URI paths (strip hash anchors)
           const resolvedHref = decodeURIComponent(opfDir + relativeHref).split('#')[0];
           const fileEntry = zip.file(resolvedHref);
-          
+
           if (fileEntry) {
             const htmlContent = await fileEntry.async('string');
             const contentText = extractCleanText(htmlContent);
@@ -117,7 +124,7 @@ export async function parseEpub(file: File): Promise<EpubParsedData> {
               let chapterTitle = '';
               const h1Match = htmlContent.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
               const h2Match = htmlContent.match(/<h2[^>]*>([\s\S]*?)<\/h2>/i);
-              
+
               if (h1Match) {
                 chapterTitle = extractCleanText(h1Match[1]);
               } else if (h2Match) {

@@ -123,7 +123,7 @@ export default function HomePage() {
 
         {/* ── Center: Typing Interface ── */}
         <div className="center-column">
-          
+
           {/* ── Practice Mode Segmented selector ── */}
           <div className="practice-mode-selector">
             <button
@@ -136,7 +136,7 @@ export default function HomePage() {
               <Zap size={14} />
               <span>Adaptive Practice</span>
             </button>
-            
+
             <button
               className={`mode-btn ${practiceMode === 'weekly-book' ? 'active' : ''}`}
               onClick={() => {
@@ -148,7 +148,7 @@ export default function HomePage() {
               <BookOpen size={14} />
               <span>Weekly Book Practice</span>
             </button>
-            
+
             <button
               className={`mode-btn ${practiceMode === 'custom' ? 'active' : ''}`}
               onClick={() => {
@@ -221,6 +221,7 @@ export default function HomePage() {
             mode="practice"
             customText={practiceMode === 'custom' ? activeCustomText : undefined}
             weeklyBookWords={practiceMode === 'weekly-book' ? (weeklyBook?.words || []) : undefined}
+            bookId={practiceMode === 'weekly-book' ? weeklyBook?.id : undefined}
           />
 
           {showKeyboard && (
