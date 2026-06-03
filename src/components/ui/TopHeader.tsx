@@ -136,7 +136,7 @@ export default function TopHeader() {
               );
             })}
 
-            {session?.user && (session.user as any).role === 'ADMIN' && (
+            {session?.user && (session.user as { role?: string }).role === 'ADMIN' && (
               <>
                 <span className="nav-divider" />
                 <Link href="/admin" className={`nav-item ${pathname === '/admin' ? 'active' : ''}`} title="Admin Dashboard">
@@ -201,6 +201,20 @@ export default function TopHeader() {
               >
                 {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
               </button>
+
+              {/* Discord Link */}
+              <a
+                href="https://discord.gg/SdMfbbdjtj"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="ctrl-btn"
+                title="Join our Discord"
+                aria-label="Discord"
+              >
+                <svg viewBox="0 0 127.14 96.36" width="14" height="14" fill="currentColor">
+                  <path d="M107.7,8.07A105.15,105.15,0,0,0,77.26,0a77.19,77.19,0,0,0-3.3,6.83A96.67,96.67,0,0,0,53.22,6.83,77.19,77.19,0,0,0,49.88,0,105.15,105.15,0,0,0,19.44,8.07C3.66,31.58-1.86,54.65,1,77.53A105.73,105.73,0,0,0,32,96.36a77.7,77.7,0,0,0,6.63-10.85,68.43,68.43,0,0,1-10.4-5c.87-.64,1.71-1.32,2.51-2a75.7,75.7,0,0,0,72.71,0c.8.7,1.64,1.38,2.51,2a68.43,68.43,0,0,1-10.4,5,77.7,77.7,0,0,0,6.63,10.85,105.73,105.73,0,0,0,31-18.83C129.87,50.77,124.1,27.93,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53S36.18,40.36,42.45,40.36,53.83,46,53.83,53,48.72,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.24,60,73.24,53S78.41,40.36,84.69,40.36,96.07,46,96.07,53,91,65.69,84.69,65.69Z"/>
+                </svg>
+              </a>
 
               <span className="ctrl-divider" />
 
@@ -347,11 +361,21 @@ export default function TopHeader() {
                           className={`mobile-nav-item ${pathname === item.href ? 'active' : ''}`}
                           onClick={() => setMobileNavOpen(false)}
                         >
-                          <Icon size={16} />
+                          {React.createElement(Icon, { size: 16 })}
                           <span>{item.label}</span>
                         </Link>
                       );
                     })}
+                    {session?.user && (session.user as { role?: string }).role === 'ADMIN' && (
+                      <Link
+                        href="/admin"
+                        className={`mobile-nav-item ${pathname === '/admin' ? 'active' : ''}`}
+                        onClick={() => setMobileNavOpen(false)}
+                      >
+                        <Shield size={16} />
+                        <span>Admin</span>
+                      </Link>
+                    )}
                   </div>
                 )}
               </div>
@@ -460,6 +484,7 @@ export default function TopHeader() {
           border: 1px solid var(--border-subtle);
           border-radius: 999px;
           padding: 6px 10px;
+          animation: nav-entrance 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
         }
 
         .nav-item {
@@ -472,20 +497,47 @@ export default function TopHeader() {
           font-weight: 600;
           color: var(--text-muted);
           text-decoration: none;
-          letter-spacing: 0.01em;
-          transition: color 0.2s ease, background 0.2s ease;
+          transition: color 0.2s ease, background 0.2s ease, transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
           border-radius: 999px;
           white-space: nowrap;
+        }
+
+        .nav-item :global(.nav-icon) {
+          transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .nav-label {
+          letter-spacing: 0.01em;
+          transition: letter-spacing 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         .nav-item:hover {
           color: var(--text-primary);
           background: var(--bg-hover);
+          transform: translateY(-2px);
+        }
+
+        .nav-item:hover .nav-label {
+          letter-spacing: 0.07em;
+        }
+
+        .nav-item:hover :global(.nav-icon) {
+          transform: scale(1.2) translateY(-1px);
+        }
+
+        .nav-item:active {
+          transform: translateY(0) scale(0.97);
         }
 
         .nav-item.active {
           color: var(--color-primary-light);
           background: rgba(165, 180, 252, 0.11);
+          box-shadow: 0 0 12px rgba(165, 180, 252, 0.15);
+          animation: active-glow 2.5s ease-in-out infinite;
+        }
+
+        .nav-item.active :global(.nav-icon) {
+          animation: icon-float 2.5s ease-in-out infinite;
         }
 
         .nav-item.active::after {
@@ -495,8 +547,38 @@ export default function TopHeader() {
         .nav-divider {
           width: 1px;
           height: 14px;
-          background: rgba(255, 255, 255, 0.15); /* light, not dark line */
+          background: rgba(255, 255, 255, 0.15);
           flex-shrink: 0;
+        }
+
+        /* ── Menu Animations ── */
+        @keyframes nav-entrance {
+          from {
+            opacity: 0;
+            transform: translateY(-8px) scale(0.96);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes active-glow {
+          0%, 100% {
+            box-shadow: 0 0 10px rgba(165, 180, 252, 0.12);
+          }
+          50% {
+            box-shadow: 0 0 18px rgba(165, 180, 252, 0.28), 0 0 4px rgba(165, 180, 252, 0.1);
+          }
+        }
+
+        @keyframes icon-float {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-2px);
+          }
         }
 
         /* ── Controls ── */
@@ -857,39 +939,16 @@ export default function TopHeader() {
         @media (max-width: 900px) {
           .header-inner {
             grid-template-columns: minmax(0, 1fr) auto;
-            grid-template-areas:
-              'left controls'
-              'nav nav';
             padding: 0 var(--space-md);
-            gap: 6px var(--space-sm);
-          }
-
-          .header-left {
-            grid-area: left;
-            min-width: 0;
-          }
-
-          .header-controls {
-            grid-area: controls;
-            justify-self: end;
+            gap: var(--space-sm);
           }
 
           .header-nav-wrap {
-            grid-area: nav;
-            justify-content: flex-start;
-            width: 100%;
-          }
-
-          .header-nav {
-            width: 100%;
-            overflow-x: auto;
-            overflow-y: hidden;
-            justify-content: flex-start;
-            scrollbar-width: none;
-          }
-
-          .header-nav::-webkit-scrollbar {
             display: none;
+          }
+
+          .mobile-nav-shell {
+            display: block;
           }
 
           .logo-text {
@@ -915,14 +974,6 @@ export default function TopHeader() {
           .logo-text {
             max-width: 46vw;
             font-size: 0.92rem;
-          }
-
-          .header-nav-wrap {
-            display: none;
-          }
-
-          .mobile-nav-shell {
-            display: block;
           }
 
           .ctrl-btn {

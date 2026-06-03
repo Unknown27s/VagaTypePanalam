@@ -1,8 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import TopHeader from "@/components/ui/TopHeader";
+import WelcomeModal from "@/components/ui/WelcomeModal";
 import Footer from "@/components/ui/Footer";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Analytics } from "@vercel/analytics/react";
+import Script from "next/script";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -50,9 +52,16 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
       <body>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7627314206553844"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
         <AuthProvider>
           <div id="app-root">
             <TopHeader />
+            <WelcomeModal />
             <div className="main-content">
               {children}
             </div>

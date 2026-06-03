@@ -23,6 +23,9 @@ export default function Footer() {
         </div>
 
         <div className="footer-links">
+          <a href="https://discord.gg/SdMfbbdjtj" target="_blank" rel="noopener noreferrer" className="footer-link">
+            Discord
+          </a>
           <a href="https://github.com/Unknown27s/VagaTypePanalam" target="_blank" rel="noopener noreferrer" className="footer-link">
             GitHub
           </a>
