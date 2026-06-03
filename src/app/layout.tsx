@@ -50,6 +50,7 @@ export default function RootLayout({
         />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="google-adsense-account" content="ca-pub-7627314206553844" />
       </head>
       <body>
         <Script
