@@ -1,0 +1,98 @@
+# Implementation Plan: Split Assignments into Quiz + Assignment
+
+## Understanding
+
+The user wants to **split** the current instructor "Create Assignment" feature into **two distinct features**:
+
+1. **Quiz** — The current MCQ system (auto-graded multiple-choice questions). Rename all "assignment" labels to "quiz" in the instructor create form.
+2. **Assignment** — A new workflow where the instructor uploads a **PDF with questions**, students **read the PDF** and **upload their answer** (as a file). The instructor then manually reviews and grades.
+
+## Current State
+
+| Layer | Files | Purpose |
+|-------|-------|---------|
+| **Schema** | `schema.prisma` — `Assignment`, `AssignmentQuestion`, `AssignmentMcqOption`, `AssignmentSubmission`, `StudentQuestionResponse` | MCQ-based assignments only |
+| **Backend (MCQ)** | `assignment.service.ts`, `assignment.controller.ts`, `assignment.routes.ts` | Create MCQ assignments, submit MCQ answers, auto-grade |
+| **Backend (Text)** | `assignments.service.ts`, `assignments.controller.ts`, `assignments.routes.ts` | Older text-based assignment CRUD (uses `submissionText`, `instructions`, `createdBy` — fields NOT in schema) |
+| **Instructor UI** | `instructor/assignments/page.tsx` | Create MCQ + view/grade submissions |
+| **Student UI** | `AssignmentOverdueView.tsx` | Take MCQ quizzes, see results |
+
+> [!WARNING]
+> The `assignments.service.ts` (plural) references `instructions`, `createdBy`, and `submissionText` fields that **do not exist** in the Prisma schema. This code will throw runtime errors if used. It also uses a duplicate mount in `index.ts` (line 84 and 86 are identical). The plural-named files appear to be dead/broken code from an earlier iteration.
+
+## Plan
+
+### Phase 1: Schema Changes (Prisma)
+
+Add new fields to `Assignment` model to support the file-upload assignment type:
+
+```diff
+model Assignment {
+  id          String   @id @default(cuid())
+  courseId    String
+  batchId     String
+  title       String
+  description String   @db.Text
++ type        String   @default("QUIZ")    // "QUIZ" or "ASSIGNMENT"
++ questionPdfUrl String?                    // PDF uploaded by instructor
+  dueDate     DateTime
+  maxPoints   Int      @default(100)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  ...
+}
+```
+
+Add new field to `AssignmentSubmission`:
+```diff
+model AssignmentSubmission {
+  ...
++ answerFileUrl String?   // File uploaded by student (for ASSIGNMENT type)
+  ...
+}
+```
+
+### Phase 2: Backend — File Upload Support
+
+1. Add `multer` middleware for file uploads (instructor PDF + student answer files)
+2. Add new routes:
+   - `POST /api/assignments/upload-pdf` — instructor uploads question PDF
+   - `POST /api/assignments/:id/submit/file` — student uploads answer file
+3. Update `assignment.service.ts` to handle both types
+
+### Phase 3: Instructor UI Changes
+
+Modify `instructor/assignments/page.tsx`:
+
+1. **Add type toggle tabs** at the top of the create form: "Quiz" vs "Assignment"
+2. **Quiz tab** — Keep the existing MCQ builder (rename labels from "Assignment" → "Quiz")
+3. **Assignment tab** — New form with:
+   - Batch selector, title, description, due date, max points
+   - PDF upload field (drag-and-drop)
+4. **List view** — Show both types with a badge indicator ("Quiz" / "Assignment")
+5. **Submissions view** — For assignment type, show download links for student answers instead of MCQ responses
+
+### Phase 4: Student UI Changes
+
+1. **`AssignmentOverdueView.tsx`** — Detect assignment type:
+   - For `QUIZ` type → existing MCQ flow (unchanged)
+   - For `ASSIGNMENT` type → show PDF viewer + file upload form
+
+### Phase 5: Cleanup
+
+1. Remove duplicate route mount in `index.ts` (line 86)
+2. The plural `assignments.service.ts` / `assignments.controller.ts` / `assignments.routes.ts` are dead code — flag for user decision
+
+## Files to Modify
+
+| # | File | Change |
+|---|------|--------|
+| 1 | `schema.prisma` | Add `type`, `questionPdfUrl`, `answerFileUrl` fields |
+| 2 | `assignment.service.ts` | Add PDF assignment creation + file submission |
+| 3 | `assignment.controller.ts` | Add new controller methods for file upload |
+| 4 | `assignment.routes.ts` | Add new routes |
+| 5 | `instructor/assignments/page.tsx` | Add type toggle, rename to Quiz, add PDF upload form |
+| 6 | `AssignmentOverdueView.tsx` | Add assignment file-upload flow |
+| 7 | `index.ts` | Remove duplicate mount |
+
+Does this plan look good? Should I proceed?
