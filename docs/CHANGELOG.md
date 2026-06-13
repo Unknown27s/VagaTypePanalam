@@ -2,14 +2,23 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
+## [0.6.1] - 2026-06-12
+
+## Added
+
+- **Google OAuth Integration**: Added Google authentication support alongside GitHub OAuth. Users can now sign in with their Google accounts, expanding accessibility and convenience.
+- **Admin Dev View Bypass**: Introduced a new environment variable `NEXT_PUBLIC_ADMIN_DEV_VIEW` that allows developers to bypass Neon DB role checks when accessing the admin dashboard locally. This enables faster UI testing and development without needing to set up database permissions.
+
 ## [0.6.1] - 2026-05-27
 
 ### Added
+
 - **Client-Side EPUB/TXT Parser & Interactive Chapter Selector**: Implemented browser-based `.epub` ZIP structure unpacking using JSZip. Developed an interactive preview checklist that parses titles and word lengths for each chapter file. Created a custom ignore heuristic matching keywords (toc, cover, copyright, etc.) to automatically deselect preamble pages before final book compilation.
 - **TypeScript Type-Safety Engine**: Created a centralized type definition file `src/types/admin.ts` wrapping all user profiles, IndexedDB telemetry sync models, system aggregates, and dynamic CRUD form states.
 - **Admin Dev View Bypass**: Added `NEXT_PUBLIC_ADMIN_DEV_VIEW` variable to the environment configs, enabling instant development bypass of Neon DB role check requirements for local UI testing.
 
 ### Fixed
+
 - **Next-Auth Role Typing**: Augmented the `next-auth` module session structures in `next-auth.d.ts` to include the user `role` field.
 - **Concurrent Render Safe Guards**: Optional-chained unauthenticated sessions to prevent direct null access crashes on `/admin` during initial hydration.
 - **Form Data Type Conflicts**: Cast union forms dynamically to ensure 100% clean compilation under `npx tsc` checks.
@@ -19,6 +28,7 @@ All notable changes to **VangaTypePanalam** will be documented in this file.
 ## [0.5.0] - 2026-05-01
 
 ### Added
+
 - **Dynamic Gamification Engine**: Full migration of gamification data (Ranks, Badges, Events) from static files to a Neon PostgreSQL database.
 - **Admin Central Dashboard**: New internal tools at `/admin` for managing gamification assets with real-time SVG artwork injection and CRUD operations.
 - **Badge Modal View**: Implemented a "Show Big" feature where clicking a badge expands it into a high-fidelity modal with 3D flip animation.
@@ -27,16 +37,19 @@ All notable changes to **VangaTypePanalam** will be documented in this file.
 - **Offline Mode Toggle**: Added `NEXT_PUBLIC_OFFLINE_MODE` environment variable to bypass database syncing, enabling faster local development and offline testing.
 
 ### Changed
+
 - **Badge Data Source**: The application now prioritizes real-time data from the database over hardcoded constants, allowing for instant game balance updates without code redeploys.
 - **Profile UI Interactions**: Replaced simple hover tooltips on badges with the new interactive modal "Big View."
 
 ### Fixed
+
 - **Hydration Warnings**: Resolved empty `src` attribute warnings in `BadgeCard` and `SeasonChallenge` by ensuring fallback icons are always provided.
 - **Next.js 15 Compatibility**: Hardened API routes by adopting `await params` for dynamic segments.
 
 ## [0.4.0] - 2026-04-25
 
 ### Added
+
 - **LeetCode-Style Profile Page**: Redesigned `/stats` with a 2-column layout — sticky profile card on the left, stats/badges/activity on the right.
 - **15 SVG Badge Icons**: Admin-defined badge assets in `public/badges/` replacing emoji icons. Dark-theme optimized, 64×64 vector graphics.
 - **5 New Badges**: Tamil Typist (5 Tamil sessions), Word Machine (5,000 chars), Comeback King (7-day gap return), Speed Breaker (75 WPM), Iron Fingers (30-day streak).
@@ -47,21 +60,25 @@ All notable changes to **VangaTypePanalam** will be documented in this file.
 - **Streak Stats Bar**: Replaced "submissions in past year" label with "Longest Streak · Current Streak · Active Days" stats bar above the activity heatmap.
 
 ### Changed
+
 - **Badge Icon Format**: Migrated all badge icons from emoji strings to SVG file paths (`/badges/*.svg`).
 - **Badge Interface**: Removed `custom` flag from `Badge` type — all badges are now admin-defined.
 - **Profile Layout**: Replaced `ProfileHeader` + `ProfileSidebar` top-bar layout with unified 2-column grid (`ProfileCard` + right content area).
 - **Activity Heatmap Colors**: Updated from yellow-green palette to darker green palette matching LeetCode's contribution graph style.
 
 ### Improved
+
 - **Architecture Documentation**: Added sections 7 (Gamification Engine) and 8 (Profile Page Components) to `ARCHITECTURE.md`. Fixed duplicate section numbering.
 
 ## [0.3.3] - 2026-04-22
 
 ### Fixed
+
 - **Tamil99 Layout**: Added missing `Backspace` key and fixed incorrect row index comments.
 - **Syntax Error**: Fixed a syntax error in `tamil99.ts` where the file ended with a colon instead of a semicolon.
 
 ### Improved
+
 - **Keyboard Data Ergonomics**: Unified the lookup pattern across `qwerty.ts` and `tamil99.ts` by adding `KEY_DATA_BY_KEY` and `KEY_TO_FINGER` maps. This allows components to look up both typeable and modifier key metadata efficiently.
 - **Performance Optimization**: Refactored `getFingerColor` in `qwerty.ts` to use a precomputed map lookup instead of a switch statement, reducing overhead during high-frequency renders.
 - **Code Quality**: Unified map population logic in keyboard data files into a single loop pass.
@@ -69,37 +86,44 @@ All notable changes to **VangaTypePanalam** will be documented in this file.
 ## [0.3.2] - 2026-04-20
 
 ### Changed
+
 - **Navigation Restructure**: Removed hamburger menu and mobile dropdown. Nav items now display icons only on very small screens (<640px), matching the style of other control icons.
 - **Header Theme Response**: Header now responds to theme toggle (dark/light mode) instead of being hardcoded to dark theme.
 - **License Update**: Changed license from MIT to **GNU General Public License v3.0**.
 
 ### Added
+
 - **CONTRIBUTING.md**: Created contribution guide with development setup, coding conventions, and PR checklist.
 - **Documentation Reference**: Updated to reference AGENTS.md and ARCHITECTURE.md for AI agents and developers.
 
 ## [0.3.1] - 2026-04-20
 
 ### Improved
+
 - **Monkeytype-Style Navigation**: Redesigned the top header from icon+text pill-style nav to a clean, minimalist text-only navigation with a gold underline active indicator.
 - **Hybrid Controls**: Moved sound, keyboard visibility, caret settings, and auth into a unified Settings dropdown. Kept language and theme toggle visible on the header.
 - **Reduced Header Height**: Slimmed the header from 80px to 56px for a sleeker, more focused typing experience.
 
 ### Fixed
+
 - **CSS Bug**: Removed orphan `background-clip: text;` rule that sat outside any selector in TopHeader.tsx.
 
 ## [0.3.0] - 2026-04-19
 
 ### Added
+
 - **Authentication (Auth.js)**: Integrated GitHub OAuth support with a new "Sign In" pill in the header.
 - **Cloud Synchronization**: Implemented a hybrid background sync engine that securely mirrors local `IndexedDB` progress to a Neon PostgreSQL database.
 - **Serverless Data API**: Added Prisma 7 with a scalable serverless adapter for managing cloud backups.
 - **Project Documentation**: Added a comprehensive `DEPLOYMENT.md` guide for Vercel and a `CHECKLIST.md` for launch readiness.
 
 ### Updated
+
 - **Hybrid Architecture**: Transitioned project from purely offline-first to an **Offline-First Hybrid** model.
 - **Next.js Infrastructure**: Optimized build settings for Vercel compatibility with automated Prisma Client generation.
 
 ### Fixed
+
 - **Practice Mode Live Analytics**: Changed practice mode segment completion logic so "Live Analytics" statistics correctly accumulate and carry over continuously and no longer reset on new paragraph generation.
 - **Console Warnings**: Resolved `scroll-behavior: smooth` hydration warnings on document element, and generated placeholder manifest icons for PWA configuration to prevent 404 console errors.
 - **Practice Segment Auto-Advance**: Ensured endless practice immediately publishes the next generated paragraph after a segment completes, so practice no longer appears to stop at the paragraph boundary.
@@ -111,10 +135,12 @@ All notable changes to **VangaTypePanalam** will be documented in this file.
 - **Text Generator Cleanup**: Removed leftover typo alias (`WeI`) and wired `MAX_WEAK_KEYS_FOCUS` into weak digraph selection.
 
 ### Improved
+
 - **Global Rename**: Performed global codebase replacement renaming the application properly to `VangaTypePanalam`.
 - **Header Button UI**: Upgraded top navigation links to gamified pill designs with clear icon/text spacing, distinct backgrounds, and responsive hover transitions for a cleaner premium feel.
 
 ### Improved
+
 - **Metrics UI Refresh**: Replaced dense metrics text wall with card-based metrics (WPM ring, accuracy progress, consistency, streak) and a compact secondary strip for current key, daily goal, and key hints.
 - **Sidebar Settings Drawer**: Added interactive sidebar settings controls for error mode, caret style, caret speed, sound, and virtual keyboard visibility.
 - **Typing Readability**: Increased typing text scale and line-height for easier scanning during high-speed practice.
@@ -126,35 +152,41 @@ All notable changes to **VangaTypePanalam** will be documented in this file.
 ## [0.2.1] - 2026-04-15
 
 ### Fixed
+
 - **Calibration Confidence Display**: Corrected confidence percentage math in `TypingArea` so calibrated confidence now renders accurately (e.g., 84% instead of 0%-1% misreports).
 - **Timer Cleanup Safety**: Added cleanup for idle and segment-flash timers on unmount/effect teardown to avoid stale timeout callbacks.
 - **Focus Prompt Accuracy**: Updated idle overlay prompt copy to match actual interaction behavior.
 
 ### Improved
+
 - **Idle Metrics Query Efficiency**: Added an indexed sessions query helper (`getSessionsSince`) and switched idle daily-goal refreshes to query only today's sessions, while keeping global averages refreshed on first load and session completion.
 - **Segment Completion Feedback**: Wired `segmentFlash` state to the metrics panel visual style so segment completion feedback is now visible.
 
 ## [0.2.0] - 2026-04-13
 
 ### Added
+
 - **Calibration Engine**: Implemented real-time per-key calibration tracking. Keys now require 10 samples to be considered "calibrated."
 - **Current Error Highlighting**: Corrected immediate feedback loop where characters now turn red instantly upon an incorrect keystroke.
 - **Documentation Center**: Added an in-app docs section covering Architecture and Changelog.
 - **Local Date Sensitivity**: Replaced UTC date tracking with local date strings for 100% accurate daily activity heatmaps across timezones.
 
 ### Fixed
+
 - **High-Speed Input Race Condition**: Optimized event handling for >120 WPM typists by deduplicating `keydown` and `onInput` events.
 - **Dueling Event Handlers**: Implemented a processing lock to prevent "double-hit" errors.
 - **Sound Engine Lag**: Eliminated `async/await` micro-delays in the typing loop by pre-loading procedural audio.
 - **Daily Goal Refresh**: Fixed progress bar in endless practice mode to update after every segment completion.
 
 ### Improved
+
 - **Metrics Precision**: Upped accuracy display to 1 decimal place (e.g., 99.8%).
 - **UI Metrics**: Replaced redundant metrics in parentheses with compare-to-global-average stats.
 
 ## [0.1.0] - 2026-04-12
 
 ### Added
+
 - **Initial Core**: English (QWERTY), Tamil (Tamil99), and Tanglish typing support.
 - **Adaptive Text Generator**: Weighted words based on individual character confidence.
 - **Offline Storage**: Full IndexedDB integration for sessions, keys, and profiles.

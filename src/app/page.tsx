@@ -111,7 +111,7 @@ export default function HomePage() {
     <>
       {/* Beta Badge */}
       <div className="beta-badge-banner">
-        <span className="badge-text">🚀 Beta Testing — VaagaTypePanalam v0.4</span>
+        <span className="badge-text">🚀 Beta Testing — VaagaTypePanalam v0.6</span>
         <a href="https://github.com/Unknown27s/VagaTypePanalam/issues" target="_blank" rel="noopener noreferrer" className="badge-link">
           Feedback
         </a>
