@@ -18,7 +18,8 @@ export default function Footer() {
     <footer className="footer-container">
       <div className="footer-inner">
         <div className="footer-brand">
-          <span className="footer-logo">VANGA</span>
+          <span className="footer-logo">வாங்க டைப் பண்ணலாம்
+          </span>
           <span className="footer-tagline">Master typing in your language.</span>
         </div>
 
