@@ -1,13 +1,5 @@
 'use client';
 
-/**
- * VangaTypePanalam — LeetCode-Style Profile & Statistics Page
- *
- * 2-column layout:
- * Left: Profile card (avatar, rank, XP, stats, streak)
- * Right: Mastery donut + Season challenge, Compact badges, Activity heatmap, Key analytics
- */
-
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useUIStore } from '@/store/uiStore';
@@ -22,7 +14,6 @@ import {
   getBadgesByCategory,
   getCurrentSeasonChallenge,
   BADGES,
-  getRarityColor,
   type GamificationStats,
   type BadgeCategory,
 } from '@/engine/gamification';
@@ -32,8 +23,14 @@ import { MasteryDonut } from '@/components/profile/MasteryDonut';
 import { SeasonChallenge } from '@/components/profile/SeasonChallenge';
 import { BadgeFilter } from '@/components/profile/BadgeFilter';
 import { BadgeCard } from '@/components/profile/BadgeCard';
+
+// New Chart & Stat Widgets
+import { WpmAreaChart } from '@/components/profile/WpmAreaChart';
+import { SkillRadarChart } from '@/components/profile/SkillRadarChart';
+import { PersonalBests } from '@/components/profile/PersonalBests';
+
 import '@/styles/keyboard.css';
-import { QWERTY_LAYOUT } from '@/data/keyboards/qwerty';
+import { QWERTY_LAYOUT, type KeyData } from '@/data/keyboards/qwerty';
 import { TAMIL99_LAYOUT } from '@/data/keyboards/tamil99';
 
 // ─────────────────────────────────────────────
@@ -67,7 +64,7 @@ export default function ProfilePage() {
     } finally {
       setLoading(false);
     }
-  }, [language]);
+  }, [language, fetchGamification]);
 
   useEffect(() => {
     loadData();
@@ -130,11 +127,31 @@ export default function ProfilePage() {
 
         {/* ── Right: Main Content ── */}
         <div className="right-content">
-          {/* Top Row: Mastery Donut + Season Challenge */}
+          {/* Top Row: Mastery Donut + Skill Radar Chart */}
           <div className="top-row">
             <MasteryDonut keyStats={keyStats} />
-            <SeasonChallenge progress={seasonProgress} />
+            <SkillRadarChart sessions={sessions} keyStats={keyStats} />
           </div>
+
+          {/* Personal Bests & Streaks (GitHub Style widget + records grid) */}
+          <section className="personal-bests-section">
+            <PersonalBests
+              sessions={sessions}
+              profile={profile}
+              currentStreak={gamStats.currentStreak}
+            />
+          </section>
+          {/* WPM Progress Chart */}
+          <section className="chart-section">
+            <WpmAreaChart sessions={sessions} />
+          </section>
+
+
+          {/* Season Challenge Widget */}
+          <section className="season-section">
+            <h3 className="section-title-small">Season Challenge</h3>
+            <SeasonChallenge progress={seasonProgress} />
+          </section>
 
           {/* Achievements Section */}
           <section className="achievements-section">
@@ -166,20 +183,6 @@ export default function ProfilePage() {
           <section className="activity-section">
             <div className="section-header">
               <h2 className="section-title">Practice Activity</h2>
-            </div>
-            <div className="streak-stats-bar">
-              <div className="streak-stat">
-                <span className="ss-value">{profile?.longestStreak ?? gamStats.currentStreak}</span>
-                <span className="ss-label">Longest Streak</span>
-              </div>
-              <div className="streak-stat">
-                <span className="ss-value">{gamStats.currentStreak}</span>
-                <span className="ss-label">Current Streak</span>
-              </div>
-              <div className="streak-stat">
-                <span className="ss-value">{Object.keys(profile?.dailyActivity ?? {}).length}</span>
-                <span className="ss-label">Active Days</span>
-              </div>
             </div>
             <ActivityHeatmap activity={profile?.dailyActivity ?? {}} />
           </section>
@@ -269,6 +272,15 @@ export default function ProfilePage() {
           color: var(--text-primary);
         }
 
+        .section-title-small {
+          font-size: var(--text-sm);
+          font-weight: 700;
+          margin: 0 0 var(--space-sm) 0;
+          color: var(--text-muted);
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+        }
+
         .badge-count {
           font-family: var(--font-mono);
           font-size: var(--text-sm);
@@ -299,32 +311,11 @@ export default function ProfilePage() {
           padding: var(--space-lg);
         }
 
-        .streak-stats-bar {
-          display: flex;
-          gap: var(--space-lg);
-          margin-bottom: var(--space-md);
-          padding: var(--space-sm) var(--space-md);
-          background: var(--bg-overlay);
-          border-radius: var(--radius-md);
-        }
-
-        .streak-stat {
-          display: flex;
-          align-items: baseline;
-          gap: var(--space-xs);
-        }
-
-        .ss-value {
-          font-family: var(--font-mono);
-          font-size: var(--text-base);
-          font-weight: 800;
-          color: var(--text-primary);
-        }
-
-        .ss-label {
-          font-size: var(--text-xs);
-          color: var(--text-muted);
-          font-weight: 600;
+        .season-section {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-lg);
+          padding: var(--space-lg);
         }
 
         .analytics-section {
@@ -403,7 +394,6 @@ export default function ProfilePage() {
         @media (max-width: 640px) {
           .profile-layout { padding: var(--space-md); }
           .badges-grid { grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); }
-          .streak-stats-bar { flex-direction: column; gap: var(--space-sm); }
         }
       `}</style>
     </div>
@@ -429,70 +419,98 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
   const plotW = W - PAD.left - PAD.right;
   const plotH = H - PAD.top - PAD.bottom;
 
-  const maxAttempts = useMemo(
-    () => Math.max(...keyStats.map((k) => k.totalAttempts), 1),
-    [keyStats],
-  );
+  const data = useMemo(() => {
+    const valid = keyStats.filter((ks) => ks.totalAttempts > 0);
+    if (valid.length === 0) return [];
+    const minLat = Math.min(...valid.map((ks) => ks.avgLatencyMs));
+    const maxLat = Math.max(...valid.map((ks) => ks.avgLatencyMs));
+    const range = maxLat - minLat || 1;
+    return valid.map((ks) => {
+      const accuracy = ks.correctAttempts / ks.totalAttempts;
+      const x = PAD.left + accuracy * plotW;
+      const normalizedLat = (ks.avgLatencyMs - minLat) / range;
+      const y = PAD.top + (1 - normalizedLat) * plotH;
+      return { ks, x, y };
+    });
+  }, [keyStats, plotW, plotH]);
 
-  const maxLog = Math.log10(maxAttempts + 1);
-  const toX = (attempts: number) => (Math.log10(attempts + 1) / maxLog) * plotW;
-  const toY = (conf: number) => plotH - conf * plotH;
+  if (!mounted) return <div style={{ height: H }} />;
 
   return (
-    <div className="scatter-wrap">
-      <div className="axis-label axis-y">Confidence →</div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="scatter-svg" style={{ width: '100%', maxWidth: W, height: 'auto' }}>
-        <g transform={`translate(${PAD.left}, ${PAD.top})`}>
-          <line x1={0} y1={plotH} x2={plotW} y2={plotH} stroke="var(--border-default)" strokeWidth={1} />
-          <line x1={0} y1={0} x2={0} y2={plotH} stroke="var(--border-default)" strokeWidth={1} />
-          {keyStats.map((ks) => {
-            const cx = toX(ks.totalAttempts);
-            const cy = toY(ks.confidence);
-            const hue = ks.confidence * 120;
-            const isHovered = hovered?.ks === ks;
-            const r = isHovered ? 12 : 8;
-            return (
-              <g
-                key={ks.char}
-                transform={`translate(${cx}, ${cy})`}
-                style={{ cursor: 'pointer' }}
-                onMouseEnter={(e) => {
-                  const rect = (e.target as SVGGElement).getBoundingClientRect();
-                  setHovered({ ks, x: rect.left + rect.width / 2, y: rect.top });
-                }}
-                onMouseLeave={() => setHovered(null)}
-              >
-                <circle r={r} fill={`hsl(${hue},70%,50%)`} stroke={isHovered ? 'white' : `hsl(${hue},70%,25%)`} strokeWidth={isHovered ? 2 : 1.2} />
-                <text y={1} fontSize={isHovered ? 10 : 8} fontWeight="800" fill="white" textAnchor="middle" dominantBaseline="middle">
-                  {ks.char.toUpperCase()}
-                </text>
-              </g>
-            );
-          })}
-        </g>
-      </svg>
-      <div className="axis-label axis-x">Total Attempts (Log Scale) →</div>
+    <div style={{ position: 'relative', width: '100%', maxWidth: W, margin: '0 auto' }}>
+      <svg viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', height: 'auto', display: 'block' }}>
+        {/* Grids */}
+        {Array.from({ length: 5 }).map((_, i) => {
+          const x = PAD.left + (i / 4) * plotW;
+          const y = PAD.top + (i / 4) * plotH;
+          return (
+            <g key={i}>
+              <line x1={x} y1={PAD.top} x2={x} y2={H - PAD.bottom} stroke="var(--border-subtle)" strokeDasharray="2 2" />
+              <line x1={PAD.left} y1={y} x2={W - PAD.right} y2={y} stroke="var(--border-subtle)" strokeDasharray="2 2" />
+            </g>
+          );
+        })}
 
-      {hovered && mounted && createPortal(
-        <div className="floating-tooltip" style={{ top: hovered.y - 12, left: hovered.x }}>
-          <div className="ft-header"><span className="ft-key">{hovered.ks.char.toUpperCase()}</span></div>
+        {/* Axes */}
+        <line x1={PAD.left} y1={H - PAD.bottom} x2={W - PAD.right} y2={H - PAD.bottom} stroke="var(--border-default)" strokeWidth={1.5} />
+        <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={H - PAD.bottom} stroke="var(--border-default)" strokeWidth={1.5} />
+
+        {/* Labels */}
+        <text x={W / 2} y={H - 5} fill="var(--text-muted)" fontSize={10} textAnchor="middle" fontWeight={600}>Accuracy (%)</text>
+        <text x={10} y={H / 2} fill="var(--text-muted)" fontSize={10} textAnchor="middle" transform={`rotate(-90 10 ${H / 2})`} fontWeight={600}>Speed (Latency Ms)</text>
+
+        {/* Tick labels */}
+        <text x={PAD.left} y={H - PAD.bottom + 14} fill="var(--text-muted)" fontSize={9} textAnchor="middle">0%</text>
+        <text x={PAD.left + plotW / 2} y={H - PAD.bottom + 14} fill="var(--text-muted)" fontSize={9} textAnchor="middle">50%</text>
+        <text x={W - PAD.right} y={H - PAD.bottom + 14} fill="var(--text-muted)" fontSize={9} textAnchor="middle">100%</text>
+
+        <text x={PAD.left - 6} y={PAD.top + 4} fill="var(--text-muted)" fontSize={9} textAnchor="end">Fast</text>
+        <text x={PAD.left - 6} y={H - PAD.bottom + 4} fill="var(--text-muted)" fontSize={9} textAnchor="end">Slow</text>
+
+        {/* Scatter Dots */}
+        {data.map((pt, i) => {
+          const size = Math.min(12, Math.max(5, 5 + pt.ks.totalAttempts / 50));
+          const hue = pt.ks.confidence * 120;
+          return (
+            <circle
+              key={i}
+              cx={pt.x}
+              cy={pt.y}
+              r={size}
+              fill={`hsl(${hue}, 80%, 50%)`}
+              fillOpacity={0.65}
+              stroke={`hsl(${hue}, 80%, 40%)`}
+              strokeWidth={1}
+              style={{ cursor: 'pointer', transition: 'all 0.1s' }}
+              onMouseEnter={() => setHovered(pt)}
+              onMouseLeave={() => setHovered(null)}
+            />
+          );
+        })}
+      </svg>
+
+      {hovered && createPortal(
+        <div className="floating-tooltip" style={{ top: hovered.y + 40, left: hovered.x + 80 }}>
+          <div className="ft-header">
+            <span className="ft-key">{hovered.ks.char}</span>
+          </div>
           <div className="ft-stats">
             <div className="ft-stat">
-              <span className="ft-label">Confidence</span>
-              <span className="ft-value">{(hovered.ks.confidence * 100).toFixed(1)}%</span>
+              <span className="ft-label">Accuracy:</span>
+              <span className="ft-value">{Math.round((hovered.ks.correctAttempts / hovered.ks.totalAttempts) * 100)}%</span>
+            </div>
+            <div className="ft-stat">
+              <span className="ft-label">Latency:</span>
+              <span className="ft-value">{Math.round(hovered.ks.avgLatencyMs)}ms</span>
+            </div>
+            <div className="ft-stat">
+              <span className="ft-label">Confidence:</span>
+              <span className="ft-value">{Math.round(hovered.ks.confidence * 100)}%</span>
             </div>
           </div>
         </div>,
-        document.body
+        document.body,
       )}
-
-      <style jsx>{`
-        .scatter-wrap { position: relative; padding-left: 20px; }
-        .scatter-svg { display: block; overflow: visible; }
-        .axis-label { font-size: 11px; color: var(--text-muted); font-weight: 600; }
-        .axis-y { writing-mode: vertical-rl; position: absolute; left: 0; top: 50%; transform: translateY(-50%) rotate(180deg); }
-        .axis-x { text-align: center; margin-top: 8px; }
-      `}</style>
     </div>
   );
 }
@@ -502,41 +520,51 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
 // ─────────────────────────────────────────────
 
 function HeatmapKeyboard({ language, colors }: { language: string; colors: Map<string, string> }) {
-  const layout = language === 'ta' ? TAMIL99_LAYOUT : QWERTY_LAYOUT;
+  const layout = language === 'tamil' ? TAMIL99_LAYOUT : QWERTY_LAYOUT;
+  const getKeyClassName = (keyData: KeyData): string => {
+    const classes = ['key'];
+    if (keyData.width && keyData.width !== 1) classes.push('key-wide');
+    if (keyData.isModifier) classes.push('key-modifier');
+    if (keyData.key === ' ') classes.push('space-key');
+    return classes.join(' ');
+  };
+  const getKeyStyle = (keyData: KeyData): React.CSSProperties => {
+    const style: React.CSSProperties = {};
+    if (keyData.width && keyData.width !== 1) {
+      const baseWidth = 44;
+      const gap = 2;
+      style.width = `${keyData.width * baseWidth + (keyData.width - 1) * gap}px`;
+    }
+    const char = keyData.key.toLowerCase();
+    style.borderBottom = `3px solid ${colors.get(char) || 'var(--bg-overlay)'}`;
+    return style;
+  };
   return (
-    <div className="vk-heatmap">
+    <div className="virtual-keyboard">
       {layout.map((row, rIdx) => (
-        <div key={rIdx} className="vk-row">
-          {row.map((keyData, kIdx) => {
-            if (keyData.isModifier || keyData.key === ' ') {
-              return (
-                <div key={kIdx} className="vk-key modifier" style={{ width: keyData.width ? `${keyData.width * 42}px` : '42px' }}>
-                  {keyData.label}
-                </div>
-              );
-            }
-            const char = keyData.key.toLowerCase();
-            const bgColor = colors.get(char) ?? 'var(--key-bg)';
-            return (
-              <div key={kIdx} className="vk-key active" style={{ backgroundColor: bgColor, color: colors.has(char) ? 'white' : 'var(--text-muted)' }}>
-                <span className="vk-label">{keyData.label}</span>
-              </div>
-            );
-          })}
+        <div key={rIdx} className="keyboard-row">
+          {row.map((keyData, kIdx) => (
+            <div
+              key={`${keyData.key}-${kIdx}`}
+              className={getKeyClassName(keyData)}
+              style={getKeyStyle(keyData)}
+            >
+              {keyData.shiftLabel && (
+                <span className="key-shift-label">{keyData.shiftLabel}</span>
+              )}
+              <span className={keyData.shiftLabel ? 'key-main-label' : 'key-label-only'}>
+                {keyData.label}
+              </span>
+            </div>
+          ))}
         </div>
       ))}
-      <style jsx>{`
-        .vk-heatmap { display: flex; flex-direction: column; gap: 2px; align-items: center; padding: 16px; background: var(--bg-surface); border-radius: var(--radius-md); }
-        .vk-row { display: flex; gap: 2px; }
-        .vk-key { height: 40px; min-width: 40px; display: flex; align-items: center; justify-content: center; border-radius: 3px; font-family: var(--font-mono); font-size: 0.8rem; font-weight: 600; }
-        .modifier { background: var(--bg-overlay); color: var(--text-muted); font-size: 0.65rem; }
-      `}</style>
     </div>
   );
 }
 
 // ─────────────────────────────────────────────
-// ActivityHeatmap (redesigned)
+// ActivityHeatmap (Redesigned with Labels & Legend)
 // ─────────────────────────────────────────────
 
 function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
@@ -544,24 +572,46 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    const t = setTimeout(() => setMounted(true), 0);
-    return () => clearTimeout(t);
+    setMounted(true);
   }, []);
 
-  const weeks = useMemo(() => {
+  const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+  const { weeks, monthLabels } = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return Array.from({ length: 52 }, (_, wOffset) => {
+
+    const weeksList = Array.from({ length: 52 }, (_, wOffset) => {
       const w = 51 - wOffset;
       return Array.from({ length: 7 }, (_, dOffset) => {
         const d = 6 - dOffset;
         const date = new Date(today);
         date.setDate(date.getDate() - (w * 7 + d));
         const dayStr = getLocalDateString(date);
-        return { date: dayStr, durationMs: activity[dayStr] ?? 0 };
+        return { date: dayStr, durationMs: activity[dayStr] ?? 0, rawDate: date };
       });
     });
+
+    const labels: { index: number; label: string }[] = [];
+    let lastMonth = -1;
+    let lastIndex = -1;
+
+    weeksList.forEach((week, wIdx) => {
+      const date = week[0].rawDate;
+      const currentMonth = date.getMonth();
+      if (currentMonth !== lastMonth && (wIdx - lastIndex >= 4)) {
+        labels.push({ index: wIdx, label: MONTH_NAMES[currentMonth] });
+        lastMonth = currentMonth;
+        lastIndex = wIdx;
+      }
+    });
+
+    return { weeks: weeksList, monthLabels: labels };
   }, [activity]);
+
+  if (!mounted) {
+    return <div className="heatmap-loading-placeholder">Loading Activity Heatmap...</div>;
+  }
 
   const getColor = (ms: number): string => {
     const mins = ms / 60_000;
@@ -579,22 +629,55 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
   };
 
   return (
-    <div className="heatmap-wrap">
-      <div className="heatmap-scroll">
-        <div className="weeks-container">
-          {weeks.map((week, wIdx) => (
-            <div key={wIdx} className="week-col">
-              {week.map((day, dIdx) => (
-                <div
-                  key={dIdx}
-                  className="cell"
-                  style={{ backgroundColor: getColor(day.durationMs) }}
-                  onMouseEnter={(e) => handleMouseEnter(e, day.date, day.durationMs)}
-                  onMouseLeave={() => setHoverInfo(null)}
-                />
-              ))}
-            </div>
-          ))}
+    <div className="heatmap-outer-container">
+      <div className="heatmap-grid-layout">
+        {/* Day of week labels on left */}
+        <div className="day-labels">
+          <span className="day-label">Mon</span>
+          <span className="day-label">Wed</span>
+          <span className="day-label">Fri</span>
+        </div>
+
+        {/* Scrollable Heatmap content */}
+        <div className="heatmap-scroll">
+          {/* Months header row */}
+          <div className="months-row">
+            {monthLabels.map((ml, idx) => (
+              <span key={idx} className="month-label" style={{ left: `${ml.index * 14}px` }}>
+                {ml.label}
+              </span>
+            ))}
+          </div>
+
+          {/* Weeks grid */}
+          <div className="weeks-container">
+            {weeks.map((week, wIdx) => (
+              <div key={wIdx} className="week-col">
+                {week.map((day, dIdx) => (
+                  <div
+                    key={dIdx}
+                    className="cell"
+                    style={{ backgroundColor: getColor(day.durationMs) }}
+                    onMouseEnter={(e) => handleMouseEnter(e, day.date, day.durationMs)}
+                    onMouseLeave={() => setHoverInfo(null)}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Heatmap Footer Legend */}
+      <div className="heatmap-footer">
+        <div className="heatmap-legend">
+          <span className="legend-text">Less</span>
+          <span className="legend-cell" style={{ backgroundColor: 'var(--bg-overlay)' }} />
+          <span className="legend-cell" style={{ backgroundColor: '#1a4731' }} />
+          <span className="legend-cell" style={{ backgroundColor: '#166534' }} />
+          <span className="legend-cell" style={{ backgroundColor: '#22c55e' }} />
+          <span className="legend-cell" style={{ backgroundColor: '#4ade80' }} />
+          <span className="legend-text">More</span>
         </div>
       </div>
 
@@ -607,11 +690,117 @@ function ActivityHeatmap({ activity }: { activity: Record<string, number> }) {
       )}
 
       <style jsx>{`
-        .heatmap-wrap { overflow-x: auto; padding-bottom: var(--space-sm); }
-        .weeks-container { display: flex; gap: 3px; }
-        .week-col { display: flex; flex-direction: column; gap: 3px; }
-        .cell { width: 11px; height: 11px; border-radius: 2px; cursor: crosshair; transition: transform 0.1s; }
-        .cell:hover { transform: scale(1.4); }
+        .heatmap-outer-container {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-sm);
+          width: 100%;
+        }
+
+        .heatmap-loading-placeholder {
+          height: 120px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: var(--radius-lg);
+          color: var(--text-muted);
+        }
+
+        .heatmap-grid-layout {
+          display: flex;
+          gap: var(--space-sm);
+          align-items: flex-end;
+          width: 100%;
+        }
+
+        .day-labels {
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+          height: 95px; /* height of 7 cells + gaps */
+          padding-bottom: 2px;
+          margin-right: 4px;
+        }
+
+        .day-label {
+          font-size: 10px;
+          color: var(--text-muted);
+          font-weight: 600;
+          line-height: 1;
+        }
+
+        .heatmap-scroll {
+          overflow-x: auto;
+          padding-bottom: var(--space-sm);
+          position: relative;
+          flex: 1;
+        }
+
+        .months-row {
+          position: relative;
+          height: 18px;
+          width: 100%;
+          margin-bottom: 4px;
+        }
+
+        .month-label {
+          position: absolute;
+          font-size: 10px;
+          color: var(--text-muted);
+          font-weight: 700;
+          white-space: nowrap;
+        }
+
+        .weeks-container {
+          display: flex;
+          gap: 3px;
+        }
+
+        .week-col {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+        }
+
+        .cell {
+          width: 11px;
+          height: 11px;
+          border-radius: 2px;
+          cursor: crosshair;
+          transition: transform 0.1s;
+        }
+
+        .cell:hover {
+          transform: scale(1.4);
+          z-index: 10;
+        }
+
+        .heatmap-footer {
+          display: flex;
+          justify-content: flex-end;
+          width: 100%;
+          margin-top: var(--space-xs);
+        }
+
+        .heatmap-legend {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+
+        .legend-text {
+          font-size: 10px;
+          color: var(--text-muted);
+          font-weight: 600;
+        }
+
+        .legend-cell {
+          width: 11px;
+          height: 11px;
+          border-radius: 2px;
+        }
       `}</style>
 
       <style jsx global>{`

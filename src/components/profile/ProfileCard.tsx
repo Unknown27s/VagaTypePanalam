@@ -6,6 +6,7 @@
 import { useSession } from 'next-auth/react';
 import type { GamificationStats } from '@/engine/gamification';
 import type { UserProfile } from '@/db/schema';
+import { AnimatedCounter } from './AnimatedCounter';
 
 interface ProfileCardProps {
   stats: GamificationStats;
@@ -22,12 +23,12 @@ export function ProfileCard({ stats, profile }: ProfileCardProps) {
     : 'New User';
 
   const quickStats = [
-    { label: 'Best WPM', value: `${stats.bestWpm}` },
-    { label: 'Accuracy', value: `${Math.round(stats.avgAccuracy * 100)}%` },
-    { label: 'Sessions', value: `${profile?.totalSessions ?? 0}` },
-    { label: 'Words', value: stats.totalWords.toLocaleString() },
-    { label: 'Time', value: `${Math.round(stats.totalTime / 60000)}m` },
-    { label: 'Lessons', value: `${stats.lessonsCompleted}` },
+    { label: 'Best WPM', value: <AnimatedCounter value={stats.bestWpm} /> },
+    { label: 'Accuracy', value: <AnimatedCounter value={Math.round(stats.avgAccuracy * 100)} suffix="%" /> },
+    { label: 'Sessions', value: <AnimatedCounter value={profile?.totalSessions ?? 0} /> },
+    { label: 'Words', value: <AnimatedCounter value={stats.totalWords} /> },
+    { label: 'Time', value: <AnimatedCounter value={Math.round(stats.totalTime / 60000)} suffix="m" /> },
+    { label: 'Lessons', value: <AnimatedCounter value={stats.lessonsCompleted} /> },
   ];
 
   const xpPercent = stats.xpToNextRank > 0
@@ -86,14 +87,18 @@ export function ProfileCard({ stats, profile }: ProfileCardProps) {
         <div className="streak-row current">
           <span className="streak-icon">🔥</span>
           <div className="streak-info">
-            <span className="streak-val">{stats.currentStreak}</span>
+            <span className="streak-val">
+              <AnimatedCounter value={stats.currentStreak} />
+            </span>
             <span className="streak-lbl">Current Streak</span>
           </div>
         </div>
         <div className="streak-row longest">
           <span className="streak-icon">🏅</span>
           <div className="streak-info">
-            <span className="streak-val">{profile?.longestStreak ?? stats.currentStreak}</span>
+            <span className="streak-val">
+              <AnimatedCounter value={profile?.longestStreak ?? stats.currentStreak} />
+            </span>
             <span className="streak-lbl">Longest Ever</span>
           </div>
         </div>

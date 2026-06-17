@@ -2,6 +2,18 @@
 
 All notable changes to **VangaTypePanalam** will be documented in this file.
 
+## [0.7.0] - 2026-06-17
+
+### Added
+
+- **Recharts-Powered Typing Analytics**: Integrated Recharts to provide detailed, interactive visualizations of typing performance.
+  - **WPM Progress Chart**: A dual area chart (`WpmAreaChart`) showing Net WPM vs. Raw WPM trends over sessions, with built-in filters for `7D`, `30D`, and `All`.
+  - **5-Axis Skill Profile**: A radar chart (`SkillRadarChart`) visual representation across Speed, Accuracy, Consistency, Endurance, and Mastery.
+  - **Accuracy Trend Bar Chart**: A custom bar chart (`AccuracyBarChart`) displaying session accuracy over the last 20 sessions, color-coded by performance thresholds.
+- **GitHub-Style Personal Bests & Streaks**: Added a central contribution/streak card (`PersonalBests`) featuring total contributions, circular streak progress rings (with a fire animation), and a personal records grid (best WPM, accuracy, raw speed, and longest session).
+- **Animated Stat Counters**: Introduced a lightweight, high-performance counter component (`AnimatedCounter`) to count up statistics dynamically on page load.
+- **Redesigned Activity Heatmap**: Overhauled the practice activity calendar grid with month labels along the top, day-of-week labels (Mon/Wed/Fri) on the left, and a color legend scale (Less to More) at the bottom.
+
 ## [0.6.1] - 2026-06-12
 
 ## Added

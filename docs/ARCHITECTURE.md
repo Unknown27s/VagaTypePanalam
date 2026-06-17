@@ -72,11 +72,16 @@ Located in `src/engine/gamification.ts` and backed by `src/store/gamificationSto
 
 ### 8. Profile Page Components
 Located in `src/components/profile/`.
-- **`ProfileCard.tsx`**: Left-column sticky card with avatar (GitHub OAuth or placeholder), rank, XP bar, quick stats grid, and streak display (current + longest ever).
+- **`ProfileCard.tsx`**: Left-column sticky card with avatar (GitHub OAuth or placeholder), rank, XP bar, quick stats grid, and streak display (current + longest ever). Numbers animate on load using the `AnimatedCounter` component.
+- **`AnimatedCounter.tsx`**: Utility component to smoothly count up number values on mount using requestAnimationFrame.
 - **`MasteryDonut.tsx`**: SVG donut chart showing key confidence distribution (mastered/learning/weak) — inspired by LeetCode's solved-count chart.
 - **`SeasonChallenge.tsx`**: Monthly challenge display with SVG progress ring, locked/completed badge icon, and progress counter.
 - **`BadgeCard.tsx`**: Compact ~88px badge cards with SVG icons. Earned badges show checkmarks; locked badges show mini progress bars. Full details revealed via hover tooltip.
 - **`BadgeFilter.tsx`**: Category filter tabs for the badge grid.
+- **`WpmAreaChart.tsx`**: Recharts AreaChart displaying net WPM and raw WPM over time with range filtering (7D/30D/All).
+- **`SkillRadarChart.tsx`**: Recharts RadarChart displaying a 5-axis skill profile (Speed, Accuracy, Consistency, Endurance, Mastery).
+- **`AccuracyBarChart.tsx`**: Recharts BarChart representing session accuracy over the last 20 sessions, color-coded by performance thresholds.
+- **`PersonalBests.tsx`**: GitHub/LeetCode-style contribution widget showing total contributions, current streak (with circle progress and flame), longest streak, and a typing personal records grid.
 
 ---
 
