@@ -9,21 +9,26 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import TypingArea from '@/components/typing/TypingArea';
 import { useUIStore } from '@/store/uiStore';
+import { useTypingStore } from '@/store/typingStore';
 import type { Session, KeystrokeRecord } from '@/db/schema';
 import { calculateKogasa } from '@/engine/statsCalculator';
 import { Timer } from 'lucide-react';
+import { SessionAreaChart } from '@/components/test/SessionAreaChart';
+import { SessionRadarChart } from '@/components/test/SessionRadarChart';
 
 const DURATIONS = [15, 30, 60, 120, 300] as const;
 type Duration = typeof DURATIONS[number];
 
 export default function TestPage() {
   const { language } = useUIStore();
+  const { snapshot } = useTypingStore();
   const [selectedDuration, setSelectedDuration] = useState<Duration>(60);
   const [secondsLeft, setSecondsLeft] = useState<number>(selectedDuration);
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<Session | null>(null);
   const [key, setKey] = useState(0); // Force re-mount TypingArea on restart
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const showResultsRef = useRef(false); // Track if results are visible
 
   // Start countdown when typing begins
   const startCountdown = useCallback(() => {
@@ -75,6 +80,7 @@ export default function TestPage() {
     setResult(session);
     setRunning(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
+    showResultsRef.current = true;
   };
 
   const pct = Math.round(((selectedDuration - secondsLeft) / selectedDuration) * 100);
@@ -114,30 +120,42 @@ export default function TestPage() {
           </div>
         </div>
 
-        {/* ── Countdown Ring ── */}
+        {/* ── Countdown Ring + Live Stats ── */}
         {!result && (
-          <div className="countdown-ring-wrapper">
-            <svg className="countdown-ring" viewBox="0 0 100 100">
-              <circle className="ring-bg" cx="50" cy="50" r="44" />
-              <circle
-                className="ring-fg"
-                cx="50"
-                cy="50"
-                r="44"
-                style={{
-                  stroke: timerColor,
-                  strokeDashoffset: `${276 - (276 * pct) / 100}px`,
-                }}
-              />
-            </svg>
-            <div className="countdown-text" style={{ color: timerColor }}>
-              <span className="countdown-number">{secondsLeft}</span>
-              <span className="countdown-label">sec</span>
+          <div className="test-phase">
+            <div className="live-stats-row">
+              <div className="live-stat">
+                <span className="live-stat-value">{snapshot.wpm}</span>
+                <span className="live-stat-label">wpm</span>
+              </div>
+              <div className="live-stat">
+                <span className="live-stat-value">{(snapshot.accuracy * 100).toFixed(1)}%</span>
+                <span className="live-stat-label">acc</span>
+              </div>
+            </div>
+            <div className="countdown-ring-wrapper">
+              <svg className="countdown-ring" viewBox="0 0 100 100">
+                <circle className="ring-bg" cx="50" cy="50" r="44" />
+                <circle
+                  className="ring-fg"
+                  cx="50"
+                  cy="50"
+                  r="44"
+                  style={{
+                    stroke: timerColor,
+                    strokeDashoffset: `${276 - (276 * pct) / 100}px`,
+                  }}
+                />
+              </svg>
+              <div className="countdown-text" style={{ color: timerColor }}>
+                <span className="countdown-number">{secondsLeft}</span>
+                <span className="countdown-label">sec</span>
+              </div>
             </div>
           </div>
         )}
 
-        {/* ── Typing Area (with time-limit prop triggers force-finish via timeout) ── */}
+        {/* ── Typing Area ── */}
         {!result && (
           <TimedTypingWrapper
             key={key}
@@ -149,9 +167,9 @@ export default function TestPage() {
           />
         )}
 
-        {/* ── Score Card ── */}
+        {/* ── Results ── */}
         {result && (
-          <div className="results-dashboard animate-fade-in">
+          <div className="results-content animate-fade-in">
             <div className="results-meta">
               <span className="meta-tag">timed test</span>
               <span className="meta-tag">{selectedDuration}s</span>
@@ -206,42 +224,61 @@ export default function TestPage() {
 
               {/* Right Column: Performance Graph */}
               <div className="chart-col">
-                <PerformanceChart keystrokeLog={result.keystrokeLog || []} durationSeconds={selectedDuration} />
+                <SessionAreaChart data={chartData} />
               </div>
             </div>
 
-            {/* Key Analytics section */}
-            {(weakKeys.length > 0 || slowKeys.length > 0) && (
-              <div className="results-analytics">
-                {weakKeys.length > 0 && (
-                  <div className="analytics-box weak-box">
-                    <h4 className="analytics-subtitle">Weakest Keys</h4>
-                    <div className="keycaps-row">
-                      {weakKeys.map(k => (
-                        <div key={k.char} className="keycap-item weak-key">
-                          <span className="keycap-letter">{k.char}</span>
-                          <span className="keycap-info">{(k.accuracy * 100).toFixed(0)}% acc</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {slowKeys.length > 0 && (
-                  <div className="analytics-box slow-box">
-                    <h4 className="analytics-subtitle">Slowest Keys</h4>
-                    <div className="keycaps-row">
-                      {slowKeys.map(k => (
-                        <div key={k.char} className="keycap-item slow-key">
-                          <span className="keycap-letter">{k.char}</span>
-                          <span className="keycap-info">{Math.round(k.avgLatency)}ms</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
+            {/* Combined Performance Chart */}
+            {chartData.length > 0 && (
+              <SessionComposedChart data={chartData} />
             )}
+
+            {/* Bottom Row: Radar Chart + Key Analytics */}
+            <div className="results-bottom-row">
+              <div className="radar-col">
+                <SessionRadarChart
+                  wpm={result.wpm}
+                  accuracy={result.accuracy}
+                  rawWpm={result.rawWpm}
+                  keystrokeLog={result.keystrokeLog || []}
+                  correctChars={result.correctChars}
+                  errorChars={result.errorChars}
+                  totalChars={result.totalChars}
+                />
+              </div>
+
+              {(weakKeys.length > 0 || slowKeys.length > 0) && (
+                <div className="analytics-col">
+                  {weakKeys.length > 0 && (
+                    <div className="analytics-box weak-box">
+                      <h4 className="analytics-subtitle">Weakest Keys</h4>
+                      <div className="keycaps-row">
+                        {weakKeys.map(k => (
+                          <div key={k.char} className="keycap-item weak-key">
+                            <span className="keycap-letter">{k.char}</span>
+                            <span className="keycap-info">{(k.accuracy * 100).toFixed(0)}% acc</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {slowKeys.length > 0 && (
+                    <div className="analytics-box slow-box">
+                      <h4 className="analytics-subtitle">Slowest Keys</h4>
+                      <div className="keycaps-row">
+                        {slowKeys.map(k => (
+                          <div key={k.char} className="keycap-item slow-key">
+                            <span className="keycap-letter">{k.char}</span>
+                            <span className="keycap-info">{Math.round(k.avgLatency)}ms</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             <div className="dashboard-actions">
               <button className="dashboard-btn restart-btn" onClick={handleRestart} id="test-restart-btn">
@@ -361,16 +398,8 @@ export default function TestPage() {
           letter-spacing: 0.08em;
           color: var(--text-muted);
         }
-        /* ── Results Dashboard ── */
-        .results-dashboard {
-          background: var(--bg-surface);
-          border: 1px solid var(--border-default);
-          border-radius: var(--radius-xl);
-          padding: var(--space-xl);
+        .results-content {
           width: 100%;
-          max-width: 1000px;
-          margin: 0 auto;
-          box-shadow: var(--shadow-lg);
         }
 
         .results-meta {
@@ -474,68 +503,8 @@ export default function TestPage() {
         }
 
         .chart-col {
-          border-left: 1px solid var(--border-subtle);
-          padding-left: var(--space-xl);
           width: 100%;
           min-height: 240px;
-        }
-
-        .chart-wrapper {
-          width: 100%;
-          position: relative;
-        }
-
-        .performance-svg {
-          overflow: visible;
-        }
-
-        .chart-legend {
-          display: flex;
-          justify-content: center;
-          gap: var(--space-lg);
-          margin-top: var(--space-md);
-        }
-
-        .legend-item {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-        }
-
-        .legend-color-dot {
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-        }
-
-        .wpm-dot {
-          background: var(--color-primary);
-          box-shadow: 0 0 8px var(--color-primary-glow);
-        }
-
-        .raw-dot {
-          background: var(--text-muted);
-          border: 1px dashed rgba(255, 255, 255, 0.4);
-        }
-
-        .error-dot {
-          background: var(--color-error);
-        }
-
-        .legend-text {
-          font-size: 11px;
-          color: var(--text-muted);
-          font-weight: 500;
-        }
-
-        /* ── Key Analytics ── */
-        .results-analytics {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: var(--space-xl);
-          margin-top: var(--space-xl);
-          border-top: 1px solid var(--border-subtle);
-          padding-top: var(--space-xl);
         }
 
         .analytics-box {
@@ -604,11 +573,30 @@ export default function TestPage() {
           color: var(--color-accent-light);
         }
 
+        /* ── Bottom Row: Radar + Analytics ── */
+        .results-bottom-row {
+          display: grid;
+          grid-template-columns: 240px 1fr;
+          gap: var(--space-xl);
+          margin-top: var(--space-lg);
+        }
+
+        .radar-col {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        .analytics-col {
+          display: flex;
+          flex-direction: column;
+          gap: var(--space-xl);
+          min-width: 0;
+        }
+
         .dashboard-actions {
           display: flex;
           gap: var(--space-md);
-          border-top: 1px solid var(--border-subtle);
-          padding-top: var(--space-lg);
           justify-content: flex-start;
           margin-top: var(--space-xl);
         }
@@ -654,14 +642,15 @@ export default function TestPage() {
             grid-template-columns: 1fr;
           }
           .chart-col {
-            border-left: none;
-            padding-left: 0;
             border-top: 1px solid var(--border-subtle);
             padding-top: var(--space-xl);
           }
-          .results-analytics {
+          .results-bottom-row {
             grid-template-columns: 1fr;
-            gap: var(--space-lg);
+          }
+          .radar-col {
+            border-bottom: 1px solid var(--border-subtle);
+            padding-bottom: var(--space-xl);
           }
           .dashboard-actions {
             justify-content: center;
@@ -675,13 +664,14 @@ export default function TestPage() {
   );
 }
 
-// ── Chart Data generator and SVG Component ──
+// ── Chart Data generator ──
 
 interface ChartDataPoint {
   second: number;
   wpm: number;
   rawWpm: number;
   errors: number;
+  accuracy: number;
 }
 
 function generateChartData(keystrokeLog: KeystrokeRecord[], durationSeconds: number): ChartDataPoint[] {
@@ -712,199 +702,18 @@ function generateChartData(keystrokeLog: KeystrokeRecord[], durationSeconds: num
     const wpm = sec > 0 ? Math.round((correctUpToSec * 12) / sec) : 0;
     const rawWpm = sec > 0 ? Math.round((totalUpToSec * 12) / sec) : 0;
 
+    const accuracy = totalUpToSec > 0 ? Math.round((correctUpToSec / totalUpToSec) * 100) : 100;
+
     dataPoints.push({
       second: sec,
       wpm,
       rawWpm,
       errors: errorsInSec,
+      accuracy,
     });
   }
 
   return dataPoints;
-}
-
-function PerformanceChart({ keystrokeLog = [], durationSeconds }: { keystrokeLog?: KeystrokeRecord[], durationSeconds: number }) {
-  const data = generateChartData(keystrokeLog, durationSeconds);
-  if (data.length === 0) return null;
-
-  const width = 600;
-  const height = 240;
-  const paddingLeft = 40;
-  const paddingRight = 20;
-  const paddingTop = 20;
-  const paddingBottom = 35;
-
-  const plotWidth = width - paddingLeft - paddingRight;
-  const plotHeight = height - paddingTop - paddingBottom;
-
-  const maxWpmVal = Math.max(...data.map(d => Math.max(d.wpm, d.rawWpm)));
-  const maxWpm = Math.max(60, Math.ceil(maxWpmVal / 20) * 20);
-
-  const getX = (index: number) => {
-    if (data.length <= 1) return paddingLeft + plotWidth / 2;
-    return paddingLeft + (index / (data.length - 1)) * plotWidth;
-  };
-
-  const getY = (value: number) => {
-    return paddingTop + plotHeight - (value / maxWpm) * plotHeight;
-  };
-
-  let wpmPath = '';
-  let rawWpmPath = '';
-  let areaPath = '';
-
-  data.forEach((d, i) => {
-    const x = getX(i);
-    const yWpm = getY(d.wpm);
-    const yRaw = getY(d.rawWpm);
-
-    if (i === 0) {
-      wpmPath = `M ${x} ${yWpm}`;
-      rawWpmPath = `M ${x} ${yRaw}`;
-      areaPath = `M ${x} ${paddingTop + plotHeight} L ${x} ${yWpm}`;
-    } else {
-      wpmPath += ` L ${x} ${yWpm}`;
-      rawWpmPath += ` L ${x} ${yRaw}`;
-      areaPath += ` L ${x} ${yWpm}`;
-    }
-
-    if (i === data.length - 1) {
-      areaPath += ` L ${x} ${paddingTop + plotHeight} Z`;
-    }
-  });
-
-  const gridLinesY: number[] = [];
-  for (let val = 20; val <= maxWpm; val += 20) {
-    gridLinesY.push(val);
-  }
-
-  const tickStep = Math.max(1, Math.ceil(data.length / 6));
-  const ticksX = data.filter((_, i) => i % tickStep === 0 || i === data.length - 1);
-
-  return (
-    <div className="chart-wrapper">
-      <svg viewBox={`0 0 ${width} ${height}`} className="performance-svg" width="100%" height="100%">
-        <defs>
-          <linearGradient id="wpmAreaGrad" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="var(--color-primary)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="var(--color-primary)" stopOpacity="0.0" />
-          </linearGradient>
-        </defs>
-
-        {gridLinesY.map((val) => {
-          const y = getY(val);
-          return (
-            <g key={val} className="grid-line-group">
-              <line
-                x1={paddingLeft}
-                y1={y}
-                x2={width - paddingRight}
-                y2={y}
-                stroke="var(--border-subtle)"
-                strokeWidth="1"
-                strokeDasharray="4 4"
-              />
-              <text
-                x={paddingLeft - 8}
-                y={y + 3}
-                fill="var(--text-muted)"
-                fontSize="10"
-                textAnchor="end"
-                fontFamily="var(--font-mono)"
-              >
-                {val}
-              </text>
-            </g>
-          );
-        })}
-
-        <line
-          x1={paddingLeft}
-          y1={paddingTop + plotHeight}
-          x2={width - paddingRight}
-          y2={paddingTop + plotHeight}
-          stroke="var(--border-default)"
-          strokeWidth="1"
-        />
-
-        {ticksX.map((d, i) => {
-          const dataIndex = data.findIndex(pt => pt.second === d.second);
-          const x = getX(dataIndex);
-          return (
-            <text
-              key={d.second}
-              x={x}
-              y={paddingTop + plotHeight + 15}
-              fill="var(--text-muted)"
-              fontSize="9"
-              textAnchor="middle"
-              fontFamily="var(--font-mono)"
-            >
-              {d.second}s
-            </text>
-          );
-        })}
-
-        {areaPath && (
-          <path d={areaPath} fill="url(#wpmAreaGrad)" />
-        )}
-
-        {rawWpmPath && (
-          <path
-            d={rawWpmPath}
-            fill="none"
-            stroke="var(--text-muted)"
-            strokeWidth="1.5"
-            strokeDasharray="3 3"
-            opacity="0.5"
-          />
-        )}
-
-        {wpmPath && (
-          <path
-            d={wpmPath}
-            fill="none"
-            stroke="var(--color-primary)"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        )}
-
-        {data.map((d, i) => {
-          if (d.errors === 0) return null;
-          const x = getX(i);
-          const y = paddingTop + plotHeight - 4;
-          const radius = Math.min(5, 2 + d.errors * 0.8);
-          return (
-            <circle
-              key={i}
-              cx={x}
-              cy={y}
-              r={radius}
-              fill="var(--color-error)"
-              opacity="0.8"
-            />
-          );
-        })}
-      </svg>
-
-      <div className="chart-legend">
-        <div className="legend-item">
-          <span className="legend-color-dot wpm-dot" />
-          <span className="legend-text">WPM</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color-dot raw-dot" />
-          <span className="legend-text">Raw Speed</span>
-        </div>
-        <div className="legend-item">
-          <span className="legend-color-dot error-dot" />
-          <span className="legend-text">Errors</span>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function getKeyAnalytics(keystrokeLog: KeystrokeRecord[]) {
