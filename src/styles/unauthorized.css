@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Comic+Neue:wght@300&display=swap');
+
+@keyframes flyby {
+    from {
+        left: 0%
+    }
+
+    to {
+        left: -100%
+    }
+}
+
+@keyframes twinkle {
+
+    0%,
+    100% {
+        transform: scale(1);
+    }
+
+    10% {
+        transform: scale(0.3);
+    }
+
+    20% {
+        transform: scale(1);
+    }
+
+    30% {
+        transform: scale(0.5);
+    }
+
+    40% {
+        transform: scale(1);
+    }
+}
