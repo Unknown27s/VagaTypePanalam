@@ -97,14 +97,6 @@ export default function LessonsPage() {
     <>
       <main className="lessons-page">
         <div className="container">
-          <div className="lessons-header">
-            <h1 className="lessons-title">Typing Lessons</h1>
-            <p className="lessons-subtitle">
-              Progressive lessons from two keys to full-speed typing.
-              Complete each level to unlock the next.
-            </p>
-          </div>
-
           {loading ? (
             <div className="loading-state">Loading lessons...</div>
           ) : (
@@ -179,23 +171,6 @@ export default function LessonsPage() {
           .lessons-page {
             min-height: 100dvh;
             padding: var(--space-2xl) 0;
-          }
-
-          .lessons-header {
-            text-align: center;
-            margin-bottom: var(--space-2xl);
-          }
-
-          .lessons-title {
-            font-size: var(--text-3xl);
-            font-weight: 800;
-            margin-bottom: var(--space-sm);
-          }
-
-          .lessons-subtitle {
-            color: var(--text-secondary);
-            max-width: 500px;
-            margin: 0 auto;
           }
 
           .loading-state {

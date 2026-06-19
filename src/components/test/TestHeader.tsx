@@ -7,12 +7,13 @@ interface TestHeaderProps {
   selectedDuration: Duration;
   running: boolean;
   onChangeDuration: (d: Duration) => void;
+  hideTitle?: boolean;
 }
 
-export function TestHeader({ selectedDuration, running, onChangeDuration }: TestHeaderProps) {
+export function TestHeader({ selectedDuration, running, onChangeDuration, hideTitle }: TestHeaderProps) {
   return (
     <div className="test-header">
-      <h1 className="test-title gradient-text">Timed Test</h1>
+      {!hideTitle && <h1 className="test-title gradient-text">Timed Test</h1>}
       <div className="duration-segmented">
         {DURATIONS.map((d) => (
           <button

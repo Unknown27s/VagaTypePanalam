@@ -8,7 +8,7 @@ import { LiveTestPhase } from '@/components/test/LiveTestPhase';
 import { TestResults } from '@/components/test/TestResults';
 import '@/styles/test.css';
 
-export default function TestPage() {
+export default function TestPage({ showTitle = true }: { showTitle?: boolean }) {
   const { language } = useUIStore();
   const [selectedDuration, setSelectedDuration] = useState<Duration>(60);
   const [secondsLeft, setSecondsLeft] = useState<number>(selectedDuration);
@@ -72,6 +72,7 @@ export default function TestPage() {
           selectedDuration={selectedDuration}
           running={running}
           onChangeDuration={changeDuration}
+          hideTitle={!showTitle}
         />
 
         {!result && (

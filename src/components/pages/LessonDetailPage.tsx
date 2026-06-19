@@ -14,7 +14,7 @@ import { TANGLISH_LESSONS } from '@/data/lessons/tanglish';
 import { recordLessonAttempt } from '@/db/lessonProgress';
 import type { Session } from '@/db/schema';
 
-export default function LessonDetailPage() {
+export default function LessonDetailPage({ lessonTitle: _lessonTitle }: { lessonTitle?: string | null }) {
   const params = useParams();
   const router = useRouter();
   const { language, showKeyboard } = useUIStore();
@@ -77,8 +77,12 @@ export default function LessonDetailPage() {
               <span className="lesson-badge badge badge-primary">
                 Level {lesson.level}
               </span>
-              <h1 className="lesson-title">{lesson.title}</h1>
-              <p className="lesson-description">{lesson.description}</p>
+              {!_lessonTitle && (
+                <>
+                  <h1 className="lesson-title">{lesson.title}</h1>
+                  <p className="lesson-description">{lesson.description}</p>
+                </>
+              )}
               <div className="lesson-goals">
                 <span className="goal">
                   🎯 Target: {lesson.targetWpm} WPM

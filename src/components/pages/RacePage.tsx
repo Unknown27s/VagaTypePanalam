@@ -84,15 +84,6 @@ export default function RacePage() {
     <main className="race-page">
       <div className="container animate-fade-in">
 
-        {/* Header */}
-        <div className="race-header">
-          <div className="title-row">
-            <Swords size={28} className="icon-pulse" />
-            <h1 className="title">Ghost Racing</h1>
-          </div>
-          <p className="subtitle">Race against offline bots! Start typing to begin the race.</p>
-        </div>
-
         {/* Tracks */}
         <div className="race-track-board">
 
@@ -188,35 +179,7 @@ export default function RacePage() {
           flex-direction: column;
           gap: var(--space-2xl);
         }
-        .race-header {
-          text-align: center;
-        }
-        .title-row {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: var(--space-sm);
-          color: var(--color-primary);
-          margin-bottom: var(--space-xs);
-        }
-        .icon-pulse {
-          animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-          0%, 100% { transform: scale(1); opacity: 1; }
-          50% { transform: scale(1.1); opacity: 0.8; }
-        }
-        .title {
-          font-size: var(--text-2xl);
-          font-weight: 800;
-          margin: 0;
-          color: var(--text-primary);
-        }
-        .subtitle {
-          color: var(--text-secondary);
-        }
-
-        .race-track-board {
+                .race-track-board {
           background: var(--bg-surface);
           border: 1px solid var(--border-default);
           border-radius: var(--radius-lg);

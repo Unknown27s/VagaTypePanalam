@@ -8,6 +8,9 @@ export const metadata: Metadata = {
     index: false,
     follow: false,
   },
+  alternates: {
+    canonical: "https://vangatypepanalam.qzz.io/admin",
+  },
 };
 
 export default function Page() {

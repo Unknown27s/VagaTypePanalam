@@ -1,0 +1,39 @@
+# VangaTypePanalam
+> Free typing practice app supporting English, Tamil & Tanglish
+
+## Description
+VangaTypePanalam is a free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback. Supports English (QWERTY), Tamil (Tamil99), and Tanglish typing.
+
+## Features
+- Adaptive typing practice with real-time feedback
+- 30 progressive touch typing lessons
+- WPM speed test (15s, 30s, 60s, 120s, 300s)
+- Ghost racing mode against AI bots
+- Per-key accuracy tracking and heatmaps
+- Weekly book practice with custom content
+- Detailed stats, achievements, and badges
+- Season challenges and gamification
+- Offline-capable (IndexedDB-based)
+- Free, no account required for basic use
+
+## Tech Stack
+- Next.js 16 with App Router
+- TypeScript
+- PostgreSQL (Neon) with Prisma ORM
+- IndexedDB for offline storage
+- Auth.js (NextAuth) for authentication
+- Zustand for state management
+- Deployed on Vercel
+
+## Languages Supported
+- English (en)
+- Tamil (ta) — Tamil99 keyboard layout
+- Tanglish (ta+en)
+
+## Links
+- Home: https://vangatypepanalam.qzz.io/
+- Lessons: https://vangatypepanalam.qzz.io/lessons
+- Speed Test: https://vangatypepanalam.qzz.io/test
+- Ghost Racing: https://vangatypepanalam.qzz.io/race
+- Stats & Profile: https://vangatypepanalam.qzz.io/stats
+- GitHub: https://github.com/Unknown27s/VagaTypePanalam
