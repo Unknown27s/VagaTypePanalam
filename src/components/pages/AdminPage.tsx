@@ -238,11 +238,11 @@ export default function AdminPage() {
       if (b.compressedContent) {
         compressedBooks++;
         totalOriginalSize += b.originalSize ?? 0;
-        totalCompressedSize += Buffer.byteLength(b.compressedContent, 'utf-8');
+        totalCompressedSize += new TextEncoder().encode(b.compressedContent).length;
       } else if (b.content) {
         uncompressedBooks++;
-        totalOriginalSize += Buffer.byteLength(b.content, 'utf-8');
-        totalCompressedSize += Buffer.byteLength(b.content, 'utf-8');
+        totalOriginalSize += new TextEncoder().encode(b.content).length;
+        totalCompressedSize += new TextEncoder().encode(b.content).length;
       }
     });
 
