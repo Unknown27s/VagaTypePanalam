@@ -44,7 +44,7 @@ export default async function RootLayout({
 }>) {
   const session = await auth();
   return (
-    <html lang="en" data-theme="dark" data-scroll-behavior="smooth">
+    <html lang="en" data-theme="dark" data-scroll-behavior="smooth" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link

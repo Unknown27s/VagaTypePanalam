@@ -9,8 +9,8 @@ export default function HeaderLogo() {
   const ref = useRef<HTMLDivElement>(null);
 
   const logoFile = theme === 'dark' 
-    ? '/logo-theme/vangatypepanalam_logo_exact.svg' 
-    : '/logo-theme/logo.svg';
+    ? '/logo-theme/logo.svg' 
+    : '/logo-theme/vangatypepanalam_logo_exact.svg';
 
   useEffect(() => {
     fetch(logoFile)
@@ -21,7 +21,7 @@ export default function HeaderLogo() {
   useEffect(() => {
     if (ref.current) {
       const el = ref.current.querySelector('svg');
-      if (el && logoFile === '/logo-theme/logo.svg') {
+      if (el) {
         el.setAttribute('data-theme', theme);
       }
     }
