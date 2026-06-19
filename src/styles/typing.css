@@ -498,6 +498,20 @@
   flex-shrink: 0;
 }
 
+.header-logo-svg {
+  display: flex;
+  align-items: center;
+  height: 38px;
+  width: auto;
+  flex-shrink: 0;
+}
+
+.header-logo-svg svg {
+  height: 100%;
+  width: auto;
+  display: block;
+}
+
 .logo-text {
   font-size: 1.05rem;
   font-weight: 700;
@@ -1161,8 +1175,11 @@
   }
 
   .logo-text {
-    max-width: 46vw;
-    font-size: 0.92rem;
+    display: none;
+  }
+
+  .header-logo-svg {
+    height: 34px;
   }
 
   .ctrl-btn {
@@ -1178,16 +1195,16 @@
 }
 
 @media (max-width: 420px) {
-  .logo-text {
-    max-width: 38vw;
-  }
-
   .header-controls {
     gap: 2px;
   }
 
   .ctrl-btn {
     min-width: 30px;
+  }
+
+  .header-logo-svg {
+    height: 24px;
   }
 }
 

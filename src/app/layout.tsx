@@ -4,6 +4,7 @@ import WelcomeModal from "@/components/ui/WelcomeModal";
 import Footer from "@/components/ui/Footer";
 import { AuthProvider } from "@/components/providers/AuthProvider";
 import { Analytics } from "@vercel/analytics/react";
+import { auth } from "@/auth";
 import Script from "next/script";
 import "./globals.css";
 
@@ -35,11 +36,13 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
-export default function RootLayout({
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
   return (
     <html lang="en" data-theme="dark" data-scroll-behavior="smooth">
       <head>
@@ -60,7 +63,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
           strategy="afterInteractive"
         />
-        <AuthProvider>
+        <AuthProvider session={session}>
           <div id="app-root">
             <TopHeader />
             <WelcomeModal />

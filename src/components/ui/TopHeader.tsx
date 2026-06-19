@@ -16,6 +16,7 @@ import {
   Gamepad2, BookOpen, BarChart2,
 } from 'lucide-react';
 import AuthModal from './AuthModal';
+import HeaderLogo from './HeaderLogo';
 const NAV_ITEMS = [
   { href: '/', label: 'Practice', icon: Keyboard },
   { href: '/test', label: 'Test', icon: Timer },
@@ -104,6 +105,7 @@ export default function TopHeader() {
         {/* ── Logo ── */}
         <div className="header-left">
           <Link href="/" className="header-logo">
+            <HeaderLogo />
             <span className="logo-text">வாங்க டைப் பண்ணலாம்</span>
           </Link>
         </div>

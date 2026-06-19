@@ -157,7 +157,7 @@ export default function WelcomeModal() {
         .overlay {
           position: fixed;
           inset: 0;
-          background: rgba(0, 0, 0, 0.65);
+          background: var(--overlay-scrim);
           backdrop-filter: blur(10px);
           z-index: 2000;
           display: flex;
@@ -173,16 +173,16 @@ export default function WelcomeModal() {
           max-width: 740px;
           border-radius: 14px;
           overflow: hidden;
-          border: 1px solid #2a2a2a;
-          box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+          border: 1px solid var(--border-default);
+          box-shadow: var(--shadow-lg);
           animation: slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
         /* ── LEFT ── */
         .left-panel {
-          background: #111111;
+          background: var(--bg-surface);
           padding: 2.25rem 2rem;
-          border-right: 1px solid #222;
+          border-right: 1px solid var(--border-subtle);
           display: flex;
           flex-direction: column;
           justify-content: center;
@@ -193,7 +193,7 @@ export default function WelcomeModal() {
           font-weight: 700;
           letter-spacing: 0.12em;
           text-transform: uppercase;
-          color: #555;
+          color: var(--text-muted);
           margin: 0 0 0.9rem;
           font-family: monospace;
         }
@@ -201,14 +201,14 @@ export default function WelcomeModal() {
         .headline {
           font-size: 20px;
           font-weight: 700;
-          color: #f0f0f0;
+          color: var(--text-primary);
           margin: 0 0 0.6rem;
           line-height: 1.3;
         }
 
         .subhead {
           font-size: 13px;
-          color: #666;
+          color: var(--text-secondary);
           margin: 0 0 1.75rem;
           line-height: 1.65;
         }
@@ -230,31 +230,31 @@ export default function WelcomeModal() {
           height: 30px;
           flex-shrink: 0;
           border-radius: 8px;
-          background: #1a1a1a;
-          border: 1px solid #2a2a2a;
+          background: var(--bg-overlay);
+          border: 1px solid var(--border-default);
           display: flex;
           align-items: center;
           justify-content: center;
-          color: #666;
+          color: var(--text-muted);
         }
 
         .feature-title {
           font-size: 13px;
           font-weight: 600;
-          color: #d0d0d0;
+          color: var(--text-primary);
           margin: 0 0 2px;
         }
 
         .feature-desc {
           font-size: 12px;
-          color: #555;
+          color: var(--text-muted);
           margin: 0;
           line-height: 1.55;
         }
 
         /* ── RIGHT ── */
         .right-panel {
-          background: #0d0d0d;
+          background: var(--bg-elevated);
           padding: 2.25rem 2rem;
           display: flex;
           flex-direction: column;
@@ -269,7 +269,7 @@ export default function WelcomeModal() {
           background: transparent;
           border: none;
           cursor: pointer;
-          color: #444;
+          color: var(--text-disabled);
           display: flex;
           align-items: center;
           justify-content: center;
@@ -280,8 +280,8 @@ export default function WelcomeModal() {
         }
 
         .close-btn:hover {
-          color: #aaa;
-          background: #1a1a1a;
+          color: var(--text-secondary);
+          background: var(--bg-overlay);
         }
 
         .top-row {
@@ -294,15 +294,15 @@ export default function WelcomeModal() {
         .right-title {
           font-size: 17px;
           font-weight: 700;
-          color: #f0f0f0;
+          color: var(--text-primary);
           margin: 0;
         }
 
         .theme-toggle {
           display: flex;
           align-items: center;
-          background: #1a1a1a;
-          border: 1px solid #2a2a2a;
+          background: var(--bg-overlay);
+          border: 1px solid var(--border-default);
           border-radius: 8px;
           padding: 3px;
           gap: 2px;
@@ -317,29 +317,29 @@ export default function WelcomeModal() {
           border-radius: 6px;
           border: none;
           background: transparent;
-          color: #555;
+          color: var(--text-muted);
           cursor: pointer;
           transition: all 0.15s;
         }
 
         .theme-btn:hover {
-          color: #aaa;
-          background: #222;
+          color: var(--text-secondary);
+          background: var(--bg-hover);
         }
 
         .active-light {
-          background: #2a2a2a;
+          background: var(--bg-hover);
           color: #f0c040 !important;
         }
 
         .active-dark {
-          background: #2a2a2a;
+          background: var(--bg-hover);
           color: #a0b8f0 !important;
         }
 
         .right-sub {
           font-size: 13px;
-          color: #555;
+          color: var(--text-muted);
           margin: 0 0 1.5rem;
           line-height: 1.6;
         }
@@ -373,7 +373,7 @@ export default function WelcomeModal() {
         .google-btn {
           background: #ffffff;
           color: #1a1a1a;
-          border-color: #e0e0e0;
+          border-color: var(--border-default);
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
         }
 
@@ -385,14 +385,14 @@ export default function WelcomeModal() {
 
         .signin-btn {
           background: transparent;
-          color: #888;
-          border-color: #2a2a2a;
+          color: var(--text-muted);
+          border-color: var(--border-default);
         }
 
         .signin-btn:hover {
-          background: #1a1a1a;
-          color: #ccc;
-          border-color: #3a3a3a;
+          background: var(--bg-overlay);
+          color: var(--text-secondary);
+          border-color: var(--border-default);
           transform: translateY(-1px);
         }
 
@@ -412,7 +412,7 @@ export default function WelcomeModal() {
 
         .divider {
           height: 1px;
-          background: #1e1e1e;
+          background: var(--border-subtle);
           margin-bottom: 1.25rem;
         }
 
@@ -431,7 +431,7 @@ export default function WelcomeModal() {
           outline: none;
           transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
           background: linear-gradient(135deg, var(--color-accent) 0%, var(--color-accent-dark) 100%);
-          color: #1a1a1a;
+          color: var(--text-primary);
           border: 1px solid rgba(255, 255, 255, 0.15);
           box-shadow: 0 4px 14px var(--color-accent-glow);
         }
@@ -440,12 +440,12 @@ export default function WelcomeModal() {
           background: linear-gradient(135deg, var(--color-accent-light) 0%, var(--color-accent) 100%);
           transform: translateY(-2px);
           box-shadow: 0 6px 20px rgba(238, 194, 36, 0.45);
-          color: #1a1a1a;
+          color: var(--text-primary);
         }
 
         .footnote {
           font-size: 11px;
-          color: #333;
+          color: var(--text-disabled);
           text-align: center;
           margin: 9px 0 0;
         }
@@ -468,7 +468,7 @@ export default function WelcomeModal() {
           }
           .left-panel {
             border-right: none;
-            border-bottom: 1px solid #222;
+            border-bottom: 1px solid var(--border-subtle);
             padding: 1.75rem 1.5rem;
           }
           .right-panel {
