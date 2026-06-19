@@ -11,14 +11,15 @@ import "./globals.css";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   themeColor: "#0e0e0e",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://vangatypepanalam.qzz.io"),
-  title: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
+  title: {
+    default: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
+    template: "%s — VangaTypePanalam",
+  },
   description:
     "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback. Supports English, Tamil (Tamil99), and Tanglish.",
   keywords: [
@@ -34,6 +35,27 @@ export const metadata: Metadata = {
   ],
   authors: [{ name: "VangaTypePanalam" }],
   manifest: "/manifest.json",
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "/",
+    siteName: "VangaTypePanalam",
+    title: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
+    description:
+      "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback.",
+    images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
+    description:
+      "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback.",
+    images: ["/twitter-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 
@@ -55,6 +77,34 @@ export default async function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="google-adsense-account" content="ca-pub-7627314206553844" />
+        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+        <script
+          type="application/ld+json"
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "WebApplication",
+              name: "VangaTypePanalam",
+              url: "https://vangatypepanalam.qzz.io",
+              description:
+                "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback. Supports English, Tamil (Tamil99), and Tanglish.",
+              applicationCategory: "EducationalApplication",
+              operatingSystem: "Any",
+              offers: {
+                "@type": "Offer",
+                price: "0",
+                priceCurrency: "USD",
+              },
+              author: {
+                "@type": "Person",
+                name: "VangaTypePanalam",
+              },
+              inLanguage: ["en", "ta"],
+              browserRequirements: "Requires JavaScript",
+            }),
+          }}
+        />
       </head>
       <body>
         <Script
