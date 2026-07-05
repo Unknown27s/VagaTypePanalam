@@ -8,13 +8,16 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "email": "npx react-email dev",
     "postinstall": "prisma generate"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.2",
+    "@getbrevo/brevo": "^6.0.2",
     "@neondatabase/neon-js": "^0.6.2-beta",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
+    "@react-email/components": "^1.0.12",
     "@types/dompurify": "^3.0.5",
     "@types/jsonwebtoken": "^9.0.10",
     "@vercel/analytics": "^2.0.1",
@@ -34,6 +37,7 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@react-email/ui": "^6.6.6",
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/pg": "^8.20.0",
@@ -42,6 +46,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.3",
     "prisma": "^7.8.0",
+    "react-email": "^6.6.6",
     "typescript": "^5"
   }
 }
