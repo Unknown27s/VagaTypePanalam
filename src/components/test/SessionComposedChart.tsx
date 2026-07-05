@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMounted } from '@/hooks/useMounted';
 import {
   ComposedChart,
   Area,
@@ -26,11 +26,7 @@ interface SessionComposedChartProps {
 }
 
 export function SessionComposedChart({ data }: SessionComposedChartProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   if (!mounted) {
     return <div className="chart-loading-placeholder">Loading Chart...</div>;

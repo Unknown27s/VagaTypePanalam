@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useMemo } from 'react';
+import { useMounted } from '@/hooks/useMounted';
 import {
   Radar,
   RadarChart,
@@ -29,11 +30,7 @@ export function SessionRadarChart({
   correctChars,
   errorChars,
 }: SessionRadarChartProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const mounted = useMounted();
 
   const radarData = useMemo(() => {
     const speedScore = Math.min(100, Math.round((wpm / 150) * 100));

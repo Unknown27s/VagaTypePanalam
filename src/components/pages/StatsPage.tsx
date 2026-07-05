@@ -31,6 +31,7 @@ import { PersonalBests } from '@/components/profile/PersonalBests';
 import '@/styles/keyboard.css';
 import { QWERTY_LAYOUT, type KeyData } from '@/data/keyboards/qwerty';
 import { TAMIL99_LAYOUT } from '@/data/keyboards/tamil99';
+import { OW_TAMIL_LAYOUT, OW_TAMIL_TO_PHYSICAL } from '@/data/keyboards/owTamil';
 
 export default function StatsPage() {
   const { language } = useUIStore();
@@ -484,7 +485,11 @@ function KeyScatterPlot({ keyStats }: { keyStats: KeyStat[] }) {
 }
 
 function HeatmapKeyboard({ language, colors }: { language: string; colors: Map<string, string> }) {
-  const layout = language === 'tamil' ? TAMIL99_LAYOUT : QWERTY_LAYOUT;
+  const isTamil = language === 'ta' || language === 'tamil';
+  const { keyboardLayout } = useUIStore();
+  const layout = isTamil
+    ? (keyboardLayout === 'phonetic' ? OW_TAMIL_LAYOUT : TAMIL99_LAYOUT)
+    : QWERTY_LAYOUT;
   const getKeyClassName = (keyData: KeyData): string => {
     const classes = ['key'];
     if (keyData.width && keyData.width !== 1) classes.push('key-wide');

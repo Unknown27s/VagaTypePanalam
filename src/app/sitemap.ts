@@ -1,4 +1,7 @@
 import { MetadataRoute } from "next";
+import { ENGLISH_LESSONS } from "@/data/lessons/english";
+import { TAMIL_LESSONS } from "@/data/lessons/tamil";
+import { TANGLISH_LESSONS } from "@/data/lessons/tanglish";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = "https://vangatypepanalam.qzz.io";
@@ -34,18 +37,22 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "monthly" as const,
       priority: 0.7,
     },
+    {
+      url: `${baseUrl}/practice`,
+      lastModified: new Date(),
+      changeFrequency: "weekly" as const,
+      priority: 0.8,
+    },
   ];
 
-  const lessonIds = [
-    "en-lesson-1", "en-lesson-2", "en-lesson-3", "en-lesson-4",
-    "en-lesson-5", "en-lesson-6", "en-lesson-7", "en-lesson-8",
-    "en-lesson-9", "en-lesson-10", "en-lesson-11", "en-lesson-12",
-    "en-lesson-13", "en-lesson-14", "en-lesson-15", "en-lesson-16",
-    "en-lesson-17", "en-lesson-18", "en-lesson-19", "en-lesson-20",
+  const allLessons = [
+    ...ENGLISH_LESSONS,
+    ...TAMIL_LESSONS,
+    ...TANGLISH_LESSONS,
   ];
 
-  const lessonPages = lessonIds.map((id) => ({
-    url: `${baseUrl}/lessons/${id}`,
+  const lessonPages = allLessons.map((lesson) => ({
+    url: `${baseUrl}/lessons/${lesson.id}`,
     lastModified: new Date(),
     changeFrequency: "monthly" as const,
     priority: 0.6,

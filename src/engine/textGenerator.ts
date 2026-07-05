@@ -163,6 +163,8 @@ export function generateAdaptiveText(
 
 /**
  * Generate simple text for a specific set of keys (for lessons).
+ * Uses dictionary words made only of target keys when available;
+ * fills remaining space with random key sequences for early lessons.
  */
 export function generateLessonText(
   language: Language,
@@ -170,31 +172,53 @@ export function generateLessonText(
   targetLength: number = 80
 ): string {
   const wordBank = getWordBank(language);
+  const allowedKeys = new Set(targetKeys);
+
   const words: string[] = [];
   let charCount = 0;
-  let attempts = 0;
 
-  // FIX 3: Same lastWord pattern here too
+  const allowedWords: string[] = [];
+  for (const key of targetKeys) {
+    const candidates = wordBank.get(key);
+    if (candidates) {
+      for (const w of candidates) {
+        if ([...w].every((ch) => allowedKeys.has(ch))) {
+          allowedWords.push(w);
+        }
+      }
+    }
+  }
+
+  const uniqueAllowed = [...new Set(allowedWords)];
   let lastWord = '';
+  let attempts = 0;
 
   while (charCount < targetLength && attempts < targetLength * 5) {
     attempts++;
 
-    const targetKey = targetKeys[Math.floor(Math.random() * targetKeys.length)];
-    const candidates = wordBank.get(targetKey);
-    if (!candidates || candidates.length === 0) continue;
+    if (uniqueAllowed.length > 0) {
+      const word = uniqueAllowed[Math.floor(Math.random() * uniqueAllowed.length)];
+      if (word !== lastWord) {
+        words.push(word);
+        lastWord = word;
+        charCount += word.length + 1;
+        continue;
+      }
+    }
 
-    const word = candidates[Math.floor(Math.random() * candidates.length)];
-
-    // FIX 3: Use lastWord variable
-    if (word === lastWord) continue;
-
-    words.push(word);
-    lastWord = word;
-    charCount += word.length + 1;
+    const seqLen = Math.min(2 + Math.floor(Math.random() * 3), targetKeys.length);
+    const seq: string[] = [];
+    for (let i = 0; i < seqLen; i++) {
+      seq.push(targetKeys[Math.floor(Math.random() * targetKeys.length)]);
+    }
+    const sequence = seq.join('');
+    if (sequence !== lastWord) {
+      words.push(sequence);
+      lastWord = sequence;
+      charCount += sequence.length + 1;
+    }
   }
 
-  // Fallback: if no words found, generate key repetitions
   if (words.length === 0) {
     const repeated = targetKeys.join(' ').repeat(
       Math.ceil(targetLength / (targetKeys.join(' ').length + 1))

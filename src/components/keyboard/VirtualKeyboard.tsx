@@ -13,7 +13,10 @@
 import { useState, useEffect } from 'react';
 import { QWERTY_LAYOUT, type KeyData } from '@/data/keyboards/qwerty';
 import { TAMIL99_LAYOUT } from '@/data/keyboards/tamil99';
+import { OW_TAMIL_LAYOUT, OW_SHIFT_VARIANT_TO_BASE } from '@/data/keyboards/owTamil';
+import { QWERTY_TO_OW } from '@/data/keyboards/owTamilInputMap';
 import { useTypingStore } from '@/store/typingStore';
+import { useUIStore } from '@/store/uiStore';
 import '@/styles/keyboard.css';
 
 interface VirtualKeyboardProps {
@@ -42,16 +45,33 @@ export default function VirtualKeyboard({
       ? snapshot.text[snapshot.cursorPosition]
       : null;
 
+  const kbLayout = useUIStore((s) => s.keyboardLayout);
+
+  const isOWTamil = language === 'ta' && kbLayout === 'phonetic';
+  const layoutToUse = isOWTamil ? OW_TAMIL_LAYOUT : (language === 'ta' ? TAMIL99_LAYOUT : QWERTY_LAYOUT);
+
   // Listen for physical key presses for visual feedback
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key.length === 1) {
-        setPressedKey(e.key.toLowerCase());
+        let matchedKey: string;
+
+        if (isOWTamil) {
+          // OW: translate QWERTY key → Tamil char, then normalize to base key
+          const tamilChar = QWERTY_TO_OW[e.key];
+          matchedKey = tamilChar
+            ? (OW_SHIFT_VARIANT_TO_BASE[tamilChar] ?? tamilChar)
+            : e.key.toLowerCase();
+        } else {
+          matchedKey = e.key.toLowerCase();
+        }
+
+        setPressedKey(matchedKey);
 
         if (expectedKey) {
-          const isCorrect = e.key === expectedKey;
+          const isCorrect = matchedKey === expectedKey;
           setFlashState({
-            key: e.key.toLowerCase(),
+            key: matchedKey,
             type: isCorrect ? 'correct' : 'error',
           });
           setTimeout(() => setFlashState(null), 200);
@@ -69,7 +89,7 @@ export default function VirtualKeyboard({
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
     };
-  }, [expectedKey]);
+  }, [expectedKey, isOWTamil]);
 
   const getKeyClassName = (keyData: KeyData): string => {
     const classes = ['key'];
@@ -102,9 +122,10 @@ export default function VirtualKeyboard({
       classes.push('home-key');
     }
 
-    // Highlight expected key
+    // Highlight expected key (normalize for OW shift variants)
     if (expectedKey && !keyData.isModifier) {
-      if (keyData.key === expectedKey.toLowerCase()) {
+      const matchKey = isOWTamil ? (OW_SHIFT_VARIANT_TO_BASE[expectedKey] ?? expectedKey) : expectedKey;
+      if (keyData.key === matchKey) {
         classes.push('highlighted');
       }
     }
@@ -121,9 +142,12 @@ export default function VirtualKeyboard({
       );
     }
 
-    // Locked/unlocked for lessons
+    // Locked/unlocked for lessons (normalize for OW shift variants)
     if (unlockedKeys && !keyData.isModifier) {
-      const isUnlocked = unlockedKeys.includes(keyData.key);
+      const normalizedUnlocked = isOWTamil
+        ? unlockedKeys.map((k) => OW_SHIFT_VARIANT_TO_BASE[k] ?? k)
+        : unlockedKeys;
+      const isUnlocked = normalizedUnlocked.includes(keyData.key);
       if (!isUnlocked) {
         classes.push('locked');
       }
@@ -131,8 +155,6 @@ export default function VirtualKeyboard({
 
     return classes.join(' ');
   };
-
-  const layoutToUse = language === 'ta' ? TAMIL99_LAYOUT : QWERTY_LAYOUT;
 
   // Calculate inline width and heatmap styles for keys
   const getKeyStyle = (keyData: KeyData): React.CSSProperties | undefined => {

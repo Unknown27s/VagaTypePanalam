@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useUIStore } from '@/store/uiStore';
-import type { Language } from '@/db/schema';
+import type { Language, KeyboardLayout } from '@/db/schema';
 import { useSession, signOut } from 'next-auth/react';
 import { requestCloudSync } from '@/lib/sync';
 import Image from 'next/image';
@@ -38,6 +38,7 @@ export default function TopHeader() {
     theme, toggleTheme, language, setLanguage, isOnline,
     soundEnabled, toggleSound, showKeyboard, toggleKeyboard,
     caretStyle, setCaretStyle, caretSpeed, setCaretSpeed,
+    keyboardLayout, setKeyboardLayout,
   } = useUIStore();
 
   const [mounted, setMounted] = useState(false);
@@ -183,6 +184,32 @@ export default function TopHeader() {
                   <option value="en">English</option>
                   <option value="ta">தமிழ்</option>
                   <option value="tanglish">Tanglish</option>
+                </select>
+              </div>
+
+              <div
+                className="ctrl-btn"
+                title="Tamil Layout"
+                style={{
+                  position: 'relative',
+                  visibility: language === 'ta' ? 'visible' : 'hidden',
+                  pointerEvents: language === 'ta' ? 'auto' : 'none',
+                }}
+              >
+                <Keyboard size={13} />
+                <span style={{ fontSize: '10px', fontWeight: 600, margin: '0 2px' }}>
+                  {keyboardLayout === 'phonetic' ? 'OW' : '99'}
+                </span>
+                <ChevronDown size={9} style={{ opacity: 0.7 }} />
+                <select
+                  className="lang-select"
+                  value={keyboardLayout}
+                  onChange={(e) => setKeyboardLayout(e.target.value as unknown as KeyboardLayout)}
+                  aria-label="Select Tamil keyboard layout"
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', opacity: 0, cursor: 'pointer' }}
+                >
+                  <option value="tamil99">Tamil99</option>
+                  <option value="phonetic">OW Phonetic</option>
                 </select>
               </div>
 

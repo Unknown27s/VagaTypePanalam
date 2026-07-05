@@ -22,6 +22,8 @@ import { formatAccuracy, formatDuration } from '@/engine/statsCalculator';
 import { CARET_SPEED_SLOW, CARET_SPEED_MEDIUM, CARET_SPEED_FAST } from '@/engine/constants';
 import { soundEngine } from '@/engine/soundEngine';
 import { translateToTamil } from '@/data/keyboards/tamilInputMap';
+import { translateToOW } from '@/data/keyboards/owTamilInputMap';
+import type { KeyboardLayout } from '@/db/schema';
 import '@/styles/typing.css';
 
 interface TypingAreaProps {
@@ -100,7 +102,18 @@ export default function TypingArea({
   const globalIdleStatsRef = useRef({ wpm: 0, accuracy: 1 });
   const isProcessingRef = useRef<boolean>(false);
   const updateStore = useTypingStore((s) => s.updateSnapshot);
-  const { soundEnabled, errorMode, caretSpeed, caretStyle } = useUIStore();
+  const { soundEnabled, errorMode, caretSpeed, caretStyle, keyboardLayout } = useUIStore();
+
+  // Pick the right Tamil translation function based on layout selection
+  const translateKey = useCallback(
+    (physicalKey: string): string | null => {
+      if (language !== 'ta') return physicalKey;
+      return keyboardLayout === 'phonetic'
+        ? translateToOW(physicalKey)
+        : translateToTamil(physicalKey);
+    },
+    [language, keyboardLayout]
+  );
 
   // Keep latest onComplete in a ref to avoid re-init cycle if parent passes a new function
   const onCompleteRef = useRef(onComplete);
@@ -324,8 +337,8 @@ export default function TypingArea({
 
       if (e.key.length !== 1) return;
 
-      // Tamil99 input translation: convert physical QWERTY key to Tamil character
-      const typedChar = language === 'ta' ? (translateToTamil(e.key) ?? e.key) : e.key;
+      // Tamil input translation: convert physical QWERTY key to Tamil character
+      const typedChar = translateKey(e.key) ?? e.key;
 
       // Unified Error Mode Intercepts
       if (!isValidKeystroke(typedChar)) {
@@ -384,8 +397,8 @@ export default function TypingArea({
       isProcessingRef.current = true;
       try {
         for (const rawChar of typed) {
-          // Tamil99 input translation for mobile/IME input
-          const char = language === 'ta' ? (translateToTamil(rawChar) ?? rawChar) : rawChar;
+          // Tamil input translation for mobile/IME input
+          const char = translateKey(rawChar) ?? rawChar;
 
           if (!isValidKeystroke(char)) {
             if (soundEnabled) soundEngine.playError();
@@ -560,9 +573,48 @@ export default function TypingArea({
 
       {/* ── Results (lesson / test only) ── */}
       {snapshot.isComplete && mode !== 'practice' && (
-        <div className="results-overlay animate-fade-in">
+        <div className="results-overlay">
           <div className="results-card">
-            <h2 className="results-title">Session Complete!</h2>
+            {mode === 'lesson' && targetWpm != null && targetAccuracy != null && (
+              <div className={`result-verdict ${snapshot.wpm >= targetWpm && snapshot.accuracy >= targetAccuracy ? 'verdict-pass' : 'verdict-fail'}`}>
+                {snapshot.wpm >= targetWpm && snapshot.accuracy >= targetAccuracy ? 'PASS' : 'FAIL'}
+              </div>
+            )}
+            <h2 className="results-title">
+              {mode === 'lesson' && snapshot.wpm >= (targetWpm ?? 15) && snapshot.accuracy >= (targetAccuracy ?? 0.9)
+                ? 'Lesson Passed!'
+                : 'Session Complete!'}
+            </h2>
+
+            {mode === 'lesson' && targetWpm != null && targetAccuracy != null && (
+              <div className="lesson-progress-bars">
+                <div className="lp-row">
+                  <span className="lp-label">WPM</span>
+                  <div className="lp-track">
+                    <div
+                      className={`lp-fill ${snapshot.wpm >= targetWpm ? 'lp-pass' : 'lp-fail'}`}
+                      style={{ width: `${Math.min(100, (snapshot.wpm / targetWpm) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="lp-value">
+                    {snapshot.wpm} / {targetWpm}
+                  </span>
+                </div>
+                <div className="lp-row">
+                  <span className="lp-label">Accuracy</span>
+                  <div className="lp-track">
+                    <div
+                      className={`lp-fill ${snapshot.accuracy >= targetAccuracy ? 'lp-pass' : 'lp-fail'}`}
+                      style={{ width: `${Math.min(100, (snapshot.accuracy / targetAccuracy) * 100)}%` }}
+                    />
+                  </div>
+                  <span className="lp-value">
+                    {formatAccuracy(snapshot.correctChars, snapshot.totalKeystrokes)} / {(targetAccuracy * 100).toFixed(0)}%
+                  </span>
+                </div>
+              </div>
+            )}
+
             <div className="results-grid">
               <div className="result-item">
                 <span className="result-value" style={{ color: 'var(--color-primary-light)' }}>

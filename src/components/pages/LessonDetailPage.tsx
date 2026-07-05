@@ -12,20 +12,19 @@ import { ENGLISH_LESSONS, type LessonDefinition } from '@/data/lessons/english';
 import { TAMIL_LESSONS } from '@/data/lessons/tamil';
 import { TANGLISH_LESSONS } from '@/data/lessons/tanglish';
 import { recordLessonAttempt } from '@/db/lessonProgress';
-import type { Session } from '@/db/schema';
+import type { Session, Language } from '@/db/schema';
 
 export default function LessonDetailPage({ lessonTitle: _lessonTitle }: { lessonTitle?: string | null }) {
   const params = useParams();
   const router = useRouter();
-  const { language, showKeyboard } = useUIStore();
+  const { showKeyboard, keyboardLayout } = useUIStore();
 
   const lessonId = params?.id as string;
   let lesson: LessonDefinition | undefined = ENGLISH_LESSONS.find((l) => l.id === lessonId);
   if (!lesson) lesson = TAMIL_LESSONS.find((l) => l.id === lessonId);
   if (!lesson) lesson = TANGLISH_LESSONS.find((l) => l.id === lessonId);
 
-  const currentLessons = lessonId.startsWith('tamil-') ? TAMIL_LESSONS : (lessonId.startsWith('tanglish-') ? TANGLISH_LESSONS : ENGLISH_LESSONS);
-  const nextLesson = currentLessons.find(l => l.level === (lesson?.level ?? 0) + 1);
+  const lessonLanguage: Language = lessonId?.startsWith('tamil-') ? 'ta' : lessonId?.startsWith('tanglish-') ? 'tanglish' : 'en';
 
   if (!lesson) {
     return (
@@ -47,10 +46,16 @@ export default function LessonDetailPage({ lessonTitle: _lessonTitle }: { lesson
     );
   }
 
+  const currentLessons = lessonId.startsWith('tamil-') ? TAMIL_LESSONS : (lessonId.startsWith('tanglish-') ? TANGLISH_LESSONS : ENGLISH_LESSONS);
+  const currentIndex = currentLessons.findIndex(l => l.id === lesson.id);
+  const nextLesson = currentIndex >= 0 && currentIndex < currentLessons.length - 1
+    ? currentLessons[currentIndex + 1]
+    : undefined;
+
   const handleComplete = async (session: Session) => {
     await recordLessonAttempt(
       lesson.id,
-      language,
+      lessonLanguage,
       lesson.level,
       session.wpm,
       session.accuracy,
@@ -60,7 +65,7 @@ export default function LessonDetailPage({ lessonTitle: _lessonTitle }: { lesson
     window.dispatchEvent(new Event('lesson-progress-updated'));
   };
 
-  const isTamilLesson = lesson.id.startsWith('tamil-') || language === 'ta';
+  const isTamilLesson = lesson.id.startsWith('tamil-');
 
   return (
     <>
@@ -95,7 +100,7 @@ export default function LessonDetailPage({ lessonTitle: _lessonTitle }: { lesson
           </div>
 
           <TypingArea
-            language={language}
+            language={lessonLanguage}
             targetKeys={lesson.keys}
             onComplete={handleComplete}
             mode="lesson"
@@ -104,13 +109,13 @@ export default function LessonDetailPage({ lessonTitle: _lessonTitle }: { lesson
             targetAccuracy={lesson.targetAccuracy}
           />
 
-          {showKeyboard && (language === 'en' || language === 'tanglish' || language === 'ta') && (
+          {showKeyboard && (
             <div className="lesson-keyboard-wrap">
-              {isTamilLesson && <p className="keyboard-note">Tamil99 overlay: highlighted keys are this lesson focus keys.</p>}
+              {isTamilLesson && <p className="keyboard-note">{keyboardLayout === 'phonetic' ? 'OW Phonetic' : 'Tamil99'} overlay: highlighted keys are this lesson focus keys.</p>}
               <VirtualKeyboard
                 showFingerColors={true}
                 unlockedKeys={lesson.keys}
-                language={language}
+                language={lessonLanguage}
               />
             </div>
           )}

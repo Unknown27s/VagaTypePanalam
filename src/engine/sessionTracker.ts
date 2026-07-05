@@ -154,7 +154,6 @@ export class SessionTracker {
         if (res.ok) {
           const data = await res.json();
           this.bookPositionIndex = data.position || 0;
-          console.log(`📖 Loaded reading position from database: ${this.bookPositionIndex}`);
         }
       } catch (err) {
         console.error('Failed to load reading position from database:', err);
@@ -167,8 +166,6 @@ export class SessionTracker {
     // Generate or use provided text
     this.text = await this.generateNextText();
     this.words = this.text.split(' ');
-
-    console.log(`📝 Session initialized - Text length: ${this.text.length}, Words: ${this.words.length}`);
 
     // Reset state
     this.sessionId = generateSessionId();
@@ -543,21 +540,13 @@ export class SessionTracker {
    * In lesson/test mode: finish the session.
    */
   private async finishSegment(): Promise<void> {
-    // Words are already counted in processSpace, no additional counting needed here
-    // for seamless practice flow.
-
     if (this.mode === 'practice') {
-      // ── Practice mode: continue into a fresh chunk while preserving total session stats ──
       this.segmentsCompleted++;
       this.onSegmentComplete?.(this.segmentsCompleted);
-
-      // Save the completed session silently (fire-and-forget)
       this.saveSegmentAsync();
 
-      // Save book reading position to database or localStorage
       if (this.weeklyBookWords && this.weeklyBookWords.length > 0) {
         if (this.bookId) {
-          // Save to database
           try {
             await fetch('/api/reading-progress', {
               method: 'POST',
@@ -567,97 +556,62 @@ export class SessionTracker {
                 position: this.bookPositionIndex,
               }),
             });
-            console.log(`💾 Reading position saved to database: ${this.bookPositionIndex}`);
-          } catch (err) {
-            console.error('Failed to save reading position to database:', err);
-            // Fallback to localStorage
+          } catch {
             localStorage.setItem('vanga-book-position', this.bookPositionIndex.toString());
           }
         } else {
-          // Fallback to localStorage if no bookId
           localStorage.setItem('vanga-book-position', this.bookPositionIndex.toString());
         }
       }
 
-      // Preserve cumulative session states across restarts
-      const savedStartTime = this.startTime;
-      const savedLastKeystrokeTime = this.lastKeystrokeTime;
-      const savedCorrectChars = this.correctChars;
-      const savedErrorChars = this.errorChars;
-      const savedTotalKeystrokes = this.totalKeystrokes;
-      const savedKeystrokeLog = [...this.keystrokeLog];
-      const savedBurstHistory = [...this.burstHistory];
-      const savedAllLatencies = [...this.allLatencies];
-      const savedSegments = this.segmentsCompleted;
-      const savedTotalWords = this.totalWordsTyped;
-
-      // Generate completely fresh text
-      this.text = await this.generateNextText();
-      this.words = this.text.split(' ');
-
-      this.sessionId = generateSessionId();
-      this.resetSessionState();
-
-      // Restore cumulative counters to seamlessly continue analytics
-      this.startTime = savedStartTime;
-      this.lastKeystrokeTime = savedLastKeystrokeTime;
-      this.correctChars = savedCorrectChars;
-      this.errorChars = savedErrorChars;
-      this.totalKeystrokes = savedTotalKeystrokes;
-      this.keystrokeLog = savedKeystrokeLog;
-      this.burstHistory = savedBurstHistory;
-      this.allLatencies = savedAllLatencies;
-      this.segmentsCompleted = savedSegments;
-      this.totalWordsTyped = savedTotalWords;
-
-      this.segmentStartCorrectChars = savedCorrectChars;
-      this.segmentStartTime = performance.now();
-      this.wordStartTime = performance.now();
-      this.lastKeystrokeTime = performance.now();
-
-      this._state = savedStartTime > 0 ? 'typing' : 'ready';
-      this.emitSnapshot();
-
+      await this.continueToNextSegment();
     } else if (this.mode === 'test') {
-      // ── Test mode: continue into a fresh chunk while preserving total session stats ──
-      const savedStartTime = this.startTime;
-      const savedLastKeystrokeTime = this.lastKeystrokeTime;
-      const savedCorrectChars = this.correctChars;
-      const savedErrorChars = this.errorChars;
-      const savedTotalKeystrokes = this.totalKeystrokes;
-      const savedKeystrokeLog = [...this.keystrokeLog];
-      const savedBurstHistory = [...this.burstHistory];
-      const savedAllLatencies = [...this.allLatencies];
-      const savedSegments = this.segmentsCompleted;
-      const savedTotalWords = this.totalWordsTyped;
-
-      this.text = await this.generateNextText();
-      this.words = this.text.split(' ');
-
-      this.sessionId = generateSessionId();
-      this.resetSessionState();
-
-      this.startTime = savedStartTime;
-      this.lastKeystrokeTime = savedLastKeystrokeTime;
-      this.correctChars = savedCorrectChars;
-      this.errorChars = savedErrorChars;
-      this.totalKeystrokes = savedTotalKeystrokes;
-      this.keystrokeLog = savedKeystrokeLog;
-      this.burstHistory = savedBurstHistory;
-      this.allLatencies = savedAllLatencies;
-      this.segmentsCompleted = savedSegments;
-      this.totalWordsTyped = savedTotalWords;
-      this.segmentStartCorrectChars = savedCorrectChars;
-      this.segmentStartTime = performance.now();
-      this.wordStartTime = performance.now();
-      this.lastKeystrokeTime = performance.now();
-      this._state = savedStartTime > 0 ? 'typing' : 'ready';
-      this.emitSnapshot();
-
+      await this.continueToNextSegment();
     } else {
-      // ── Lesson mode: finish automatically at end of text ──
       await this.finish();
     }
+  }
+
+  /**
+   * Preserve cumulative session state, generate fresh text, and continue.
+   * Shared by practice and test modes.
+   */
+  private async continueToNextSegment(): Promise<void> {
+    const savedStartTime = this.startTime;
+    const savedLastKeystrokeTime = this.lastKeystrokeTime;
+    const savedCorrectChars = this.correctChars;
+    const savedErrorChars = this.errorChars;
+    const savedTotalKeystrokes = this.totalKeystrokes;
+    const savedKeystrokeLog = [...this.keystrokeLog];
+    const savedBurstHistory = [...this.burstHistory];
+    const savedAllLatencies = [...this.allLatencies];
+    const savedSegments = this.segmentsCompleted;
+    const savedTotalWords = this.totalWordsTyped;
+
+    this.text = await this.generateNextText();
+    this.words = this.text.split(' ');
+
+    this.sessionId = generateSessionId();
+    this.resetSessionState();
+
+    this.startTime = savedStartTime;
+    this.lastKeystrokeTime = savedLastKeystrokeTime;
+    this.correctChars = savedCorrectChars;
+    this.errorChars = savedErrorChars;
+    this.totalKeystrokes = savedTotalKeystrokes;
+    this.keystrokeLog = savedKeystrokeLog;
+    this.burstHistory = savedBurstHistory;
+    this.allLatencies = savedAllLatencies;
+    this.segmentsCompleted = savedSegments;
+    this.totalWordsTyped = savedTotalWords;
+
+    this.segmentStartCorrectChars = savedCorrectChars;
+    this.segmentStartTime = performance.now();
+    this.wordStartTime = performance.now();
+    this.lastKeystrokeTime = performance.now();
+
+    this._state = savedStartTime > 0 ? 'typing' : 'ready';
+    this.emitSnapshot();
   }
 
   /**

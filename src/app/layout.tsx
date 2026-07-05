@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     template: "%s — VangaTypePanalam",
   },
   description:
-    "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback. Supports English, Tamil (Tamil99), and Tanglish.",
+    "A free, adaptive typing practice app that works offline. Learn touch typing online with Tamil keyboard, English QWERTY, and Tanglish. Includes progressive typing lessons, WPM speed test, per-key tracking, and real-time feedback. The best Tamil typing website for practice and search keyboard.",
   keywords: [
     "typing practice",
     "learn typing",
@@ -32,6 +32,16 @@ export const metadata: Metadata = {
     "WPM test",
     "typing tutor",
     "free typing app",
+    "Tamil typing website",
+    "Tamil keyboard",
+    "Tamil typing online",
+    "Tamil search keyboard",
+    "typing in Tamil",
+    "Tamil99 keyboard",
+    "English typing practice",
+    "typing speed test",
+    "online typing tutor",
+    "typing lessons free",
   ],
   authors: [{ name: "VangaTypePanalam" }],
   manifest: "/manifest.json",
@@ -42,14 +52,14 @@ export const metadata: Metadata = {
     siteName: "VangaTypePanalam",
     title: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
     description:
-      "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback.",
+      "A free, adaptive typing practice app that works offline. Learn touch typing online with Tamil keyboard, English QWERTY, and Tanglish. Includes progressive typing lessons, WPM speed test, per-key tracking, and real-time feedback.",
     images: [{ url: "/opengraph-image.png", width: 1200, height: 630 }],
   },
   twitter: {
     card: "summary_large_image",
     title: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
     description:
-      "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback.",
+      "A free, adaptive typing practice app that works offline. Learn touch typing online with Tamil keyboard, English QWERTY, and Tanglish. Includes progressive typing lessons, WPM speed test, per-key tracking, and real-time feedback.",
     images: ["/twitter-image.png"],
   },
   robots: {
@@ -88,7 +98,7 @@ export default async function RootLayout({
               name: "VangaTypePanalam",
               url: "https://vangatypepanalam.qzz.io",
               description:
-                "A free, adaptive typing practice app that works offline. Learn touch typing from scratch with progressive lessons, per-key tracking, and real-time feedback. Supports English, Tamil (Tamil99), and Tanglish.",
+                "A free, adaptive typing practice app that works offline. Learn touch typing online with Tamil keyboard, English QWERTY, and Tanglish. Includes progressive typing lessons, WPM speed test, per-key tracking, and real-time feedback.",
               applicationCategory: "EducationalApplication",
               operatingSystem: "Any",
               offers: {

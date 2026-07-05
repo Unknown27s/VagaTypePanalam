@@ -22,8 +22,35 @@ const TA_TO_EN_MAP: Record<string, string> = {
   'ஔ': 'z', 'ஃ': 'x', 'ழ': 'c', 'வ': 'v', 'ங': 'b', 'ல': 'n', 'ர': 'm', 'ஞ': '/'
 };
 
+const TA_TO_EN_OW_MAP: Record<string, string> = {
+  'அ': 'a', 'ஆ': 'A',
+  'இ': 'e', 'ஈ': 'E',
+  'எ': 'f', 'ஏ': 'F',
+  'உ': 'u', 'ஊ': 'U',
+  'ஒ': 'o', 'ஓ': 'O',
+  'ஔ': 'q',
+  'ஐ': 'i',
+  'க': 'k', 'ஃ': 'K',
+  'ப': 'p',
+  'ம': 'm',
+  'ந': 'n',
+  'த': 'd',
+  'ட': 't',
+  'ல': 'l', 'ள': 'L',
+  'ர': 'r', 'ற': 'R',
+  'வ': 'v',
+  'ய': 'y',
+  'ழ': 'z',
+  'ச': 'c',
+  'ங': 'g',
+  'ஞ': 'j',
+  'ஹ': 'h',
+  'ன': 'b', 'ண': 'B',
+  'ஸ': 's', 'ஷ': 'S',
+};
+
 export default function LessonsPage() {
-  const { language } = useUIStore();
+  const { language, keyboardLayout } = useUIStore();
   const pathname = usePathname();
   const router = useRouter();
   const [progress, setProgress] = useState<Map<string, LessonProgress>>(new Map());
@@ -59,7 +86,8 @@ export default function LessonsPage() {
         map.set(p.lessonId, p);
       }
       setProgress(map);
-    } catch {
+    } catch (err) {
+      console.error('Failed to load lesson progress:', err);
     } finally {
       setLoading(false);
     }
@@ -69,7 +97,6 @@ export default function LessonsPage() {
     if (level <= 1) return true;
     const prevLevelLessons = lessons.filter((l) => l.level === level - 1);
     if (prevLevelLessons.length === 0) return true;
-    if (loading) return true;
     return prevLevelLessons.every((l) => {
       const prog = progress.get(l.id);
       return prog?.completed ?? false;
@@ -120,7 +147,8 @@ export default function LessonsPage() {
                     <p className="lesson-desc">{lesson.description}</p>
                     <div className="lesson-keys">
                       {lesson.keys.slice(0, 8).map((k) => {
-                        const enHint = language === 'ta' && TA_TO_EN_MAP[k] ? TA_TO_EN_MAP[k] : null;
+                        const taToEn = keyboardLayout === 'phonetic' ? TA_TO_EN_OW_MAP : TA_TO_EN_MAP;
+                        const enHint = language === 'ta' && taToEn[k] ? taToEn[k] : null;
                         return (
                           <span key={k} className={`key-badge ${enHint ? 'has-hint' : ''}`}>
                             <span className="key-char">{k === ' ' ? '␣' : k.toUpperCase()}</span>
@@ -218,11 +246,6 @@ export default function LessonsPage() {
             font-weight: 700;
             font-size: var(--text-sm);
             color: var(--color-primary-light);
-          }
-
-          .level-check {
-            color: var(--color-success);
-            font-size: var(--text-lg);
           }
 
           .lesson-name {
