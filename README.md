@@ -207,6 +207,10 @@ Detailed documentation for developers and contributors:
 - **[Changelog](docs/CHANGELOG.md)** — History of all major changes.
 - **[Checklist](docs/CHECKLIST.md)** — Pre-deployment verification steps.
 
+## 🙏 Acknowledgments
+
+- **[OW Tamil Keyboard](https://github.com/coderganesh/ow-tamil-keyboard)** by [Ganeshan M](https://github.com/coderganesh) — The OW Phonetic Tamil layout mapping used in this app is based on Ganeshan's intuitive phonetic layout that maps Tamil letters to English keys by pronunciation. Check out his repo for the original Windows/Linux keyboard driver.
+
 ## 📄 License
 
 GNU General Public License v3.0
