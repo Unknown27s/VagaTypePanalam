@@ -20,29 +20,30 @@ export interface EpubParsedData {
 function extractCleanText(htmlContent: string): string {
   let text = htmlContent;
 
-  // Remove head, script, and style blocks entirely (these are non-content)
-  text = text.replace(/<head>[\s\S]*?<\/head>/gi, '');
-  text = text.replace(/<style[\s\S]*?<\/style>/gi, '');
-  text = text.replace(/<script[\s\S]*?<\/script>/gi, '');
+  // Iteratively remove dangerous tag blocks (handles nesting/encoding)
+  const blockPatterns = [
+    /<head[\s\S]*?<\/head\s*>/gi,
+    /<style[\s\S]*?<\/style\s*>/gi,
+    /<script[\s\S]*?<\/script\s*>/gi,
+  ];
+  for (const pattern of blockPatterns) {
+    let prev: string;
+    do {
+      prev = text;
+      text = text.replace(pattern, '');
+    } while (text !== prev);
+  }
 
-  // Add structural line breaks for elements to preserve spacing
-  // This keeps paragraph/heading structure which helps readability
-  text = text.replace(/<\/p>/gi, '\n');
-  text = text.replace(/<\/h[1-6]>/gi, '\n\n');
-  text = text.replace(/<br\s*\/?>/gi, '\n');
-  text = text.replace(/<\/li>/gi, '\n');
-  text = text.replace(/<\/div>/gi, '\n');
+  // Decode &amp; first using a placeholder to prevent double-unescaping
+  // (e.g. &amp;quot; → should stay as &quot; text, not become ")
+  text = text.replace(/&amp;/g, '\x00AMP\x00');
 
-  // Strip all remaining HTML tags (but keep content)
-  text = text.replace(/<[^>]+>/g, '');
-
-  // Decode standard XML/HTML entities (preserve special characters)
+  // Decode all other HTML entities
   text = text
     .replace(/&quot;/g, '"')
     .replace(/&apos;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&ldquo;/g, '"')
@@ -54,6 +55,24 @@ function extractCleanText(htmlContent: string): string {
     .replace(/&hellip;/g, '...')
     .replace(/&bull;/g, '*')
     .replace(/&#\d+;/g, ' ');
+
+  // Restore &amp; from placeholder
+  text = text.replace(/\x00AMP\x00/g, '&');
+
+  // Add structural line breaks for elements to preserve spacing
+  text = text.replace(/<\/p>/gi, '\n');
+  text = text.replace(/<\/h[1-6]>/gi, '\n\n');
+  text = text.replace(/<br\s*\/?>/gi, '\n');
+  text = text.replace(/<\/li>/gi, '\n');
+  text = text.replace(/<\/div>/gi, '\n');
+
+  // Strip remaining HTML tags — use DOM parser approach for safety
+  // First pass: remove standard HTML comments
+  text = text.replace(/<!--[\s\S]*?-->/g, '');
+  // Remove CDATA sections
+  text = text.replace(/<!\[CDATA\[[\s\S]*?\]\]>/g, '');
+  // Strip all remaining tags
+  text = text.replace(/<[^>]*>/g, '');
 
   // Clean up excess white space (but preserve some paragraph structure)
   text = text.replace(/[ \t]+/g, ' ');

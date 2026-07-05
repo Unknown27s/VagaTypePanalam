@@ -10,7 +10,6 @@ function tokenizeWords(text: string): string[] {
   if (!text) return [];
   const cleaned = text
     .replace(/[.,!?;:—–]/g, ' ')  // Basic punctuation only
-    .replace(/["""'']/g, ' ')      // Quotes
     .replace(/[\n\r]/g, ' ')       // Newlines
     .replace(/\s+/g, ' ');         // Multiple spaces to single
 

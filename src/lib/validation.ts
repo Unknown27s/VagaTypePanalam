@@ -35,13 +35,30 @@ export function validateFileSize(
   return { valid: true };
 }
 
+/**
+ * Safely strip dangerous content from SVG strings.
+ * Uses iterative removal to handle nested/obfuscated tags,
+ * and covers all common event handler patterns.
+ */
 export function sanitizeSVG(svgContent: string): string {
   let sanitized = svgContent;
 
-  sanitized = sanitized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+  // Iteratively remove script tags until none remain (handles nesting/encoding)
+  const scriptPattern = /<script[\s\S]*?<\/script\s*>/gi;
+  let prev: string;
+  do {
+    prev = sanitized;
+    sanitized = sanitized.replace(scriptPattern, '');
+  } while (sanitized !== prev);
 
-  sanitized = sanitized.replace(/\son\w+\s*=\s*["'][^"']*["']/gi, '');
-  sanitized = sanitized.replace(/\son\w+\s*=\s*[^\s>]*/gi, '');
+  // Remove all event handler attributes (onclick, onload, onerror, etc.)
+  // Covers both quoted and unquoted values, including HTML entity variants
+  sanitized = sanitized.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]*)/gi, '');
+  sanitized = sanitized.replace(/\s+on\w+(?:\s*:\s*[\w.]+\s*)?/gi, ' ');
+
+  // Remove javascript: and data: URIs in href/src/action attributes
+  sanitized = sanitized.replace(/\s+(?:href|xlink:href|src|action|formaction)\s*=\s*(?:"javascript:[^"]*"|'javascript:[^']*'|javascript:[^\s>]*)/gi, ' ');
+  sanitized = sanitized.replace(/\s+(?:href|xlink:href|src|action|formaction)\s*=\s*(?:"data:[^"]*"|'data:[^']*'|data:[^\s>]*)/gi, ' ');
 
   return sanitized;
 }

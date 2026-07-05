@@ -17,7 +17,6 @@ function extractWordsInOrder(content: string): string[] {
   let cleaned = content
     // Only remove common punctuation at word boundaries, not in the middle
     .replace(/[.,!?;:—–]/g, ' ')  // Basic punctuation to spaces
-    .replace(/["""'']/g, ' ')      // Quotes to spaces
     .replace(/[\n\r]/g, ' ')       // Newlines to spaces
     .replace(/\s+/g, ' ')          // Multiple spaces to single space
     .trim();
