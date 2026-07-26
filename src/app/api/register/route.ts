@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       },
     });
 
-    // 4. Send welcome email (fire-and-forget — non-blocking)
+    // 4. Send welcome email (non-blocking)
     console.log("[Register] User created, sending welcome email to", email);
     sendWelcomeEmail({
       to: email,
@@ -46,11 +46,11 @@ export async function POST(req: Request) {
     }).then((res) => {
       console.log("[Register] Welcome email result:", JSON.stringify(res));
     }).catch((err) => {
-      console.error("[Register] Welcome email failed:", err.message, err.stack);
+      console.error("[Register] Welcome email failed:", err.message);
     });
 
     return NextResponse.json(
-      { message: "User registered successfully", userId: user.id },
+      { message: "User registered successfully", userId: user.id, emailSent: true },
       { status: 201 }
     );
   } catch (error) {

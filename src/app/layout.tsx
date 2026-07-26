@@ -35,20 +35,39 @@ export const metadata: Metadata = {
     "Tamil typing website",
     "Tamil keyboard",
     "Tamil typing online",
-    "Tamil search keyboard",
     "typing in Tamil",
     "Tamil99 keyboard",
     "English typing practice",
     "typing speed test",
     "online typing tutor",
     "typing lessons free",
+    "TNPSC typing test",
+    "TNPSC Tamil typing test",
+    "Tamil typing test 30 WPM",
+    "Tamil typing exam practice",
+    "Tamil typing test online",
+    "Tamil typing test 2026",
+    "Tamil99 typing practice",
+    "VAO typing test",
+    "TN Police typing test",
+    "தமிழ் தட்டச்சு பயிற்சி",
+    "தமிழ் தட்டச்சு வேக சோதனை",
+    "learn touch typing online free",
+    "typing practice for beginners",
+    "how to type faster",
+    "adaptive typing practice",
+    "offline typing practice",
+    "typing practice with heatmap",
+    "WPM typing test free",
+    "check typing speed",
+    "typing speed checker",
   ],
   authors: [{ name: "VangaTypePanalam" }],
   manifest: "/manifest.json",
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: "/",
+    url: "https://vangatypepanalam.qzz.io",
     siteName: "VangaTypePanalam",
     title: "VangaTypePanalam — Learn Typing in English, Tamil & Tanglish",
     description:
@@ -84,10 +103,13 @@ export default async function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin="anonymous"
         />
+
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="icon" type="image/svg+xml" href="/logo-theme/vangatypepanalam_logo_exact.svg" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/icons/icon-192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="google-adsense-account" content="ca-pub-7627314206553844" />
-        <link rel="apple-touch-icon" href="/icons/icon-192.png" />
         <script
           type="application/ld+json"
           suppressHydrationWarning
@@ -112,6 +134,11 @@ export default async function RootLayout({
               },
               inLanguage: ["en", "ta"],
               browserRequirements: "Requires JavaScript",
+              potentialAction: {
+                "@type": "SearchAction",
+                target: "https://vangatypepanalam.qzz.io/search?q={search_term_string}",
+                "query-input": "required name=search_term_string",
+              },
             }),
           }}
         />

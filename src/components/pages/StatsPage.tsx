@@ -100,112 +100,110 @@ export default function StatsPage() {
     return map;
   }, [sessions, profile]);
 
-  if (loading) {
-    return <div className="layout-loading">Loading Profile...</div>;
-  }
-
-  if (!gamStats) {
-    return <div className="layout-loading">Complete a session to see your profile</div>;
-  }
-
   return (
     <div className="profile-page">
-      <div className="profile-layout">
-        <ProfileCard stats={gamStats} profile={profile} />
-
-        <div className="right-content">
-          <div className="top-row">
-            <MasteryDonut keyStats={keyStats} />
-            <SkillRadarChart sessions={sessions} keyStats={keyStats} />
-          </div>
-
-          <section className="personal-bests-section">
-            <PersonalBests
-              sessions={sessions}
-              profile={profile}
-              currentStreak={gamStats.currentStreak}
-            />
-          </section>
-          <section className="chart-section">
-            <WpmAreaChart sessions={sessions} />
-          </section>
-
-          <section className="season-section">
-            <h3 className="section-title-small">Season Challenge</h3>
-            <SeasonChallenge progress={seasonProgress} />
-          </section>
-
-          <section className="achievements-section">
-            <div className="section-header">
-              <h2 className="section-title">Achievements</h2>
-              <span className="badge-count">
-                {gamStats.badges.length}/{Object.keys(BADGES).length}
-              </span>
-            </div>
-            <BadgeFilter onCategoryChange={setBadgeCategory} initialCategory="all" />
-            <div className="badges-grid">
-              {filteredBadgeIds.map((badgeId) => {
-                const badge = BADGES[badgeId];
-                const earned = gamStats.badges.includes(badgeId);
-                const progress = badgeProgressMap.get(badgeId);
-                return (
-                  <BadgeCard
-                    key={badgeId}
-                    badge={badge}
-                    earned={earned}
-                    progress={progress}
-                  />
-                );
-              })}
-            </div>
-          </section>
-
-          <section className="activity-section">
-            <div className="section-header">
-              <h2 className="section-title">Practice Activity</h2>
-            </div>
-            <ActivityHeatmap activity={profile?.dailyActivity ?? {}} />
-          </section>
-
-          <section className="analytics-section">
-            <div className="tabs-container">
-              <button
-                className={`tab-btn ${activeTab === 'speed' ? 'active' : ''}`}
-                onClick={() => setActiveTab('speed')}
-              >
-                Key Mastery
-              </button>
-              <button
-                className={`tab-btn ${activeTab === 'heatmap' ? 'active' : ''}`}
-                onClick={() => setActiveTab('heatmap')}
-              >
-                Keyboard Heatmap
-              </button>
-            </div>
-            <div className="tab-content">
-              {activeTab === 'speed' && (
-                <div className="chart-container">
-                  {sortedKeys.length === 0 ? (
-                    <div className="empty-state">No typing data recorded yet.</div>
-                  ) : (
-                    <KeyScatterPlot keyStats={sortedKeys} />
-                  )}
-                </div>
-              )}
-              {activeTab === 'heatmap' && (
-                <div className="heatmap-container">
-                  <p className="heatmap-desc">
-                    Keys colored by mastery — Red = Weak, Green = Strong
-                  </p>
-                  <div className="heatmap-keyboard-wrapper">
-                    <HeatmapKeyboard language={language} colors={heatmapColors} />
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
+      {(loading || !gamStats) ? (
+        <div className="layout-loading">
+          {loading ? 'Loading Profile...' : 'Complete a session to see your profile'}
         </div>
-      </div>
+      ) : (
+        <div className="profile-layout">
+          <ProfileCard stats={gamStats} profile={profile} />
+
+          <div className="right-content">
+            <div className="top-row">
+              <MasteryDonut keyStats={keyStats} />
+              <SkillRadarChart sessions={sessions} keyStats={keyStats} />
+            </div>
+
+            <section className="personal-bests-section">
+              <PersonalBests
+                sessions={sessions}
+                profile={profile}
+                currentStreak={gamStats.currentStreak}
+              />
+            </section>
+            <section className="chart-section">
+              <WpmAreaChart sessions={sessions} />
+            </section>
+
+            <section className="season-section">
+              <h3 className="section-title-small">Season Challenge</h3>
+              <SeasonChallenge progress={seasonProgress} />
+            </section>
+
+            <section className="achievements-section">
+              <div className="section-header">
+                <h2 className="section-title">Achievements</h2>
+                <span className="badge-count">
+                  {gamStats.badges.length}/{Object.keys(BADGES).length}
+                </span>
+              </div>
+              <BadgeFilter onCategoryChange={setBadgeCategory} initialCategory="all" />
+              <div className="badges-grid">
+                {filteredBadgeIds.map((badgeId) => {
+                  const badge = BADGES[badgeId];
+                  const earned = gamStats.badges.includes(badgeId);
+                  const progress = badgeProgressMap.get(badgeId);
+                  return (
+                    <BadgeCard
+                      key={badgeId}
+                      badge={badge}
+                      earned={earned}
+                      progress={progress}
+                    />
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="activity-section">
+              <div className="section-header">
+                <h2 className="section-title">Practice Activity</h2>
+              </div>
+              <ActivityHeatmap activity={profile?.dailyActivity ?? {}} />
+            </section>
+
+            <section className="analytics-section">
+              <div className="tabs-container">
+                <button
+                  className={`tab-btn ${activeTab === 'speed' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('speed')}
+                >
+                  Key Mastery
+                </button>
+                <button
+                  className={`tab-btn ${activeTab === 'heatmap' ? 'active' : ''}`}
+                  onClick={() => setActiveTab('heatmap')}
+                >
+                  Keyboard Heatmap
+                </button>
+              </div>
+              <div className="tab-content">
+                {activeTab === 'speed' && (
+                  <div className="chart-container">
+                    {sortedKeys.length === 0 ? (
+                      <div className="empty-state">No typing data recorded yet.</div>
+                    ) : (
+                      <KeyScatterPlot keyStats={sortedKeys} />
+                    )}
+                  </div>
+                )}
+                {activeTab === 'heatmap' && (
+                  <div className="heatmap-container">
+                    <p className="heatmap-desc">
+                      Keys colored by mastery — Red = Weak, Green = Strong
+                    </p>
+                    <div className="heatmap-keyboard-wrapper">
+                      <HeatmapKeyboard language={language} colors={heatmapColors} />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         .profile-page {

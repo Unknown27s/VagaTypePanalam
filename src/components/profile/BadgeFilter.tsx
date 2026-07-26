@@ -25,20 +25,6 @@ export function BadgeFilter({
   };
 
   return (
-    <div className="badge-filter">
-      <div className="filter-tabs">
-        {categories.map(([categoryId, { label, icon }]) => (
-          <button
-            key={categoryId}
-            className={`filter-tab ${activeCategory === categoryId ? 'active' : ''}`}
-            onClick={() => handleCategoryClick(categoryId)}
-            title={label}
-          >
-            <span className="tab-icon">{icon}</span>
-            <span className="tab-label">{label}</span>
-          </button>
-        ))}
-      </div>
 
       <style jsx>{`
         .badge-filter {
@@ -112,6 +98,5 @@ export function BadgeFilter({
           }
         }
       `}</style>
-    </div>
   );
 }

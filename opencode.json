@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "openseo": {
+      "type": "remote",
+      "url": "https://app.openseo.so/mcp",
+      "enabled": true
+    }
+  }
+}

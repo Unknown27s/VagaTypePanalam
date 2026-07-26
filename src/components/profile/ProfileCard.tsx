@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react';
 import type { GamificationStats } from '@/engine/gamification';
 import type { UserProfile } from '@/db/schema';
 import { AnimatedCounter } from './AnimatedCounter';
+import { Trophy } from 'lucide-react';
 
 interface ProfileCardProps {
   stats: GamificationStats;
@@ -49,6 +50,22 @@ export function ProfileCard({ stats, profile }: ProfileCardProps) {
         )}
         <h2 className="user-name">{displayName}</h2>
         <p className="user-joined">Joined {joinDate}</p>
+      </div>
+
+      {/* Level */}
+      <div className="level-section">
+        <div className="level-row">
+          <div className="level-icon-wrap">
+            <Trophy size={20} />
+          </div>
+          <div className="level-info">
+            <span className="level-title">Level {stats.currentLevel}</span>
+            <span className="level-sub">Next: Level {stats.nextLevelAt}</span>
+          </div>
+        </div>
+        <div className="level-bar">
+          <div className="level-fill" style={{ width: `${stats.levelProgress}%` }} />
+        </div>
       </div>
 
       {/* Rank & XP */}
@@ -168,6 +185,63 @@ export function ProfileCard({ stats, profile }: ProfileCardProps) {
           font-size: var(--text-xs);
           color: var(--text-muted);
           margin: 4px 0 0 0;
+        }
+
+        /* Level */
+        .level-section {
+          padding-bottom: var(--space-lg);
+          border-bottom: 1px solid var(--border-default);
+        }
+
+        .level-row {
+          display: flex;
+          align-items: center;
+          gap: var(--space-sm);
+          margin-bottom: var(--space-sm);
+        }
+
+        .level-icon-wrap {
+          width: 36px;
+          height: 36px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          border-radius: var(--radius-md);
+          background: linear-gradient(135deg, var(--color-accent-glow, rgba(238, 194, 36, 0.15)), transparent);
+          color: var(--color-accent);
+          flex-shrink: 0;
+        }
+
+        .level-info {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .level-title {
+          font-size: var(--text-base);
+          font-weight: 800;
+          color: var(--color-accent);
+          line-height: 1.2;
+        }
+
+        .level-sub {
+          font-size: var(--text-xs);
+          color: var(--text-muted);
+          font-weight: 600;
+        }
+
+        .level-bar {
+          height: 6px;
+          background: var(--bg-overlay);
+          border-radius: var(--radius-full);
+          overflow: hidden;
+        }
+
+        .level-fill {
+          height: 100%;
+          background: linear-gradient(90deg, var(--color-accent), #fbbf24);
+          border-radius: var(--radius-full);
+          transition: width 0.5s ease;
         }
 
         /* Rank */

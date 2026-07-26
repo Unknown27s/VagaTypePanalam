@@ -9,10 +9,12 @@ export const metadata: Metadata = {
     canonical: "https://vangatypepanalam.qzz.io",
   },
   openGraph: {
+    type: "website",
+    siteName: "VangaTypePanalam",
     title: "Free Adaptive Typing Practice — English, Tamil & Tanglish",
     description:
       "Practice typing in English, Tamil & Tanglish with adaptive lessons, real-time feedback, and per-key tracking.",
-    url: "/",
+    url: "https://vangatypepanalam.qzz.io",
   },
 };
 

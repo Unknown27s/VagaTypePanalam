@@ -9,10 +9,12 @@ export const metadata: Metadata = {
     canonical: "https://vangatypepanalam.qzz.io/test",
   },
   openGraph: {
+    type: "website",
+    siteName: "VangaTypePanalam",
     title: "Free WPM Typing Speed Test — Timed & Accurate",
     description:
       "Take a timed typing test to measure your WPM speed and accuracy. Choose from 15s, 30s, 60s, or 120s durations.",
-    url: "/test",
+    url: "https://vangatypepanalam.qzz.io/test",
   },
 };
 

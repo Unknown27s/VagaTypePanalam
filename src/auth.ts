@@ -6,6 +6,7 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import prisma from "@/lib/prisma"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
+import { sendWelcomeEmail } from "@/lib/email/send"
 
 const appAuthSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
 
@@ -60,6 +61,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
+    async signIn({ user, account }) {
+      if (account?.provider === "credentials") return true;
+
+      if (user.email && account?.provider && user.name) {
+        sendWelcomeEmail({
+          to: user.email,
+          name: user.name,
+        }).then((res) => {
+          console.log(`[Auth] Welcome email sent to ${user.email}:`, JSON.stringify(res));
+        }).catch((err) => {
+          console.error(`[Auth] Welcome email failed for ${user.email}:`, err.message);
+        });
+      }
+      return true;
+    },
     jwt({ token, user }) {
       if (user) {
         token.id = user.id;

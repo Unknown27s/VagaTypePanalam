@@ -17,7 +17,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     TANGLISH_LESSONS.find((l) => l.id === id);
 
   if (!lesson) {
-    return { title: "Lesson Not Found" };
+    return {
+      title: "Lesson Not Found — VangaTypePanalam",
+      description: "The requested typing lesson could not be found.",
+      alternates: {
+        canonical: `https://vangatypepanalam.qzz.io/lessons/${id}`,
+      },
+    };
   }
 
   return {
@@ -27,9 +33,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: `https://vangatypepanalam.qzz.io/lessons/${id}`,
     },
     openGraph: {
+      type: "website",
+      siteName: "VangaTypePanalam",
       title: `Lesson ${lesson.level}: ${lesson.title} — VangaTypePanalam`,
       description: lesson.description,
-      url: `/lessons/${id}`,
+      url: `https://vangatypepanalam.qzz.io/lessons/${id}`,
     },
   };
 }

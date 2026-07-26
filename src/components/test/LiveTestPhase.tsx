@@ -37,33 +37,9 @@ export function LiveTestPhase({
       <ProgressBar pct={pct} />
 
       <div className="test-phase">
-        <div className="countdown-ring-wrapper">
-          <svg className="countdown-ring" viewBox="0 0 100 100">
-            <circle className="ring-bg" cx="50" cy="50" r="44" />
-            <circle
-              className="ring-fg"
-              cx="50"
-              cy="50"
-              r="44"
-              style={{
-                stroke: timerColor,
-                strokeDashoffset: `${276 - (276 * pct) / 100}px`,
-              }}
-            />
-          </svg>
-          <div className="countdown-text" style={{ color: timerColor }}>
-            <span className="countdown-number">{secondsLeft}</span>
-            <span className="countdown-label">sec</span>
-            {snapshot.wpm > 0 && (
-              <>
-                <span className="countdown-divider" />
-                <span className="countdown-wpm">{snapshot.wpm}</span>
-                <span className="countdown-wpm-label">wpm</span>
-                <span className="countdown-acc">{(snapshot.accuracy * 100).toFixed(1)}%</span>
-              </>
-            )}
-          </div>
-        </div>
+        <div className="timer" style={{ color: timerColor }}>
+          {secondsLeft}s
+        </div>  
       </div>
 
       <div className="typing-area-wrapper">

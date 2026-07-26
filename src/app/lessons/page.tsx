@@ -9,10 +9,12 @@ export const metadata: Metadata = {
     canonical: "https://vangatypepanalam.qzz.io/lessons",
   },
   openGraph: {
+    type: "website",
+    siteName: "VangaTypePanalam",
     title: "Progressive Typing Lessons — Learn Touch Typing Free",
     description:
       "Learn touch typing from scratch with 30 progressive levels. Each lesson builds on the last.",
-    url: "/lessons",
+    url: "https://vangatypepanalam.qzz.io/lessons",
   },
 };
 

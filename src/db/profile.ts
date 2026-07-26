@@ -55,15 +55,25 @@ export async function recordSessionInProfile(
         ? profile.currentStreak + 1            // extend streak
         : 1;                                   // streak broken
 
+  const newTotalSessions = profile.totalSessions + 1;
+  const newTotalTimeMs = profile.totalTimeMs + durationMs;
+  const newBestWpm = Math.max(profile.bestWpm, wpm);
+  const newTotalMinutes = newTotalTimeMs / 60000;
+
+  const rawLevel = 1
+    + Math.floor(newTotalMinutes / 60)
+    + Math.floor(newTotalSessions / 30)
+    + Math.floor(newBestWpm / 15);
+
   await _applyAndSave(profile, {
-    totalSessions: profile.totalSessions + 1,
-    totalTimeMs: profile.totalTimeMs + durationMs,
+    totalSessions: newTotalSessions,
+    totalTimeMs: newTotalTimeMs,
     lastSessionAt: Date.now(),
-    bestWpm: Math.max(profile.bestWpm, wpm),
+    bestWpm: newBestWpm,
     currentStreak: newCurrentStreak,
     longestStreak: Math.max(profile.longestStreak, newCurrentStreak),
     lastActiveDay: today,
-    // Targeted update — avoids cloning the entire dailyActivity map
+    currentLevel: Math.min(rawLevel, 30),
     dailyActivity: {
       ...profile.dailyActivity,
       [today]: (profile.dailyActivity[today] ?? 0) + durationMs,

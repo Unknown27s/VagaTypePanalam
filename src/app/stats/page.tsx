@@ -13,10 +13,12 @@ export const metadata: Metadata = {
     canonical: "https://vangatypepanalam.qzz.io/stats",
   },
   openGraph: {
+    type: "website",
+    siteName: "VangaTypePanalam",
     title: "Typing Stats & Profile — Track Your Progress",
     description:
       "Track your typing progress, view detailed analytics, achievements, WPM trends, and key mastery heatmaps.",
-    url: "/stats",
+    url: "https://vangatypepanalam.qzz.io/stats",
   },
 };
 

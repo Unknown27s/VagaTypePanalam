@@ -65,7 +65,7 @@ export default function OpenGraphImage() {
           marginBottom: 32,
         }}
       >
-        Learn Typing in English, Tamil &amp; Tanglish
+        Learn Typing in English, Tamil & Tanglish
       </div>
       <div
         style={{

@@ -84,6 +84,46 @@ export interface GamificationStats {
     avgAccuracy: number;
     currentStreak: number;
     lessonsCompleted: number;
+    currentLevel: number;
+    nextLevelAt: number;
+    levelProgress: number;
+}
+
+export function calculateLevel(sessions: Session[], profile: UserProfile | null): {
+    currentLevel: number;
+    nextLevelAt: number;
+    levelProgress: number;
+} {
+    const totalMinutes = (sessions.reduce((sum, s) => sum + s.durationMs, 0)) / 60000;
+    const totalSessions = sessions.length;
+    const bestWpm = sessions.length > 0
+        ? Math.max(...sessions.map((s) => s.wpm))
+        : 0;
+    const avgAccuracy = sessions.length > 0
+        ? sessions.reduce((sum, s) => sum + s.accuracy, 0) / sessions.length
+        : 0;
+
+    const rawLevel = 1
+        + Math.floor(totalMinutes / 60)
+        + Math.floor(totalSessions / 30)
+        + Math.floor(bestWpm / 15)
+        + Math.floor((avgAccuracy * 100) / 5);
+
+    const currentLevel = Math.min(rawLevel, 30);
+    const nextLevelAt = currentLevel < 30 ? currentLevel + 1 : 30;
+
+    const contributions = [
+        Math.min(totalMinutes / 60, 1),
+        Math.min(totalSessions / 30, 1),
+        Math.min(bestWpm / 150, 1),
+        Math.min(avgAccuracy, 1),
+    ];
+
+    const levelProgress = currentLevel < 30
+        ? Math.round((contributions.reduce((a, b) => a + b, 0) / 4) * 100)
+        : 100;
+
+    return { currentLevel, nextLevelAt, levelProgress };
 }
 
 // ─────────────────────────────────────────────
@@ -696,6 +736,8 @@ export function calculateGamificationStats(
     // Calculate badges
     const { earned: badges } = calculateEarnedBadges(sessions, profile);
 
+    const { currentLevel, nextLevelAt, levelProgress } = calculateLevel(sessions, profile);
+
     return {
         rank: currentRank,
         xp: totalXp,
@@ -707,6 +749,9 @@ export function calculateGamificationStats(
         avgAccuracy,
         currentStreak,
         lessonsCompleted,
+        currentLevel,
+        nextLevelAt,
+        levelProgress,
     };
 }
 

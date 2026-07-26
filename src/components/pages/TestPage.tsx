@@ -15,6 +15,7 @@ export default function TestPage({ showTitle = true }: { showTitle?: boolean }) 
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<Session | null>(null);
   const [key, setKey] = useState(0);
+  const [phaseVisible, setPhaseVisible] = useState(true);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const startCountdown = useCallback(() => {
@@ -38,21 +39,34 @@ export default function TestPage({ showTitle = true }: { showTitle?: boolean }) 
     };
   }, []);
 
+  // Fade the phase out briefly before swapping content, instead of an instant hard cut.
+  const swapPhase = (mutate: () => void) => {
+    setPhaseVisible(false);
+    setTimeout(() => {
+      mutate();
+      setPhaseVisible(true);
+    }, 140);
+  };
+
   const handleRestart = () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setRunning(false);
-    setResult(null);
-    setSecondsLeft(selectedDuration);
-    setKey((k) => k + 1);
+    swapPhase(() => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setRunning(false);
+      setResult(null);
+      setSecondsLeft(selectedDuration);
+      setKey((k) => k + 1);
+    });
   };
 
   const changeDuration = (d: Duration) => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    setSelectedDuration(d);
-    setSecondsLeft(d);
-    setRunning(false);
-    setResult(null);
-    setKey((k) => k + 1);
+    swapPhase(() => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      setSelectedDuration(d);
+      setSecondsLeft(d);
+      setRunning(false);
+      setResult(null);
+      setKey((k) => k + 1);
+    });
   };
 
   const handleFirstKey = () => {
@@ -60,9 +74,11 @@ export default function TestPage({ showTitle = true }: { showTitle?: boolean }) 
   };
 
   const handleComplete = (session: Session) => {
-    setResult(session);
-    setRunning(false);
-    if (intervalRef.current) clearInterval(intervalRef.current);
+    swapPhase(() => {
+      setResult(session);
+      setRunning(false);
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    });
   };
 
   return (
@@ -75,26 +91,40 @@ export default function TestPage({ showTitle = true }: { showTitle?: boolean }) 
           hideTitle={!showTitle}
         />
 
-        {!result && (
-          <LiveTestPhase
-            key={key}
-            language={language}
-            selectedDuration={selectedDuration}
-            secondsLeft={secondsLeft}
-            running={running}
-            onFirstKey={handleFirstKey}
-            onComplete={handleComplete}
-          />
-        )}
+        <div className={`test-phase-slot ${phaseVisible ? 'visible' : ''}`}>
+          {!result && (
+            <LiveTestPhase
+              key={key}
+              language={language}
+              selectedDuration={selectedDuration}
+              secondsLeft={secondsLeft}
+              running={running}
+              onFirstKey={handleFirstKey}
+              onComplete={handleComplete}
+            />
+          )}
 
-        {result && (
-          <TestResults
-            result={result}
-            selectedDuration={selectedDuration}
-            onRestart={handleRestart}
-          />
-        )}
+          {result && (
+            <TestResults
+              result={result}
+              selectedDuration={selectedDuration}
+              onRestart={handleRestart}
+            />
+          )}
+        </div>
       </div>
+
+      <style jsx>{`
+        .test-phase-slot {
+          opacity: 0;
+          transform: translateY(6px);
+          transition: opacity 0.16s ease, transform 0.16s ease;
+        }
+        .test-phase-slot.visible {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      `}</style>
     </main>
   );
 }
